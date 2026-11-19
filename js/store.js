@@ -28,6 +28,16 @@ export async function loadProfile() {
   state.profile = profile;
   state.partners = partners || [];
   emit();
+  // Google sign-in: keep the profile name and photo filled (only empty fields are filled).
+  const meta = u.user_metadata || {};
+  const photo = meta.avatar_url || meta.picture || '';
+  const name = meta.full_name || meta.name || '';
+  if (profile && ((!profile.avatar_url && photo) || (!profile.full_name && name))) {
+    const patch = {};
+    if (!profile.avatar_url && photo) patch.avatar_url = photo.slice(0, 500);
+    if (!profile.full_name && name) patch.full_name = name.slice(0, 120);
+    sb.from('profiles').update(patch).eq('id', u.id).then(({ error }) => { if (!error) { Object.assign(state.profile, patch); emit(); } });
+  }
 }
 
 export async function initAuth() {

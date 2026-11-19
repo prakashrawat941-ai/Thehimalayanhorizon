@@ -24,7 +24,20 @@ route('workspaces',       () => import('./pages/listings.js').then((m) => m.list
 route('workspace/:id',    () => import('./pages/listings.js').then((m) => m.detail('workspace')));
 route('tours',            () => import('./pages/listings.js').then((m) => m.list('village_tour')));
 route('tour/:id',         () => import('./pages/listings.js').then((m) => m.detail('village_tour')));
-route('cabs',             () => import('./pages/cabs.js').then((m) => m.cabs));
+route('cabs',             () => import('./pages/cab.js').then((m) => m.find));
+route('cab',              () => import('./pages/cab.js').then((m) => m.entry));
+route('cab/find',         () => import('./pages/cab.js').then((m) => m.find));
+route('cab/ride/:id',     () => import('./pages/cab.js').then((m) => m.ride));
+route('cab/booking/:id',  () => import('./pages/cab.js').then((m) => m.booking));
+route('cab/bookings',     () => import('./pages/cab.js').then((m) => m.bookings));
+route('cab/me',           () => import('./pages/cab.js').then((m) => m.me));
+route('drive',            () => import('./pages/drive.js').then((m) => m.dashboard));
+route('drive/publish',    () => import('./pages/drive.js').then((m) => m.publish));
+route('drive/ride/:id/edit', () => import('./pages/drive.js').then((m) => m.publish));
+route('drive/rides',      () => import('./pages/drive.js').then((m) => m.rides));
+route('drive/requests',   () => import('./pages/drive.js').then((m) => m.requests));
+route('drive/trip/:id',   () => import('./pages/drive.js').then((m) => m.trip));
+route('drive/profile',    () => import('./pages/drive.js').then((m) => m.profile));
 route('plan',             () => import('./pages/planner.js').then((m) => m.planner));
 route('trip/:id',         () => import('./pages/planner.js').then((m) => m.trip));
 route('login',            () => import('./pages/account.js').then((m) => m.login));
@@ -74,7 +87,7 @@ const navItems = () => [
   ['', 'home', t('home')],
   ['villages', 'mountain', t('villages')],
   ['plan', 'map', t('plan')],
-  ['cabs', 'car', t('cabs')],
+  ['cab', 'car', t('cabs')],
   ['account', 'user', t('account')],
 ];
 
@@ -91,7 +104,7 @@ function header() {
         h('span', { class: 'brand-sub' }, getLang() === 'hi' ? 'उत्तराखंड · गाँव की यात्रा' : 'Uttarakhand · Village Travel'))),
     h('nav', { class: 'topnav', 'aria-label': 'Main' },
       h('a', { href: '#/', 'data-path': '' }, t('home')),
-      h('a', { href: '#/cabs', 'data-path': 'cabs' }, icon('car', 19), t('nav_cab')),
+      h('a', { href: '#/cab', 'data-path': 'cab' }, icon('car', 19), t('nav_cab')),
       h('a', { href: '#/plan', 'data-path': 'plan' }, icon('map', 19), t('nav_planner')),
       h('a', { href: '#/villages', 'data-path': 'villages' }, icon('mountain', 19), t('nav_villages'))),
     h('div', { class: 'topbar-actions' },
@@ -116,7 +129,7 @@ function footer() {
       h('a', { class: 'brand', href: '#/' }, logo(), h('span', { class: 'brand-name' }, 'The Himalayan Horizon')),
       h('nav', { class: 'footer-links', 'aria-label': 'Footer' },
         h('a', { href: '#/villages' }, t('villages')), h('a', { href: '#/stays' }, t('stays')),
-        h('a', { href: '#/workspaces' }, t('workspaces')), h('a', { href: '#/cabs' }, t('cabs')),
+        h('a', { href: '#/workspaces' }, t('workspaces')), h('a', { href: '#/cab' }, t('cabs')),
         h('a', { href: '#/partner/join' }, t('become_partner'))),
       h('div', { class: 'footer-end' },
         h('span', { class: 'muted small' }, `© ${new Date().getFullYear()} The Himalayan Horizon · ${t('footer_note')}`),
@@ -127,7 +140,7 @@ function updateNav(path) {
   const top = path.split('/')[0];
   document.querySelectorAll('[data-path]').forEach((a) => {
     const p = a.getAttribute('data-path');
-    a.classList.toggle('active', p === top || (p === 'account' && ['login', 'partner', 'admin'].includes(top)));
+    a.classList.toggle('active', p === top || (p === 'cab' && ['cabs', 'drive'].includes(top)) || (p === 'account' && ['login', 'partner', 'admin'].includes(top)));
   });
 }
 
@@ -158,13 +171,40 @@ export async function installApp() {
   return true;
 }
 
+// ---------- Sign-in return (Google) ----------
+// After Google sign-in, Supabase sends the user back with tokens or an error in the URL.
+// We read it before routing, then continue to the page the user wanted.
+function readAuthReturn() {
+  const raw = `${location.search.slice(1)}&${location.hash.replace(/^#\/?/, '')}`;
+  const p = new URLSearchParams(raw);
+  if (p.get('error') || p.get('error_description')) return { error: p.get('error_description') || p.get('error') };
+  if (p.get('access_token') || p.get('code')) return { ok: true };
+  return null;
+}
+function finishAuthReturn(ret) {
+  if (!ret) return;
+  let next = 'account';
+  try { next = localStorage.getItem('hh_next') || next; localStorage.removeItem('hh_next'); } catch { /* ignore */ }
+  const clean = location.pathname;
+  if (ret.error) {
+    history.replaceState(null, '', `${clean}#/login?next=${encodeURIComponent(next)}`);
+    const cancelled = /denied|cancel/i.test(ret.error);
+    toast(cancelled ? t('google_cancelled') : `${t('google_failed')}: ${ret.error}`, 'warn');
+    return;
+  }
+  history.replaceState(null, '', `${clean}#/${state.session ? next : 'login'}`);
+  if (!state.session) toast(t('google_failed'), 'err');
+}
+
 // ---------- Boot ----------
 async function boot() {
   setLang(getLang());
   paintShell();
   window.addEventListener('hashchange', render);
   window.addEventListener('offline', () => toast(t('offline'), 'warn'));
+  const authReturn = readAuthReturn();
   await Promise.all([initAuth(), settings().catch(() => null)]);
+  finishAuthReturn(authReturn);
   paintShell();
   onChange(paintShell);
   await render();

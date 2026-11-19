@@ -10,12 +10,18 @@ const users = {
   traveler: { id: 'u-traveler', email: 'asha@example.com', full_name: 'Asha Negi', role: 'traveler' },
   partner: { id: 'u-partner', email: 'ram@example.com', full_name: 'Ram Singh Rawat', role: 'partner' },
   admin: { id: 'u-admin', email: 'admin@example.com', full_name: 'Prakash Singh', role: 'admin' },
+  driver: { id: 'u-driver', email: 'amit@example.com', full_name: 'Amit Rawat', role: 'traveler' },
+  newdriver: { id: 'u-new', email: 'neha@example.com', full_name: 'Neha Sharma', role: 'traveler' },
 };
+const pl = (name) => fx.places.find((p) => p.name === name).id;
 const loc = (slug) => fx.locations.find((l) => l.slug === slug).id;
 
 const db = {
   ...fx,
-  profiles: Object.values(users).map((u) => ({ id: u.id, full_name: u.full_name, phone: '9876543210', role: u.role, lang: 'hi', created_at: now() })),
+  profiles: Object.values(users).map((u) => ({ id: u.id, full_name: u.full_name, phone: '9876543210', role: u.role, lang: 'hi', avatar_url: '', created_at: now() })),
+  driver_profiles: [{ user_id: 'u-driver', full_name: 'Amit Rawat', phone: '9876500011', photo_url: '', about: 'Driving the Rishikesh–Mussoorie road for 8 years. Safe, calm, knows every bend.', is_verified: true, status: 'active', created_at: now() }],
+  vehicles: [{ id: 've1', owner_id: 'u-driver', vehicle_type: 'ertiga', model: 'Maruti Ertiga', registration_no: 'UK07AB1234', seats: 6, color: '', has_ac: true, is_active: true, created_at: now() }],
+  cab_seat_holds: [],
   partners: [
     { id: 'p1', owner_id: 'u-partner', business_name: 'Rawat Family Homestay & Cabs', contact_name: 'Ram Singh Rawat', phone: '9876500001', whatsapp: '', email: '', categories: ['homestay', 'cab', 'village_tour'], village: 'Sari', location_id: loc('sari'), address: '', about: '', status: 'approved', admin_note: '', created_at: now() },
     { id: 'p2', owner_id: null, business_name: 'Mukteshwar Desk Co.', contact_name: 'Meena Bisht', phone: '9876500002', categories: ['workspace'], village: 'Mukteshwar', location_id: loc('mukteshwar'), address: '', about: '', status: 'approved', admin_note: '', created_at: now() },
@@ -33,10 +39,14 @@ const db = {
   ],
   cab_rides: [
     { id: 'r1', partner_id: 'p1', from_location_id: loc('kathgodam'), to_location_id: loc('munsiyari'), pickup_point: 'Kathgodam station gate', drop_point: 'Munsiyari bus stand', departure_at: inDays(1, 7), vehicle_model: 'Mahindra Bolero', vehicle_type: 'suv', seats_total: 7, seats_booked: 3, price_per_seat: 900, auto_confirm: true, notes: 'Breakfast stop at Bageshwar.', status: 'open', created_at: now() },
+    { id: 'r3', partner_id: null, driver_id: 'u-driver', vehicle_id: 've1', from_place_id: pl('Rishikesh'), to_place_id: pl('Mussoorie'), from_location_id: null, to_location_id: null, stops: [{ place_id: pl('Dehradun'), name: 'Dehradun' }], pickup_point: 'Rishikesh bus stand', drop_point: 'Library chowk', departure_at: inDays(1, 8), vehicle_model: 'Maruti Ertiga', vehicle_type: 'ertiga', seats_total: 6, seats_booked: 2, price_per_seat: 500, auto_confirm: false, notes: 'Tea stop at Dehradun.', status: 'open', is_test: false, created_at: now() },
+    { id: 'r4', partner_id: null, driver_id: 'u-driver', vehicle_id: 've1', from_place_id: pl('Haridwar'), to_place_id: pl('Rishikesh'), from_location_id: null, to_location_id: null, stops: [], pickup_point: '', drop_point: '', departure_at: inDays(-3, 10), vehicle_model: 'Maruti Ertiga', vehicle_type: 'ertiga', seats_total: 6, seats_booked: 3, price_per_seat: 300, auto_confirm: true, notes: '', status: 'open', is_test: false, created_at: now() },
     { id: 'r2', partner_id: 'p1', from_location_id: loc('rishikesh'), to_location_id: loc('joshimath'), pickup_point: 'Rishikesh ISBT', drop_point: '', departure_at: inDays(2, 6), vehicle_model: 'Toyota Innova', vehicle_type: 'suv', seats_total: 6, seats_booked: 5, price_per_seat: 1100, auto_confirm: false, notes: '', status: 'open', created_at: now() },
   ],
   cab_bookings: [
-    { id: 'cb1', ride_id: 'r1', user_id: 'u-traveler', seats: 2, passenger_name: 'Asha Negi', phone: '9876543210', note: '', status: 'confirmed', created_at: now() },
+    { id: 'cb1', ride_id: 'r1', user_id: 'u-traveler', seats: 2, passenger_name: 'Asha Negi', phone: '9876543210', note: '', status: 'confirmed', booking_code: 'THH-7K2P9Q', seat_numbers: [2, 3], created_at: now() },
+    { id: 'cb2', ride_id: 'r3', user_id: 'u-traveler', seats: 2, passenger_name: 'Asha Negi', phone: '9876543210', note: 'Two small bags', status: 'pending', booking_code: 'THH-A1B2C3', seat_numbers: [2, 3], created_at: now() },
+    { id: 'cb3', ride_id: 'r4', user_id: 'u-traveler', seats: 3, passenger_name: 'Asha Negi', phone: '9876543210', note: '', status: 'confirmed', booking_code: 'THH-Z9Y8X7', seat_numbers: [1, 2, 3], created_at: now() },
   ],
   booking_requests: [
     { id: 'b1', kind: 'homestay', homestay_id: 'h1', village_tour_id: null, workspace_id: null, partner_id: 'p1', user_id: 'u-traveler', guest_name: 'Asha Negi', guest_phone: '9876543210', start_date: inDays(10).slice(0, 10), end_date: inDays(12).slice(0, 10), guests: 2, message: 'Vegetarian food please', status: 'requested', partner_note: '', created_at: now() },
@@ -50,6 +60,7 @@ const db = {
 };
 
 const singular = { homestays: 'homestay', village_tours: 'village_tour', workspaces: 'workspace', partners: 'partner', cab_rides: 'ride', profiles: 'user' };
+db.cab_seat_holds = [{ ride_id: 'r3', booking_id: 'cb2', seat_no: 2, released_at: null }, { ride_id: 'r3', booking_id: 'cb2', seat_no: 3, released_at: null }];
 
 function project(table, row, select) {
   const out = { ...row };
@@ -104,7 +115,7 @@ class Query {
   }
 }
 
-const session = role && users[role] ? { user: { id: users[role].id, email: users[role].email } } : null;
+const session = role && users[role] ? { user: { id: users[role].id, email: users[role].email, user_metadata: {} } } : null;
 
 export function createClient() {
   return {
@@ -118,6 +129,21 @@ export function createClient() {
         const b = { id: uid(), ride_id: r.id, user_id: session.user.id, seats: args.p_seats, passenger_name: args.p_name, phone: args.p_phone, status: r.auto_confirm ? 'confirmed' : 'pending', created_at: now() };
         db.cab_bookings.push(b); return { data: b, error: null };
       }
+      if (name === 'cab_driver_cards') return { data: db.driver_profiles.filter((d) => args.p_ids.includes(d.user_id)).map((d) => ({ user_id: d.user_id, full_name: d.full_name, photo_url: d.photo_url, about: d.about, is_verified: d.is_verified, trips: 28, member_since: '2026-01-01' })), error: null };
+      if (name === 'cab_ride_taken_seats') return { data: db.cab_seat_holds.filter((x) => x.ride_id === args.p_ride && !x.released_at).map((x) => x.seat_no), error: null };
+      if (name === 'cab_booking_contact') { const b = db.cab_bookings.find((x) => x.id === args.p_booking); return { data: b?.status === 'confirmed' ? { name: 'Amit Rawat', phone: '9876500011', vehicle: 'Maruti Ertiga', registration: 'UK07AB1234' } : null, error: null }; }
+      if (name === 'request_cab_ride') {
+        const r = db.cab_rides.find((x) => x.id === args.p_ride);
+        const taken = db.cab_seat_holds.filter((x) => x.ride_id === r.id && !x.released_at).map((x) => x.seat_no);
+        const clash = args.p_seat_numbers.find((s) => taken.includes(s));
+        if (clash) return { data: null, error: { message: `Seat ${clash} has just been taken. Please choose another seat.` } };
+        const b = { id: uid(), ride_id: r.id, user_id: session.user.id, seats: args.p_seat_numbers.length, passenger_name: args.p_name, phone: args.p_phone, note: args.p_note, status: r.auto_confirm ? 'confirmed' : 'pending', booking_code: 'THH-' + Math.random().toString(36).slice(2, 8).toUpperCase(), seat_numbers: args.p_seat_numbers, created_at: now() };
+        db.cab_bookings.push(b); args.p_seat_numbers.forEach((s) => db.cab_seat_holds.push({ ride_id: r.id, booking_id: b.id, seat_no: s, released_at: null }));
+        r.seats_booked += b.seats; return { data: b, error: null };
+      }
+      if (name === 'respond_cab_request') { const b = db.cab_bookings.find((x) => x.id === args.p_booking); b.status = args.p_accept ? 'confirmed' : 'declined'; return { data: b, error: null }; }
+      if (name === 'cancel_cab_booking') { const b = db.cab_bookings.find((x) => x.id === args.p_booking); b.status = 'cancelled'; return { data: b, error: null }; }
+      if (name === 'cancel_cab_ride') { const r = db.cab_rides.find((x) => x.id === args.p_ride); r.status = 'cancelled'; return { data: r, error: null }; }
       if (name === 'set_booking_status') { const b = db.booking_requests.find((x) => x.id === args.p_id); b.status = args.p_status; return { data: b, error: null }; }
       if (name === 'set_cab_booking_status') { const b = db.cab_bookings.find((x) => x.id === args.p_booking); b.status = args.p_status; return { data: b, error: null }; }
       return { data: null, error: { message: 'unknown rpc ' + name } };
@@ -126,6 +152,7 @@ export function createClient() {
       getSession: async () => ({ data: { session } }),
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
       signInWithPassword: async () => ({ error: { message: 'Mock: set localStorage mock_role' } }),
+      signInWithOAuth: async () => ({ error: { message: 'Unsupported provider: provider is not enabled' } }),
       signUp: async () => ({ data: {}, error: null }),
       signOut: async () => { localStorage.removeItem('mock_role'); return {}; },
       resetPasswordForEmail: async () => ({}),

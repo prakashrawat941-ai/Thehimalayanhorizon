@@ -55,6 +55,7 @@ const dict = {
     s_autumn: 'Autumn', s_autumn_sub: 'Clear views', s_winter: 'Winter', s_winter_sub: 'Snow and silence',
     cta_eyebrow: 'Your next chapter', cta_h: 'Your Uttarakhand journey starts here.', cta_text: 'Create an account to plan your trip, explore villages and meet local families.',
     footer_about: 'About', footer_help: 'Help', footer_responsible: 'Travel responsibly',
+    google: 'Continue with Google', google_cancelled: 'Google sign-in was cancelled', google_failed: 'Google sign-in did not work', or_email: 'or with email',
   },
   hi: {
     home: 'होम', explore: 'घूमें', villages: 'गाँव', plan: 'यात्रा प्लान', stays: 'होमस्टे',
@@ -110,6 +111,7 @@ const dict = {
     s_autumn: 'शरद', s_autumn_sub: 'साफ़ नज़ारे', s_winter: 'सर्दी', s_winter_sub: 'बर्फ़ और शांति',
     cta_eyebrow: 'आपका अगला अध्याय', cta_h: 'आपकी उत्तराखंड यात्रा यहाँ से शुरू होती है।', cta_text: 'अकाउंट बनाइए, यात्रा प्लान कीजिए, गाँव खोजिए और स्थानीय परिवारों से मिलिए।',
     footer_about: 'हमारे बारे में', footer_help: 'मदद', footer_responsible: 'ज़िम्मेदारी से घूमें',
+    google: 'Google से जारी रखें', google_cancelled: 'Google लॉगिन रद्द हो गया', google_failed: 'Google लॉगिन नहीं हो पाया', or_email: 'या ईमेल से',
   },
 };
 

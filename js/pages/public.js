@@ -153,7 +153,7 @@ const blocks = {
             h('li', {}, getLang() === 'hi' ? 'ड्राइवर अपने रूट, गाड़ी और सीटों के साथ राइड डालते हैं' : 'Drivers publish a ride with route, vehicle and seats'),
             h('li', {}, getLang() === 'hi' ? 'आप अपना रूट और तारीख़ चुनते हैं' : 'You pick your route and date'),
             h('li', {}, getLang() === 'hi' ? 'सीट बुक करें, ड्राइवर से सीधे बात करें' : 'Book seats and talk to the driver directly'))),
-        h('a', { class: 'btn btn-lg btn-light', href: s.cta_url || '#/cabs' }, cta(s, t('cabs')), icon('arrow', 16))));
+        h('a', { class: 'btn btn-lg btn-light', href: s.cta_url || '#/cab' }, cta(s, t('cabs')), icon('arrow', 16))));
   },
   partner_cta(s) {
     return h('section', { class: 'wrap hs' },
@@ -183,7 +183,7 @@ function quickActions() {
     h('span', { class: 'qa-body' }, h('span', { class: 'qa-title' }, icon(ic, 19), title), h('span', { class: 'qa-sub' }, sub)),
     arrowC());
   return h('section', { class: 'wrap qa-row' },
-    item('#/cabs', 'img/home/q-cab.jpg', 'car', t('nav_cab'), t('q_cab_sub')),
+    item('#/cab', 'img/home/q-cab.jpg', 'car', t('nav_cab'), t('q_cab_sub')),
     item('#/plan', 'img/home/q-plan.jpg', 'map', t('nav_planner'), t('q_plan_sub')),
     item('#/villages', 'img/home/q-village.jpg', 'mountain', t('nav_villages'), t('q_village_sub')));
 }
@@ -298,7 +298,7 @@ export async function place({ params }) {
           l.best_season ? h('div', { class: 'kv' }, h('span', {}, t('best_season')), h('strong', {}, l.best_season)) : null,
           l.how_to_reach ? h('div', { class: 'kv' }, h('span', {}, t('how_to_reach')), h('p', {}, l.how_to_reach)) : null,
           h('a', { class: 'btn btn-block', href: `#/plan?place=${l.slug}` }, t('plan')),
-          l.is_cab_point ? h('a', { class: 'btn btn-ghost btn-block', href: `#/cabs?to=${l.slug}` }, t('cabs')) : null))));
+          l.is_cab_point ? h('a', { class: 'btn btn-ghost btn-block', href: `#/cab/find?to_loc=${l.id}` }, t('cabs')) : null))));
 }
 
 // ---------------- Villages (main focus) ----------------
