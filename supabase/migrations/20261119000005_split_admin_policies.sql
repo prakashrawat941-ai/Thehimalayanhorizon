@@ -1,0 +1,21 @@
+-- Split 'admin write' (FOR ALL) into insert/update/delete so SELECT has a single policy (advisor 0006).
+drop policy "site_settings: admin write" on public.site_settings;
+create policy "site_settings: admin insert" on public.site_settings for insert to authenticated with check (private.is_admin());
+create policy "site_settings: admin update" on public.site_settings for update to authenticated using (private.is_admin()) with check (private.is_admin());
+create policy "site_settings: admin delete" on public.site_settings for delete to authenticated using (private.is_admin());
+drop policy "home_sections: admin write" on public.home_sections;
+create policy "home_sections: admin insert" on public.home_sections for insert to authenticated with check (private.is_admin());
+create policy "home_sections: admin update" on public.home_sections for update to authenticated using (private.is_admin()) with check (private.is_admin());
+create policy "home_sections: admin delete" on public.home_sections for delete to authenticated using (private.is_admin());
+drop policy "themes: admin write" on public.themes;
+create policy "themes: admin insert" on public.themes for insert to authenticated with check (private.is_admin());
+create policy "themes: admin update" on public.themes for update to authenticated using (private.is_admin()) with check (private.is_admin());
+create policy "themes: admin delete" on public.themes for delete to authenticated using (private.is_admin());
+drop policy "locations: admin write" on public.locations;
+create policy "locations: admin insert" on public.locations for insert to authenticated with check (private.is_admin());
+create policy "locations: admin update" on public.locations for update to authenticated using (private.is_admin()) with check (private.is_admin());
+create policy "locations: admin delete" on public.locations for delete to authenticated using (private.is_admin());
+drop policy "itineraries: admin write" on public.itineraries;
+create policy "itineraries: admin insert" on public.itineraries for insert to authenticated with check (private.is_admin());
+create policy "itineraries: admin update" on public.itineraries for update to authenticated using (private.is_admin()) with check (private.is_admin());
+create policy "itineraries: admin delete" on public.itineraries for delete to authenticated using (private.is_admin());
