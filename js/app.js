@@ -91,8 +91,8 @@ const navItems = () => [
   ['account', 'user', t('account')],
 ];
 
-// Brand emblem: the mountain-and-sun part of the owner's logo (img/brand/logo-full.jpg).
-const logo = () => h('img', { class: 'logo-mark', src: 'img/brand/emblem.jpg', alt: '', width: 42, height: 42 });
+// Brand mark: the owner's simple mountain logo (img/brand/mark.png); full logo in the footer.
+const logo = () => h('img', { class: 'logo-mark', src: 'img/brand/mark.png', alt: '', width: 44, height: 42 });
 
 function header() {
   const brandName = state.settings?.brand?.[getLang() === 'hi' ? 'name_hi' : 'name'] || 'The Himalayan Horizon';

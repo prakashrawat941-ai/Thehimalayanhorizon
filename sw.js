@@ -4,7 +4,7 @@
 // Supabase API calls are never cached.
 const VERSION = 'hh-v5';
 const SHELL = [
-  './', 'index.html', 'css/app.css', 'manifest.webmanifest', 'icons/icon-192.png', 'img/brand/emblem.jpg',
+  './', 'index.html', 'css/app.css', 'manifest.webmanifest', 'icons/icon-192.png', 'img/brand/mark.png',
   'js/app.js', 'js/ui.js', 'js/i18n.js', 'js/store.js', 'js/sb.js', 'js/config.js', 'js/forms.js', 'js/schemas.js',
   'js/pages/public.js', 'js/pages/listings.js', 'js/pages/cab.js', 'js/pages/drive.js', 'js/places.js', 'js/pages/planner.js', 'js/pages/account.js',
   'img/home/hero.jpg', 'img/home/q-cab.jpg', 'img/home/q-plan.jpg', 'img/home/q-village.jpg',
