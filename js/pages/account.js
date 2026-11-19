@@ -114,7 +114,8 @@ export async function account({ query }) {
 
   return h('div', { class: 'page' },
     h('div', { class: 'account-head' },
-      h('div', {}, h('p', { class: 'eyebrow' }, p.role === 'admin' ? t('admin') : p.role === 'partner' ? t('partner') : (hi ? 'यात्री' : 'Traveller')),
+      h('span', { class: 'avatar', 'aria-hidden': 'true' }, initials(p.full_name || user().email)),
+      h('div', { class: 'grow' }, h('p', { class: 'eyebrow' }, p.role === 'admin' ? t('admin') : p.role === 'partner' ? t('partner') : (hi ? 'यात्री' : 'Traveller')),
         h('h1', {}, p.full_name || user().email), h('p', { class: 'muted' }, user().email)),
       h('div', { class: 'actions' },
         isAdmin() ? h('a', { class: 'btn btn-sm', href: '#/admin' }, t('admin')) : null,
@@ -185,4 +186,8 @@ async function tripsList() {
   if (!rows.length) return empty(undefined, h('a', { class: 'btn', href: '#/plan' }, t('new_trip')));
   return h('ul', { class: 'list' }, rows.map((tr) => h('li', {},
     h('a', { href: `#/trip/${tr.id}` }, h('strong', {}, tr.title), h('span', { class: 'muted' }, ` · ${tr.days_count} ${t('days')}${tr.start_date ? ' · ' + fmtDate(tr.start_date) : ''}`)))));
+}
+
+export function initials(name = '') {
+  return String(name).split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('') || '•';
 }

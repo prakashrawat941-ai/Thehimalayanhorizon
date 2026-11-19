@@ -62,7 +62,8 @@ export async function dashboard({ params }) {
 
   return h('div', { class: 'page' },
     h('div', { class: 'account-head' },
-      h('div', {}, h('p', { class: 'eyebrow' }, t('partner')), h('h1', {}, partner.business_name)),
+      h('span', { class: 'avatar', 'aria-hidden': 'true' }, partner.business_name.split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()),
+      h('div', { class: 'grow' }, h('p', { class: 'eyebrow' }, t('partner')), h('h1', {}, partner.business_name)),
       badge(partner.status)),
     partner.status !== 'approved' ? h('div', { class: 'soft-note warn' },
       partner.status === 'pending' ? t('partner_pending') : (hi() ? 'आपका आवेदन मंज़ूर नहीं है।' : 'Your application is not approved.'),

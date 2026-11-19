@@ -39,7 +39,10 @@ export async function admin({ params, query }) {
   const body = KINDS[tab] ? lazy(() => listingsAdmin(tab, ctx, query)) : lazy(views[tab] || (() => empty()));
 
   return h('div', { class: 'page admin' },
-    h('h1', {}, t('admin')),
+    h('div', { class: 'account-head' },
+      h('span', { class: 'avatar', 'aria-hidden': 'true' }, 'HH'),
+      h('div', { class: 'grow' }, h('p', { class: 'eyebrow' }, 'The Himalayan Horizon'), h('h1', {}, t('admin')),
+        h('p', { class: 'muted' }, L('Approvals, home page, places, bookings and users.', 'मंज़ूरियाँ, होम पेज, जगहें, बुकिंग और यूज़र।')))),
     h('nav', { class: 'tabs tabs-scroll' }, tabs.map(([k, label]) => h('a', { href: `#/admin/${k}`, class: tab === k ? 'active' : '' }, label))),
     body);
 }

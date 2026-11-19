@@ -548,4 +548,26 @@ input[type=color].input { padding: 4px; height: 44px; }
   .auth-form { padding: 24px 16px 40px; margin-top: -18px; position: relative; background: var(--paper); border-radius: 22px 22px 0 0; }
 }
 
+
+/* ---------- Dashboards: account, partner, admin, planner ---------- */
+.account-head { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; background: var(--sage); border-radius: 20px; padding: 22px 24px; margin-bottom: 20px; }
+.account-head .grow { flex: 1; min-width: 200px; }
+.account-head h1 { margin: 0; font-size: clamp(1.7rem, 3.6vw, 2.4rem); }
+.account-head .eyebrow { margin-bottom: 4px; }
+.account-head .muted { margin: 2px 0 0; }
+.avatar { width: 60px; height: 60px; border-radius: 50%; background: var(--green); color: #f7f4ee; display: inline-flex; align-items: center; justify-content: center; font: 600 1.25rem var(--display); flex: none; letter-spacing: .02em; }
+.tabs { gap: 6px; border-bottom: 0; margin: 4px 0 22px; padding-bottom: 4px; }
+.tabs a { border: 1px solid var(--line); border-radius: 999px; padding: 8px 16px; background: var(--card); color: var(--ink-2); }
+.tabs a:hover { border-color: var(--green); color: var(--green); }
+.tabs a.active { background: var(--green); border-color: var(--green); color: #f7f4ee; }
+.stat { position: relative; }
+.stat-n { font-weight: 400; color: var(--green); }
+.stat.urgent { box-shadow: none; border-color: #e3cf9d; background: #fbf6ea; }
+.stat.urgent::after { content: ''; position: absolute; top: 16px; right: 16px; width: 10px; height: 10px; border-radius: 50%; background: var(--gold); }
+.list li.unread { box-shadow: none; background: #fbf6ea; }
+.list li.unread a::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--gold); margin-right: 8px; vertical-align: middle; }
+.day-card { background: var(--card); border: 1px solid var(--line); box-shadow: none; }
+.planner-form { box-shadow: none; }
+@media (max-width: 640px) { .account-head { padding: 18px; gap: 14px; } .avatar { width: 50px; height: 50px; font-size: 1.05rem; } }
+
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

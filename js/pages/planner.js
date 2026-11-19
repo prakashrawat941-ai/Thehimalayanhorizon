@@ -161,7 +161,8 @@ export async function planner({ query }) {
   paintDays();
 
   return h('div', { class: 'page' },
-    h('h1', {}, t('plan')),
+    h('p', { class: 'eyebrow' }, t('nav_planner')),
+    h('h1', {}, hi ? 'अपनी उत्तराखंड यात्रा प्लान करें' : 'Plan your Uttarakhand trip'),
     h('p', { class: 'lead' }, hi ? 'अपनी पसंद बताइए, हम दिन-ब-दिन प्लान सुझाएँगे। फिर उसे जैसा चाहें बदलिए और सेव कीजिए।'
       : 'Tell us what you like and we suggest a day-by-day plan. Change anything, then save it.'),
     h('div', { class: 'panel planner-form' },
