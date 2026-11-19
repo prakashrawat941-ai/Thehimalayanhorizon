@@ -41,9 +41,15 @@ route('drive/profile',    () => import('./pages/drive.js').then((m) => m.profile
 route('plan',             () => import('./pages/tripplan.js').then((m) => m.dashboard));
 route('plan/new',         () => import('./pages/tripplan.js').then((m) => m.details));
 route('plan/map',         () => import('./pages/tripplan.js').then((m) => m.mapStep));
-route('plan/review',      () => import('./pages/tripplan.js').then((m) => m.review));
+route('plan/route',       () => import('./trip/steps.js').then((m) => m.routeStep));
+route('plan/itinerary',   () => import('./trip/steps.js').then((m) => m.itineraryStep));
+route('plan/budget',      () => import('./trip/steps.js').then((m) => m.budgetStep));
+route('plan/summary',     () => import('./trip/summary.js').then((m) => m.summaryStep));
+route('plan/review',      () => Promise.resolve(() => { location.hash = '#/plan/summary'; return document.createElement('div'); }));
 route('plan/quick',       () => import('./pages/planner.js').then((m) => m.planner));
-route('trip/:id',         () => import('./pages/planner.js').then((m) => m.trip));
+route('trip/:id',         () => import('./trip/trips.js').then((m) => m.tripView));
+route('trips',            () => import('./trip/trips.js').then((m) => m.myTrips));
+route('t/:token',         () => import('./trip/trips.js').then((m) => m.sharedView));
 route('login',            () => import('./pages/account.js').then((m) => m.login));
 route('account',          () => import('./pages/account.js').then((m) => m.account));
 route('partner/join',     () => import('./pages/partner.js').then((m) => m.join));

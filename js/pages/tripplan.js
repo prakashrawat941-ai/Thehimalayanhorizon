@@ -1,5 +1,5 @@
-// Trip Planner (Phase 2: screens and flow).
-// Dashboard → travel details → map (check / adjust each point) → review.
+// Trip Planner: dashboard, travel details and the map step.
+// Route, itinerary, budget and summary live in js/trip/.
 // The draft is kept on this device and saved after every change, so an interrupted
 // session can carry on. Road routes, weather, itinerary and budget come in later phases;
 // nothing here invents distances, prices or availability.
@@ -8,85 +8,10 @@ import { getLang, pick } from '../i18n.js';
 import { sb, q } from '../sb.js';
 import { locations, themes, user } from '../store.js';
 import { allPlaces, placeInput, placeName, distanceKm, nearestPlace, loadLeaflet } from '../places.js';
+import { tripStage, STAGES } from '../trip/trips.js';
+import { L, MAX_DESTS, PREFS, PACES, MODES, blank, loadDraft, saveDraft, dropDraft, hasContent, slim, pName, daysOf, fmtD, validate, back, steps } from '../trip/common.js';
 
-const L = (en, hi) => (getLang() === 'hi' ? hi : en);
-const KEY = 'hh_plan_v2';
 const RECENT = 'hh_recent_places';
-const MAX_DESTS = 8;
-const MAX_DAYS = 30;
-
-export const PREFS = [
-  ['nature', 'Nature & peaceful places', 'प्रकृति और शांत जगहें', 'treks-nature'],
-  ['villages', 'Mountain villages', 'पहाड़ी गाँव', 'village-life'],
-  ['trekking', 'Trekking & hiking', 'ट्रेकिंग और हाइकिंग', 'treks-nature'],
-  ['adventure', 'Adventure', 'एडवेंचर', 'treks-nature'],
-  ['photography', 'Photography', 'फ़ोटोग्राफ़ी', 'wildlife-birding'],
-  ['lakes', 'Lakes & waterfalls', 'झीलें और झरने', 'treks-nature'],
-  ['culture', 'Cultural experiences', 'संस्कृति', 'spiritual'],
-  ['homestays', 'Homestays', 'होमस्टे', 'village-life'],
-  ['workation', 'Workation', 'वर्केशन', 'work-from-mountain'],
-  ['family', 'Family travel', 'परिवार के साथ', null],
-  ['couple', 'Couple travel', 'कपल ट्रिप', null],
-  ['solo', 'Solo travel', 'अकेले यात्रा', null],
-];
-export const PACES = [
-  ['relaxed', 'Relaxed', 'आराम से', 'Fewer places, more rest', 'कम जगहें, ज़्यादा आराम'],
-  ['balanced', 'Balanced', 'संतुलित', 'A mix of travel and rest', 'घूमना और आराम दोनों'],
-  ['adventure', 'Adventure-focused', 'एडवेंचर वाला', 'Long days, more activities', 'लंबे दिन, ज़्यादा गतिविधियाँ'],
-];
-export const MODES = [
-  ['car', 'Own car / self-drive', 'अपनी कार / सेल्फ़-ड्राइव', 'car'],
-  ['bike', 'Motorbike', 'मोटरबाइक', 'car'],
-  ['taxi', 'Taxi / hired cab', 'टैक्सी / किराए की गाड़ी', 'car'],
-  ['bus', 'Bus', 'बस', 'people'],
-  ['train', 'Train + local cab', 'ट्रेन + लोकल गाड़ी', 'map'],
-  ['shared', 'Shared ride (Instant Cab)', 'शेयर राइड (इंस्टेंट कैब)', 'people'],
-];
-
-// ---------- draft ----------
-const blank = () => ({ title: '', start: null, dests: [null], depart: '', ret: '', adults: 2, children: 0, prefs: [], pace: 'balanced', budget: '', mode: 'car', updated: 0 });
-export function loadDraft() {
-  try { const d = JSON.parse(localStorage.getItem(KEY) || 'null'); return d && Array.isArray(d.dests) ? { ...blank(), ...d } : null; } catch { return null; }
-}
-function saveDraft(d) { d.updated = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(d)); } catch { /* storage off: keep in memory */ } }
-function dropDraft() { try { localStorage.removeItem(KEY); } catch { /* ignore */ } }
-const hasContent = (d) => d && (d.start || d.dests.some(Boolean) || d.depart);
-
-// Keep a light copy of a place (custom map pins have no id).
-const slim = (p) => (p ? { id: p.id || null, name: p.name, name_hi: p.name_hi || null, district: p.district || null, region: p.region || null,
-  lat: Number(p.lat), lng: Number(p.lng), location_id: p.location_id || null, custom: !!p.custom, near: p.near || null } : null);
-const pName = (p) => (!p ? '' : p.custom ? `${L('Pin near', 'पिन:')} ${p.near || ''}`.trim() : placeName(p));
-
-const nights = (d) => (d.depart && d.ret ? Math.round((new Date(d.ret) - new Date(d.depart)) / 864e5) : null);
-const daysOf = (d) => { const n = nights(d); return n == null ? null : n + 1; };
-const fmtD = (iso) => (iso ? new Date(`${iso}T12:00:00+05:30`).toLocaleDateString(getLang() === 'hi' ? 'hi-IN' : 'en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
-
-export function validate(d) {
-  const errs = {};
-  if (!d.start) errs.start = L('Choose where you start from.', 'शुरुआत की जगह चुनें।');
-  const dests = d.dests.filter(Boolean);
-  if (!dests.length) errs.dests = L('Add at least one destination.', 'कम से कम एक मंज़िल जोड़ें।');
-  else if (d.dests.some((x) => !x)) errs.dests = L('Choose a place for every destination row, or remove the empty one.', 'हर मंज़िल के लिए जगह चुनें, या ख़ाली पंक्ति हटाएँ।');
-  else if (d.start && dests.length === 1 && same(dests[0], d.start)) errs.dests = L('Destination must be different from the start.', 'मंज़िल शुरुआत से अलग होनी चाहिए।');
-  else if (dests.some((x, i) => i > 0 && same(x, dests[i - 1]))) errs.dests = L('The same place is listed twice in a row.', 'एक ही जगह लगातार दो बार है।');
-  if (!d.depart) errs.depart = L('Choose a departure date.', 'जाने की तारीख़ चुनें।');
-  else if (d.depart < todayISO()) errs.depart = L('Departure cannot be in the past.', 'जाने की तारीख़ बीती हुई नहीं हो सकती।');
-  if (!d.ret) errs.ret = L('Choose a return date.', 'वापसी की तारीख़ चुनें।');
-  else if (d.depart && d.ret < d.depart) errs.ret = L('Return must be on or after departure.', 'वापसी, जाने की तारीख़ या उसके बाद हो।');
-  else if (daysOf(d) > MAX_DAYS) errs.ret = L(`Trips can be up to ${MAX_DAYS} days.`, `ट्रिप ज़्यादा से ज़्यादा ${MAX_DAYS} दिन की हो सकती है।`);
-  if (!(d.adults >= 1)) errs.people = L('At least one adult is needed.', 'कम से कम एक वयस्क ज़रूरी है।');
-  if (d.budget !== '' && !(Number(d.budget) >= 0)) errs.budget = L('Budget must be a positive amount.', 'बजट सही रक़म हो।');
-  return errs;
-}
-const same = (a, b) => a && b && (a.id && b.id ? a.id === b.id : Math.abs(a.lat - b.lat) < 1e-4 && Math.abs(a.lng - b.lng) < 1e-4);
-
-// Small shared bits
-const back = (href) => h('a', { class: 'icon-btn', href, 'aria-label': L('Back', 'वापस') }, h('span', { 'aria-hidden': 'true' }, '←'));
-function steps(active) {
-  const list = [L('Details', 'जानकारी'), L('Map', 'मैप'), L('Review', 'जाँचें')];
-  return h('ol', { class: 'tp-steps', 'aria-label': L('Steps', 'चरण') }, list.map((s, i) =>
-    h('li', { class: i < active ? 'done' : i === active ? 'on' : '', 'aria-current': i === active ? 'step' : null }, h('span', {}, String(i + 1)), s)));
-}
 
 export function recordRecent(slug) {
   try {
@@ -130,33 +55,62 @@ export async function dashboard({ query = {} } = {}) {
   const suggested = [...locs].filter((l) => l.kind !== 'transport_hub')
     .sort((a, b) => (b.is_featured - a.is_featured) || ((b.kind === 'village') - (a.kind === 'village')) || (!!photo(b) - !!photo(a))).slice(0, 6);
 
+  // Saved destinations (needs the trip-planner database update; hidden until then).
+  let saved = null;
+  const savedBox = h('section', { hidden: true });
+  if (user()) {
+    try {
+      const r = await sb.from('saved_destinations').select('location_id');
+      if (!r.error) saved = new Set(r.data.map((x) => x.location_id));
+    } catch { /* table not there yet */ }
+  }
+  const heart = (l) => {
+    if (!saved) return null;
+    const b = h('button', { type: 'button', class: `tp-heart${saved.has(l.id) ? ' on' : ''}`, 'aria-pressed': String(saved.has(l.id)),
+      'aria-label': L(`Save ${l.name}`, `${pick(l, 'name')} सेव करें`), onclick: async () => {
+        const on = !saved.has(l.id);
+        const r = on ? await sb.from('saved_destinations').insert({ location_id: l.id }) : await sb.from('saved_destinations').delete().eq('location_id', l.id);
+        if (r.error) { toast(r.error.message, 'err'); return; }
+        if (on) saved.add(l.id); else saved.delete(l.id);
+        document.querySelectorAll(`.tp-heart[data-id="${l.id}"]`).forEach((x) => { x.classList.toggle('on', on); x.setAttribute('aria-pressed', String(on)); x.textContent = on ? '♥' : '♡'; });
+        paintSaved();
+      } }, saved.has(l.id) ? '♥' : '♡');
+    b.dataset.id = l.id;
+    return b;
+  };
   const destCard = (l) => {
     const p = placeFor(l);
     const img = photo(l);
     return h('article', { class: 'tp-dest' },
       h('a', { class: 'tp-dest-img', href: `#/place/${l.slug}`, 'aria-label': pick(l, 'name') }, img ? h('img', { src: img, alt: '', loading: 'lazy' }) : art(l.slug)),
+      heart(l),
       h('div', { class: 'tp-dest-body' },
         h('a', { href: `#/place/${l.slug}` }, h('strong', {}, pick(l, 'name'))),
         h('span', { class: 'muted small' }, [l.district, l.region].filter(Boolean).join(' · ')),
         p ? h('a', { class: 'tp-add', href: `#/plan/new?to=${p.id}` }, '+ ', L('Plan a trip here', 'यहाँ की ट्रिप प्लान करें')) : null));
   };
+  function paintSaved() {
+    if (!saved) return;
+    clear(savedBox).append(h('h2', {}, L('Saved destinations', 'सेव की गई जगहें')));
+    const list = locs.filter((l) => saved.has(l.id));
+    savedBox.append(list.length ? h('div', { class: 'tp-dests' }, list.map(destCard)) : h('p', { class: 'tp-empty' }, L('Tap ♡ on a place to save it here.', 'किसी जगह पर ♡ दबाकर उसे यहाँ सेव करें।')));
+    savedBox.hidden = false;
+  }
+  paintSaved();
 
   const myTrips = h('div', { class: 'tp-trips' });
   if (!user()) {
     myTrips.append(h('p', { class: 'tp-empty' }, L('Log in to see the trips you have saved.', 'सेव की गई ट्रिप देखने के लिए लॉगिन करें।'), ' ',
       h('a', { href: '#/login?next=plan' }, L('Log in', 'लॉगिन'))));
   } else {
-    q(sb.from('trips').select('id,title,start_date,days_count,travellers').order('created_at', { ascending: false }).limit(6)).then((rows) => {
+    q(sb.from('trips').select('*').order('created_at', { ascending: false }).limit(5)).then((rows) => {
       if (!rows.length) { myTrips.append(h('p', { class: 'tp-empty' }, L('No saved trips yet. Your first one will show here.', 'अभी कोई ट्रिप सेव नहीं। पहली ट्रिप यहाँ दिखेगी।'))); return; }
-      const today = todayISO();
       rows.forEach((tr) => {
-        const end = tr.start_date ? new Date(new Date(`${tr.start_date}T12:00:00Z`).getTime() + (tr.days_count - 1) * 864e5).toISOString().slice(0, 10) : null;
-        const [label, cls] = !tr.start_date ? [L('No date', 'तारीख़ नहीं'), 'pill-done'] : end < today ? [L('Completed', 'पूरी'), 'pill-done']
-          : tr.start_date <= today ? [L('Ongoing', 'चल रही'), 'pill-ok'] : [L('Upcoming', 'आने वाली'), 'pill-warn'];
+        const st = STAGES.find((x) => x[0] === tripStage(tr));
         myTrips.append(h('a', { class: 'tp-trip', href: `#/trip/${tr.id}` },
           h('span', { class: 'grow' }, h('strong', {}, tr.title), h('span', { class: 'muted small' },
             [tr.start_date && fmtD(tr.start_date), `${tr.days_count} ${L('days', 'दिन')}`, `${tr.travellers} ${L('travellers', 'यात्री')}`].filter(Boolean).join(' · '))),
-          h('span', { class: `pill ${cls}` }, label)));
+          h('span', { class: `pill ${st[3]}` }, L(st[1], st[2]).replace(/ trips?$| itineraries$/i, '').replace(/ ट्रिप$| प्लान$/, ''))));
       });
     }).catch(() => myTrips.append(h('p', { class: 'tp-empty' }, L('Could not load your trips. Check your internet.', 'आपकी ट्रिप लोड नहीं हुईं। इंटरनेट देखें।'))));
   }
@@ -172,7 +126,8 @@ export async function dashboard({ query = {} } = {}) {
         draftCard ? null : h('a', { class: 'btn btn-lg btn-gold', href: '#/plan/new' }, L('Create my trip', 'मेरी ट्रिप बनाएँ'), icon('arrow', 16)))),
     h('div', { class: 'wrap tp-body' },
       draftCard,
-      h('section', {}, h('div', { class: 'tp-sec-head' }, h('h2', {}, L('My saved trips', 'मेरी सेव ट्रिप')), user() ? h('a', { class: 'link-more', href: '#/account' }, L('All trips', 'सभी ट्रिप'), icon('arrow', 14)) : null), myTrips),
+      h('section', {}, h('div', { class: 'tp-sec-head' }, h('h2', {}, L('My saved trips', 'मेरी सेव ट्रिप')), user() ? h('a', { class: 'link-more', href: '#/trips' }, L('All trips', 'सभी ट्रिप'), icon('arrow', 14)) : null), myTrips),
+      savedBox,
       h('section', {}, h('h2', {}, L('Recently viewed', 'हाल में देखी जगहें')),
         recent.length ? h('div', { class: 'tp-dests' }, recent.map(destCard))
           : h('p', { class: 'tp-empty' }, L('Places you open on the site will show here.', 'साइट पर जो जगहें खोलेंगे, वे यहाँ दिखेंगी।'))),
@@ -303,7 +258,9 @@ export async function details({ query }) {
       h('div', { class: 'row2' },
         h('label', { class: 'field', for: 'tp-depart' }, h('span', { class: 'field-label' }, L('Departure date', 'जाने की तारीख़')), departI, errEl('depart')),
         h('label', { class: 'field', for: 'tp-ret' }, h('span', { class: 'field-label' }, L('Return date', 'वापसी की तारीख़')), retI, errEl('ret'))),
-      dayInfo),
+      dayInfo,
+      h('label', { class: 'check' }, (() => { const c = h('input', { type: 'checkbox', id: 'tp-rt' }); c.checked = d.roundTrip !== false; c.addEventListener('change', () => { d.roundTrip = c.checked; save(); }); return c; })(),
+        h('span', {}, L('Come back to the starting point at the end', 'आख़िर में शुरुआत की जगह पर वापस आना है')))),
     h('section', { class: 'tp-card' }, h('h2', {}, L('Who is travelling?', 'कौन जा रहा है?')),
       h('div', { class: 'row2' }, counter('adults', L('Adults', 'वयस्क'), 1, 30), counter('children', L('Children (under 12)', 'बच्चे (12 से कम)'), 0, 20)),
       h('p', { class: 'tp-dayinfo' }, L('Total travellers: ', 'कुल यात्री: '), total), errEl('people')),
@@ -392,7 +349,7 @@ export async function mapStep() {
   })();
   paintList();
 
-  const total = d.dests.reduce((s, p, i) => s + distanceKm(i ? d.dests[i - 1] : d.start, p), 0);
+  const total = d.dests.reduce((s, p, i) => s + distanceKm(i ? d.dests[i - 1] : d.start, p), 0); // straight line, shown as such
   return h('div', { class: 'app-page tp-page' },
     h('div', { class: 'app-head' }, back('#/plan/new'), h('div', { class: 'grow' }, h('h1', {}, L('Check your places on the map', 'मैप पर जगहें जाँचें')),
       h('p', { class: 'muted' }, L('Drag a pin to the exact spot, or change the order below.', 'पिन को सही जगह खिसकाएँ, या नीचे क्रम बदलें।')))),
@@ -401,54 +358,5 @@ export async function mapStep() {
     h('p', { class: 'small muted' }, L(`Dashed lines join your stops in order (straight-line ~${Math.round(total)} km). The real road route and drive times are worked out in the next step.`,
       `डैश वाली लाइन पड़ावों को क्रम से जोड़ती है (सीधी दूरी ~${Math.round(total)} किमी)। असली सड़क का रास्ता और समय अगले चरण में निकलेगा।`)),
     list,
-    h('div', { class: 'sticky-cta' }, h('a', { class: 'btn btn-lg btn-block', href: '#/plan/review' }, L('Continue', 'आगे बढ़ें'), icon('arrow', 16))));
-}
-
-// ---------- 4. Review ----------
-export async function review() {
-  const d = loadDraft();
-  if (!d || Object.keys(validate(d)).length) { location.hash = '#/plan/new'; return h('div'); }
-  const [locs, themeList] = await Promise.all([locations(), themes()]);
-  const n = daysOf(d);
-  const stops = [d.start, ...d.dests];
-  if (!d.title) d.title = `${pName(d.dests[d.dests.length - 1])} ${L('trip', 'ट्रिप')}`;
-  const titleI = h('input', { class: 'input tp-title', id: 'tp-title', maxlength: 120, value: d.title, 'aria-label': L('Trip name', 'ट्रिप का नाम') });
-  titleI.addEventListener('input', () => { d.title = titleI.value; saveDraft(d); });
-  const row = (k, v, edit) => h('div', { class: 'tp-rv-row' }, h('span', { class: 'muted' }, k), h('strong', {}, v), edit ? h('a', { class: 'tp-edit', href: edit }, L('Edit', 'बदलें')) : null);
-  const prefNames = d.prefs.map((k) => PREFS.find((p) => p[0] === k)).filter(Boolean).map((p) => L(p[1], p[2]));
-  const pace = PACES.find((p) => p[0] === d.pace); const mode = MODES.find((m) => m[0] === d.mode);
-
-  // Hand over to the existing quick planner so the trip can be saved today.
-  const quick = () => {
-    const slugs = [...new Set(d.prefs.map((k) => PREFS.find((p) => p[0] === k)?.[3]).filter(Boolean))].filter((s) => themeList.some((t) => t.slug === s));
-    const firstLoc = d.dests.map((p) => p.location_id && locs.find((l) => l.id === p.location_id)).find(Boolean);
-    try {
-      localStorage.setItem('hh_trip_draft', JSON.stringify({ title: d.title, start_date: d.depart, days_count: n, travellers: d.adults + d.children,
-        budget: d.budget === '' ? '' : Number(d.budget), region: '', theme_slugs: slugs.length ? slugs : ['village-life'], days: [] }));
-    } catch { /* ignore */ }
-    location.hash = `#/plan/quick${firstLoc ? `?place=${firstLoc.slug}` : ''}`;
-  };
-
-  return h('div', { class: 'app-page tp-page' },
-    h('div', { class: 'app-head' }, back('#/plan/map'), h('div', { class: 'grow' }, h('h1', {}, L('Review your trip', 'अपनी ट्रिप जाँचें')))),
-    steps(2),
-    h('section', { class: 'tp-card' },
-      h('label', { class: 'field-label', for: 'tp-title' }, L('Trip name', 'ट्रिप का नाम')), titleI,
-      h('ol', { class: 'tp-route' }, stops.map((p, i) => h('li', {}, h('span', { class: `tp-pin${i === 0 ? ' start' : ''}`, 'aria-hidden': 'true' }, i === 0 ? 'S' : String(i)), h('span', {}, pName(p))))),
-      h('a', { class: 'tp-edit', href: '#/plan/map' }, L('Adjust on map', 'मैप पर बदलें'))),
-    h('section', { class: 'tp-card tp-rv' },
-      row(L('Dates', 'तारीख़'), `${fmtD(d.depart)} – ${fmtD(d.ret)} (${n} ${L(n > 1 ? 'days' : 'day', 'दिन')})`, '#/plan/new'),
-      row(L('Travellers', 'यात्री'), `${d.adults} ${L(d.adults > 1 ? 'adults' : 'adult', 'वयस्क')}${d.children ? `, ${d.children} ${L(d.children > 1 ? 'children' : 'child', 'बच्चे')}` : ''}`, '#/plan/new'),
-      row(L('Preferences', 'पसंद'), prefNames.length ? prefNames.join(', ') : L('None chosen', 'कोई नहीं'), '#/plan/new'),
-      row(L('Pace', 'रफ़्तार'), pace ? L(pace[1], pace[2]) : '—', '#/plan/new'),
-      row(L('Travel mode', 'साधन'), mode ? L(mode[1], mode[2]) : '—', '#/plan/new'),
-      row(L('Budget', 'बजट'), d.budget === '' ? L('Not set', 'तय नहीं') : `₹${Number(d.budget).toLocaleString('en-IN')} ${L('(approx.)', '(लगभग)')}`, '#/plan/new')),
-    d.mode === 'shared' ? h('p', { class: 'soft-note' }, L('Shared rides are journeys other travellers already plan. You can search them in Instant Cab.', 'शेयर राइड वे यात्राएँ हैं जो दूसरे लोग पहले से कर रहे हैं। इन्हें इंस्टेंट कैब में खोजें।'), ' ',
-      h('a', { href: `#/cab/find?from=${d.start.id || ''}&to=${d.dests[0].id || ''}&date=${d.depart}&n=${Math.min(10, d.adults + d.children)}` }, L('Search shared rides', 'शेयर राइड खोजें'))) : null,
-    h('section', { class: 'tp-next' },
-      h('strong', {}, L('Coming next in the planner', 'प्लानर में आगे आ रहा है')),
-      h('p', { class: 'muted small' }, L('Road route and drive time for every stop, weather, a day-wise itinerary, stays and the full budget.',
-        'हर पड़ाव का सड़क रास्ता और समय, मौसम, दिन-वार प्लान, रुकने की जगहें और पूरा बजट।'))),
-    h('div', { class: 'sticky-cta tp-cta2' },
-      h('button', { type: 'button', class: 'btn btn-lg btn-block', onclick: quick }, L('Make a quick day plan and save', 'क्विक दिन-वार प्लान बनाएँ और सेव करें'), icon('arrow', 16))));
+    h('div', { class: 'sticky-cta' }, h('a', { class: 'btn btn-lg btn-block', href: '#/plan/route' }, L('Continue', 'आगे बढ़ें'), icon('arrow', 16))));
 }

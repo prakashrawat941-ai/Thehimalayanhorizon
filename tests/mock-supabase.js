@@ -59,6 +59,8 @@ const db = {
     { id: 'n2', user_id: 'u-traveler', title: 'Cab booking confirmed', body: 'Kathgodam → Munsiyari', link: '#/account', read_at: null, created_at: now() },
   ],
   admin_emails: [],
+  trip_destinations: [], trip_expenses: [], saved_destinations: [],
+  destination_reviews: [{ id: 'dr1', user_id: 'u-traveler', location_id: loc('mukteshwar'), rating: 5, body: 'Quiet orchards and a great sunrise view.', status: 'pending', created_at: now() }],
 };
 
 const singular = { homestays: 'homestay', village_tours: 'village_tour', workspaces: 'workspace', partners: 'partner', cab_rides: 'ride', profiles: 'user' };
@@ -100,12 +102,20 @@ class Query {
     const rows = db[this.table] || (db[this.table] = []);
     const match = (r) => this.filters.every((f) => f(r));
     if (this.op === 'insert' || this.op === 'upsert') {
-      const list = (Array.isArray(this.payload) ? this.payload : [this.payload]).map((r) => ({ id: uid(), created_at: now(), ...r }));
+      const list = (Array.isArray(this.payload) ? this.payload : [this.payload]).map((r) => ({ id: uid(), created_at: now(), ...(['trips', 'saved_destinations', 'destination_reviews'].includes(this.table) && session ? { user_id: session.user.id } : {}), ...r }));
+      if (this.table === 'trips') {
+        if (localStorage.getItem('mock_v1') && list.some((r) => 'end_date' in r)) return { data: null, error: { code: 'PGRST204', message: "Could not find the 'end_date' column of 'trips' in the schema cache" } };
+        if (list.some((r) => r.client_request_id && rows.some((x) => x.client_request_id === r.client_request_id))) return { data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint' } };
+      }
       if (this.op === 'upsert') list.forEach((r) => { const i = rows.findIndex((x) => (x.key && x.key === r.key) || x.id === r.id); if (i >= 0) rows[i] = { ...rows[i], ...r }; else rows.push(r); });
       else rows.push(...list);
       return { data: this._single ? list[0] : list, error: null };
     }
-    if (this.op === 'update') { rows.filter(match).forEach((r) => Object.assign(r, this.payload)); return { data: null, error: null }; }
+    if (this.op === 'update') {
+      if (this.table === 'trips' && localStorage.getItem('mock_v1') && 'end_date' in this.payload) return { data: null, error: { code: 'PGRST204', message: "Could not find the 'end_date' column" } };
+      const hit = rows.filter(match); hit.forEach((r) => Object.assign(r, this.payload));
+      return { data: this.returning ? (this._single ? hit[0] || null : hit) : null, error: null };
+    }
     if (this.op === 'delete') { db[this.table] = rows.filter((r) => !match(r)); return { data: null, error: null }; }
     let out = rows.filter(match);
     for (const [c, asc] of [...this.orders].reverse()) out = [...out].sort((a, b) => ((a[c] > b[c]) - (a[c] < b[c])) * (asc ? 1 : -1));
@@ -148,6 +158,16 @@ export function createClient() {
       if (name === 'cancel_cab_ride') { const r = db.cab_rides.find((x) => x.id === args.p_ride); r.status = 'cancelled'; return { data: r, error: null }; }
       if (name === 'set_booking_status') { const b = db.booking_requests.find((x) => x.id === args.p_id); b.status = args.p_status; return { data: b, error: null }; }
       if (name === 'set_cab_booking_status') { const b = db.cab_bookings.find((x) => x.id === args.p_booking); b.status = args.p_status; return { data: b, error: null }; }
+      if (name === 'set_trip_share') { const t = db.trips.find((x) => x.id === args.p_trip); if (!t) return { data: null, error: { message: 'Trip not found' } }; t.share_token = args.p_on ? (t.share_token || 'tok' + uid().replace(/-/g, '').slice(0, 20)) : null; return { data: t.share_token, error: null }; }
+      if (name === 'get_shared_trip') { const t = db.trips.find((x) => x.share_token && x.share_token === args.p_token); return { data: t ? { ...t, user_id: undefined, destinations: db.trip_destinations.filter((x) => x.trip_id === t.id) } : null, error: null }; }
+      if (name === 'admin_trip_stats') {
+        const count = (k) => db.trips.reduce((o, t) => ({ ...o, [t[k] || 'n/a']: (o[t[k] || 'n/a'] || 0) + 1 }), {});
+        const dn = {}; db.trip_destinations.forEach((x) => { dn[x.place.name] = (dn[x.place.name] || 0) + 1; });
+        const pf = {}; db.trips.forEach((t) => (t.preferences || []).forEach((p) => { pf[p] = (pf[p] || 0) + 1; }));
+        return { data: { total_trips: db.trips.length, trips_last_30_days: db.trips.length, avg_days: 4, avg_budget: 30000, avg_travellers: 3, by_status: count('status'), by_mode: count('travel_mode'), by_pace: count('pace'),
+          top_destinations: Object.entries(dn).map(([name, n]) => ({ name, n })), top_preferences: Object.entries(pf).map(([pref, n]) => ({ pref, n })),
+          by_start_month: [{ month: 12, n: db.trips.length }], created_by_month: [{ month: now().slice(0, 7), n: db.trips.length }], pending_reviews: db.destination_reviews.filter((r) => r.status === 'pending').length, saved_destinations: db.saved_destinations.length }, error: null };
+      }
       return { data: null, error: { message: 'unknown rpc ' + name } };
     },
     auth: {

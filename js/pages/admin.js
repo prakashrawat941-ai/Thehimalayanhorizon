@@ -25,7 +25,7 @@ export async function admin({ params, query }) {
     ['homestay', t('stays')], ['workspace', t('workspaces')], ['village_tour', L('Village tours', 'गाँव के टूर')],
     ['rides', L('Cab rides', 'कैब राइड')], ['requests', L('Requests', 'रिक्वेस्ट')],
     ['home', L('Home page', 'होम पेज')], ['locations', L('Locations', 'लोकेशन')], ['themes', L('Themes', 'थीम')],
-    ['itineraries', t('itineraries')], ['users', L('Users', 'यूज़र')], ['settings', L('Settings', 'सेटिंग्स')],
+    ['itineraries', t('itineraries')], ['trips', L('Trip Planner', 'ट्रिप प्लानर')], ['users', L('Users', 'यूज़र')], ['settings', L('Settings', 'सेटिंग्स')],
   ];
   const views = {
     overview: () => overview(), partners: () => partners(ctx, query), rides: () => rides(), requests: () => requests(),
@@ -35,6 +35,7 @@ export async function admin({ params, query }) {
     itineraries: () => crud('itineraries', SCHEMAS.itinerary(), ctx, { order: 'position', title: (r) => `${pick(r, 'title')} · ${r.days_count || r.days?.length} ${t('days')}`, flag: 'is_published', slugFrom: 'title',
       beforeSave: (d) => ({ ...d, days_count: Math.max(1, (d.days || []).length) }) }),
     users: () => users(), settings: () => settingsTab(),
+    trips: () => import('../trip/admin.js').then((m) => m.tripAdmin()),
   };
   const body = KINDS[tab] ? lazy(() => listingsAdmin(tab, ctx, query)) : lazy(views[tab] || (() => empty()));
 
