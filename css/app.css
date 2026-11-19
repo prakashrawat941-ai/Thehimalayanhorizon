@@ -69,7 +69,9 @@ main { outline: none; min-height: 60vh; }
 .brand-text { display: flex; flex-direction: column; line-height: 1.1; }
 .brand-name { font-family: var(--display); font-weight: 600; font-size: 1.12rem; }
 .brand-sub { font-size: .66rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
-.logo-mark svg { display: block; }
+.logo-mark { display: block; width: 42px; height: 42px; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 2px #fff, 0 0 0 3px #d9cdb2; }
+.footer-brand { display: block; line-height: 0; }
+.footer-logo { width: 300px; max-width: 100%; height: auto; border-radius: 16px; display: block; }
 .ico { display: inline-flex; flex: none; }
 .ico svg { display: block; }
 .topnav { display: none; gap: 22px; margin-left: 12px; flex: 1; justify-content: center; }

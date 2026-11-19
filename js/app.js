@@ -91,8 +91,8 @@ const navItems = () => [
   ['account', 'user', t('account')],
 ];
 
-const logo = (light) => h('span', { class: 'logo-mark', 'aria-hidden': 'true', html:
-  `<svg width="40" height="26" viewBox="0 0 46 30"><path d="M1 29 L15 9 L21 17 L28 5 L45 29 Z" fill="${light ? '#f7f4ee' : '#1f4d3a'}"/><path d="M28 5 L24 11 L28 9.5 L31 12 Z" fill="${light ? '#1f4d3a' : '#f7f4ee'}"/><path d="M15 9 L12.5 13 L15 12 L17 13.5 Z" fill="${light ? '#1f4d3a' : '#f7f4ee'}"/></svg>` });
+// Brand emblem: the mountain-and-sun part of the owner's logo (img/brand/logo-full.jpg).
+const logo = () => h('img', { class: 'logo-mark', src: 'img/brand/emblem.jpg', alt: '', width: 42, height: 42 });
 
 function header() {
   const brandName = state.settings?.brand?.[getLang() === 'hi' ? 'name_hi' : 'name'] || 'The Himalayan Horizon';
@@ -126,7 +126,7 @@ function tabbar() {
 function footer() {
   return h('footer', { class: 'footer' },
     h('div', { class: 'footer-inner' },
-      h('a', { class: 'brand', href: '#/' }, logo(), h('span', { class: 'brand-name' }, 'The Himalayan Horizon')),
+      h('a', { class: 'footer-brand', href: '#/', 'aria-label': 'The Himalayan Horizon' }, h('img', { class: 'footer-logo', src: 'img/brand/logo-full.jpg', alt: 'The Himalayan Horizon — Discover Beyond the Mountains', loading: 'lazy', width: 240, height: 160 })),
       h('nav', { class: 'footer-links', 'aria-label': 'Footer' },
         h('a', { href: '#/villages' }, t('villages')), h('a', { href: '#/stays' }, t('stays')),
         h('a', { href: '#/workspaces' }, t('workspaces')), h('a', { href: '#/cab' }, t('cabs')),
