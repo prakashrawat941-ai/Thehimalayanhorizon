@@ -38,7 +38,11 @@ route('drive/rides',      () => import('./pages/drive.js').then((m) => m.rides))
 route('drive/requests',   () => import('./pages/drive.js').then((m) => m.requests));
 route('drive/trip/:id',   () => import('./pages/drive.js').then((m) => m.trip));
 route('drive/profile',    () => import('./pages/drive.js').then((m) => m.profile));
-route('plan',             () => import('./pages/planner.js').then((m) => m.planner));
+route('plan',             () => import('./pages/tripplan.js').then((m) => m.dashboard));
+route('plan/new',         () => import('./pages/tripplan.js').then((m) => m.details));
+route('plan/map',         () => import('./pages/tripplan.js').then((m) => m.mapStep));
+route('plan/review',      () => import('./pages/tripplan.js').then((m) => m.review));
+route('plan/quick',       () => import('./pages/planner.js').then((m) => m.planner));
 route('trip/:id',         () => import('./pages/planner.js').then((m) => m.trip));
 route('login',            () => import('./pages/account.js').then((m) => m.login));
 route('account',          () => import('./pages/account.js').then((m) => m.account));
@@ -59,6 +63,14 @@ export const go = (path) => { location.hash = '#/' + path.replace(/^#?\/?/, '');
 const main = () => document.getElementById('main');
 let renderToken = 0;
 
+// Recently viewed places, shown on the Trip Planner dashboard (this device only).
+function rememberPlace(slug) {
+  try {
+    const list = JSON.parse(localStorage.getItem('hh_recent_places') || '[]').filter((x) => x !== slug);
+    list.unshift(slug); localStorage.setItem('hh_recent_places', JSON.stringify(list.slice(0, 8)));
+  } catch { /* storage off */ }
+}
+
 export async function render() {
   const token = ++renderToken;
   const { path, query } = parseHash();
@@ -66,6 +78,7 @@ export async function render() {
   const el = main();
   clear(el).append(loading());
   updateNav(path);
+  if (path.startsWith('place/')) rememberPlace(path.slice(6));
   try {
     if (!match) { clear(el).append(notFound()); return; }
     const params = Object.fromEntries(match.r.keys.map((k, i) => [k, decodeURIComponent(match.m[i + 1])]));

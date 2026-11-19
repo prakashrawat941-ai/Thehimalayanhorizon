@@ -142,7 +142,7 @@ export async function planner({ query }) {
   const saveBtn = h('button', { type: 'button', class: 'btn btn-accent', onclick: () => saveTrip() }, t('save_trip'));
   async function saveTrip() {
     collect();
-    if (!user()) { saveDraft(st); location.hash = '#/login?next=plan'; return; }
+    if (!user()) { saveDraft(st); location.hash = '#/login?next=plan/quick'; return; }
     if (!st.days.length) { toast(hi ? 'पहले प्लान बनाइए' : 'Build a plan first', 'warn'); return; }
     await busy(saveBtn, async () => {
       const row = {

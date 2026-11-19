@@ -208,7 +208,7 @@ export function placeInput({ label, value = null, onChange = () => {}, placehold
 }
 
 let leafletPromise = null;
-function loadLeaflet() {
+export function loadLeaflet() {
   if (window.L?.map) return Promise.resolve(window.L);
   if (!leafletPromise) {
     leafletPromise = new Promise((resolve, reject) => {

@@ -23,7 +23,7 @@ const pages = [
   ['place/sari', 'place'], ['itineraries', 'itineraries'], ['itinerary/kumaon-village-trail', 'itinerary'],
   ['stays', 'stays'], ['stay/h1', 'stay'], ['workspaces', 'workspaces'], ['workspace/w1', 'workspace'],
   ['tours', 'tours'], ['tour/v1', 'tour'], ['cabs', 'cabs'], ['cabs?from=kathgodam&to=munsiyari', 'cabs-route'],
-  ['plan?place=sari', 'plan'], ['login', 'login'],
+  ['plan', 'plan'], ['plan/quick?place=sari', 'plan-quick'], ['login', 'login'],
   ['account', 'account', 'traveler'], ['partner', 'partner', 'partner'], ['partner/requests', 'partner-requests', 'partner'],
   ['partner/rides', 'partner-rides', 'partner'], ['partner/join', 'partner-join', 'traveler'],
   ['admin', 'admin', 'admin'], ['admin/partners', 'admin-partners', 'admin'], ['admin/homestay', 'admin-homestays', 'admin'],
@@ -74,7 +74,7 @@ for (const [ctxName, ctxOpts] of [['phone', { ...devices['Pixel 7'] }], ['deskto
   const page = await ctx.newPage();
   const errs = []; page.on('pageerror', (e) => errs.push(String(e)));
   await page.addInitScript(() => { if (!sessionStorage.getItem('init')) { localStorage.setItem('mock_role', 'traveler'); sessionStorage.setItem('init', '1'); } localStorage.setItem('hh_lang', 'en'); });
-  await page.goto(BASE + '#/plan');
+  await page.goto(BASE + '#/plan/quick');
   await page.waitForTimeout(700);
   await page.getByRole('button', { name: 'Suggest a plan' }).click();
   await page.waitForTimeout(300);

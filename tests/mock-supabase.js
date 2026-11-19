@@ -51,7 +51,9 @@ const db = {
   booking_requests: [
     { id: 'b1', kind: 'homestay', homestay_id: 'h1', village_tour_id: null, workspace_id: null, partner_id: 'p1', user_id: 'u-traveler', guest_name: 'Asha Negi', guest_phone: '9876543210', start_date: inDays(10).slice(0, 10), end_date: inDays(12).slice(0, 10), guests: 2, message: 'Vegetarian food please', status: 'requested', partner_note: '', created_at: now() },
   ],
-  trips: [],
+  trips: [
+    { id: 't1', user_id: 'u-traveler', title: 'Kumaon with family', start_date: inDays(12).slice(0, 10), days_count: 4, travellers: 3, budget: 30000, theme_slugs: ['village-life'], from_itinerary_id: null, days: [{ day: 1, title: 'Arrive in Almora', plan: '', location: 'almora' }], notes: '', created_at: now(), updated_at: now() },
+  ],
   notifications: [
     { id: 'n1', user_id: 'u-partner', title: 'New booking request', body: 'Asha Negi · Rawat Family Homestay', link: '#/partner/requests', read_at: null, created_at: now() },
     { id: 'n2', user_id: 'u-traveler', title: 'Cab booking confirmed', body: 'Kathgodam → Munsiyari', link: '#/account', read_at: null, created_at: now() },
