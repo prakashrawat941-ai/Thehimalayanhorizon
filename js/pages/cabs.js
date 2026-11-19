@@ -40,14 +40,20 @@ export async function cabs({ query }) {
   }
   const rides = await q(qy);
 
-  return h('div', { class: 'page' },
-    h('h1', {}, t('cabs')),
-    h('p', { class: 'lead' }, hi
-      ? 'ड्राइवर अपने रूट पर राइड डालते हैं। अपना रूट चुनिए और जितनी सीटें चाहिए, बुक कीजिए।'
-      : 'Drivers publish rides on their route. Pick your route and book the seats you need.'),
-    h('div', { class: 'panel' }, form),
-    h('div', { class: 'ride-list' }, rides.length ? rides.map(rideCard) : empty(t('no_rides'))),
-    h('p', { class: 'muted small center' }, hi ? 'आप ड्राइवर हैं? ' : 'Are you a driver? ', h('a', { href: '#/partner/join' }, t('become_partner'))));
+  return h('div', { class: 'cab-page' },
+    h('section', { class: 'cab-hero' },
+      h('div', { class: 'wrap' },
+        h('p', { class: 'eyebrow' }, hi ? 'इंस्टेंट कैब · शेयर सीट' : 'Instant cab · shared seats'),
+        h('h1', {}, hi ? 'अपने रूट पर सीट बुक करें।' : 'Book a seat on your route.'),
+        h('p', { class: 'lead' }, hi
+          ? 'ड्राइवर अपने रूट, गाड़ी और खाली सीटों के साथ राइड डालते हैं। सीट चुनिए और ड्राइवर से सीधे बात कीजिए।'
+          : 'Local drivers publish rides with their route, car and free seats. Pick your seat and talk to the driver directly.'),
+        h('div', { class: 'cab-form' }, form))),
+    h('div', { class: 'page' },
+      h('div', { class: 'ride-list' }, rides.length ? rides.map(rideCard) : empty(t('no_rides'))),
+      h('div', { class: 'driver-box' },
+        h('div', {}, h('h2', {}, hi ? 'आप कैब चलाते हैं?' : 'Do you drive a cab?'), h('p', { class: 'muted' }, hi ? 'अपनी राइड डालिए और खाली सीटें भरिए।' : 'Publish your ride and fill empty seats.')),
+        h('a', { class: 'btn btn-ghost', href: '#/partner/join' }, t('become_partner')))));
 }
 
 function rideCard(r) {
@@ -62,7 +68,9 @@ function rideCard(r) {
       r.pickup_point ? h('div', { class: 'muted small' }, `📍 ${r.pickup_point}`) : null),
     h('div', { class: 'ride-info' },
       h('div', {}, `🚙 ${r.vehicle_model} · ${vehicleLabel[r.vehicle_type] || ''}`),
-      h('div', { class: left <= 2 ? 'warn-text' : '' }, `${left} / ${r.seats_total} ${t('seats_left')}`),
+      h('div', { class: 'seatbar' },
+        h('span', { class: 'seatbar-track' }, h('span', { class: `seatbar-fill${left <= 2 ? ' low' : ''}`, style: { width: `${Math.round((r.seats_booked / r.seats_total) * 100)}%` } })),
+        h('span', { class: left <= 2 ? 'warn-text' : '' }, `${left} / ${r.seats_total} ${t('seats_left')}`)),
       r.notes ? h('div', { class: 'muted small' }, r.notes) : null),
     h('div', { class: 'ride-book' },
       h('div', { class: 'price' }, `${inr(r.price_per_seat)} `, h('small', {}, t('per_seat'))),

@@ -10,13 +10,13 @@ export async function login({ query }) {
   if (user()) { location.hash = '#/' + next; return h('div'); }
   const hi = getLang() === 'hi';
   let mode = query.mode === 'signup' ? 'signup' : 'signin';
-  const box = h('div', { class: 'page narrow auth' });
+  const box = h('div', { class: 'auth-form' });
 
   const paint = () => {
     box.replaceChildren();
     const nameF = field(t('name'), input({ name: 'full_name', required: true, minlength: 2, autocomplete: 'name' }));
     const phoneF = field(t('phone'), input({ name: 'phone', type: 'tel', autocomplete: 'tel' }));
-    const form = h('form', { class: 'panel stack', onsubmit: async (e) => {
+    const form = h('form', { class: 'stack', onsubmit: async (e) => {
       e.preventDefault();
       const fd = Object.fromEntries(new FormData(form).entries());
       await busy(form.querySelector('button[type=submit]'), async () => {
@@ -38,7 +38,11 @@ export async function login({ query }) {
         location.hash = '#/' + next;
       });
     } },
-      h('h1', {}, mode === 'signup' ? t('signup') : t('signin')),
+      h('div', { class: 'seg', role: 'tablist' },
+        h('button', { type: 'button', role: 'tab', 'aria-selected': String(mode === 'signin'), class: mode === 'signin' ? 'on' : '', onclick: () => { mode = 'signin'; paint(); } }, t('signin')),
+        h('button', { type: 'button', role: 'tab', 'aria-selected': String(mode === 'signup'), class: mode === 'signup' ? 'on' : '', onclick: () => { mode = 'signup'; paint(); } }, t('signup'))),
+      h('h1', {}, mode === 'signup' ? (hi ? 'नया अकाउंट' : 'Create your account') : (hi ? 'फिर से स्वागत है' : 'Welcome back')),
+      h('p', { class: 'muted' }, hi ? 'अपनी यात्राएँ, बुकिंग और सूचनाएँ एक जगह देखिए।' : 'See your trips, bookings and notifications in one place.'),
       mode === 'signup' ? nameF : null,
       field(t('email'), input({ name: 'email', type: 'email', required: true, autocomplete: 'email' })),
       mode === 'signup' ? phoneF : null,
@@ -48,11 +52,18 @@ export async function login({ query }) {
       h('button', { type: 'button', class: 'link', onclick: () => { mode = mode === 'signup' ? 'signin' : 'signup'; paint(); } },
         mode === 'signup' ? (hi ? 'पहले से अकाउंट है? लॉगिन करें' : 'Already have an account? Sign in')
           : (hi ? 'नया अकाउंट बनाएँ' : 'New here? Create an account')),
-      mode === 'signin' ? h('button', { type: 'button', class: 'link', onclick: () => resetPassword(form) }, hi ? 'पासवर्ड भूल गए?' : 'Forgot password?') : null);
+      mode === 'signin' ? h('button', { type: 'button', class: 'link', onclick: () => resetPassword(form) }, hi ? 'पासवर्ड भूल गए?' : 'Forgot password?') : null,
+      h('p', { class: 'muted small center' }, hi ? 'होमस्टे, कैब या गाँव टूर चलाते हैं? ' : 'Run a homestay, cab or village tour? ', h('a', { href: '#/partner/join' }, t('become_partner'))));
     box.append(form);
   };
   paint();
-  return box;
+  return h('div', { class: 'auth-split' },
+    h('div', { class: 'auth-photo' },
+      h('img', { src: 'img/home/hero.jpg', alt: '' }),
+      h('div', { class: 'auth-photo-text' },
+        h('p', { class: 'auth-script' }, hi ? 'असली लोग, असली गाँव' : 'Real People, Real Villages'),
+        h('p', { class: 'auth-line' }, t('cta_h')))),
+    box);
 }
 
 async function resetPassword(form) {

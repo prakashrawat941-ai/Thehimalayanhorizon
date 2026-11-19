@@ -248,8 +248,13 @@ export async function explore({ query }) {
   };
   const pill = (k, v, label, cur) => h('button', { class: `pill${cur === v ? ' active' : ''}`, onclick: () => setQ(k, v) }, label);
 
+  const hi = getLang() === 'hi';
   return h('div', { class: 'page' },
-    h('h1', {}, t('explore')),
+    h('div', { class: 'page-head' },
+      h('p', { class: 'eyebrow' }, t('places_eyebrow')),
+      h('h1', {}, hi ? 'गाँव और घूमने की जगहें' : 'Villages and places to discover'),
+      h('p', { class: 'lead' }, hi ? 'शांत गाँव, मंदिरों वाले कस्बे और झीलें। हर जगह के साथ होमस्टे, गाँव के अनुभव और यात्रा प्लान करने का आसान तरीका।'
+        : 'Find a quiet village, a temple town or a lake. Every place has stays, local experiences and an easy way to plan your trip.')),
     h('div', { class: 'filters' },
       pill('region', '', t('all'), region), pill('region', 'Garhwal', t('garhwal'), region), pill('region', 'Kumaon', t('kumaon'), region),
       h('span', { class: 'divider' }),
