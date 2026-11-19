@@ -1,5 +1,5 @@
 // App shell: header, bottom tab bar (phone), router and service worker.
-import { h, clear, toast, errorBox, loading } from './ui.js';
+import { h, clear, toast, errorBox, loading, icon } from './ui.js';
 import { t, getLang, setLang } from './i18n.js';
 import { state, initAuth, onChange, user, isAdmin, settings } from './store.js';
 import { sb } from './sb.js';
@@ -71,47 +71,56 @@ const notFound = () => h('div', { class: 'page narrow' }, h('h1', {}, '404'), h(
 
 // ---------- Shell ----------
 const navItems = () => [
-  ['', '🏠', t('home')],
-  ['explore', '🧭', t('explore')],
-  ['plan', '🗺️', t('plan')],
-  ['cabs', '🚙', t('cabs')],
-  ['account', '👤', t('account')],
+  ['', 'home', t('home')],
+  ['villages', 'mountain', t('villages')],
+  ['plan', 'map', t('plan')],
+  ['cabs', 'car', t('cabs')],
+  ['account', 'user', t('account')],
 ];
+
+const logo = (light) => h('span', { class: 'logo-mark', 'aria-hidden': 'true', html:
+  `<svg width="40" height="26" viewBox="0 0 46 30"><path d="M1 29 L15 9 L21 17 L28 5 L45 29 Z" fill="${light ? '#f7f4ee' : '#1f4d3a'}"/><path d="M28 5 L24 11 L28 9.5 L31 12 Z" fill="${light ? '#1f4d3a' : '#f7f4ee'}"/><path d="M15 9 L12.5 13 L15 12 L17 13.5 Z" fill="${light ? '#1f4d3a' : '#f7f4ee'}"/></svg>` });
 
 function header() {
   const brandName = state.settings?.brand?.[getLang() === 'hi' ? 'name_hi' : 'name'] || 'The Himalayan Horizon';
   const u = user();
   return h('header', { class: 'topbar' },
-    h('a', { class: 'brand', href: '#/' },
-      h('img', { src: 'icons/logo.svg', alt: '', width: 34, height: 34 }),
-      h('span', {}, brandName)),
+    h('a', { class: 'brand', href: '#/' }, logo(),
+      h('span', { class: 'brand-text' },
+        h('span', { class: 'brand-name' }, brandName),
+        h('span', { class: 'brand-sub' }, getLang() === 'hi' ? 'उत्तराखंड · गाँव की यात्रा' : 'Uttarakhand · Village Travel'))),
     h('nav', { class: 'topnav', 'aria-label': 'Main' },
-      [['villages', t('villages')], ['itineraries', t('itineraries')], ['stays', t('stays')],
-       ['workspaces', t('workspaces')], ['cabs', t('cabs')], ['plan', t('plan')]]
-        .map(([p, label]) => h('a', { href: `#/${p}`, 'data-path': p }, label))),
+      h('a', { href: '#/', 'data-path': '' }, t('home')),
+      h('a', { href: '#/cabs', 'data-path': 'cabs' }, icon('car', 19), t('nav_cab')),
+      h('a', { href: '#/plan', 'data-path': 'plan' }, icon('map', 19), t('nav_planner')),
+      h('a', { href: '#/villages', 'data-path': 'villages' }, icon('mountain', 19), t('nav_villages'))),
     h('div', { class: 'topbar-actions' },
-      h('button', { class: 'btn btn-ghost btn-sm', onclick: () => { setLang(getLang() === 'hi' ? 'en' : 'hi'); paintShell(); render(); } }, t('language')),
-      isAdmin() ? h('a', { class: 'btn btn-ghost btn-sm', href: '#/admin' }, t('admin')) : null,
-      state.partners.length ? h('a', { class: 'btn btn-ghost btn-sm hide-sm', href: '#/partner' }, t('partner')) : null,
-      u ? h('a', { class: 'btn btn-sm hide-sm', href: '#/account' }, t('account'))
-        : h('a', { class: 'btn btn-sm', href: '#/login' }, t('signin'))));
+      h('a', { class: 'icon-link', href: '#/explore', 'aria-label': t('search') }, icon('search', 20)),
+      h('button', { class: 'lang-btn', onclick: () => { setLang(getLang() === 'hi' ? 'en' : 'hi'); paintShell(); render(); } }, t('language')),
+      isAdmin() ? h('a', { class: 'text-link hide-sm', href: '#/admin' }, t('admin')) : null,
+      state.partners.length ? h('a', { class: 'text-link hide-sm', href: '#/partner' }, t('partner')) : null,
+      u ? h('a', { class: 'text-link hide-sm', href: '#/account' }, t('account'))
+        : h('a', { class: 'text-link', href: '#/login' }, t('signin')),
+      h('a', { class: 'btn btn-sm hide-sm', href: '#/plan' }, t('plan_your_trip'), icon('arrow', 16))));
 }
 
 function tabbar() {
   return h('nav', { class: 'tabbar', 'aria-label': 'App' },
-    navItems().map(([p, icon, label]) =>
-      h('a', { href: `#/${p}`, 'data-path': p }, h('span', { class: 'tab-icon', 'aria-hidden': 'true' }, icon), h('span', {}, label))));
+    navItems().map(([p, ic, label]) =>
+      h('a', { href: `#/${p}`, 'data-path': p }, icon(ic, 22), h('span', {}, label))));
 }
 
 function footer() {
   return h('footer', { class: 'footer' },
     h('div', { class: 'footer-inner' },
-      h('div', {}, h('strong', {}, 'The Himalayan Horizon'), h('p', { class: 'muted' }, t('footer_note'))),
-      h('div', { class: 'footer-links' },
+      h('a', { class: 'brand', href: '#/' }, logo(), h('span', { class: 'brand-name' }, 'The Himalayan Horizon')),
+      h('nav', { class: 'footer-links', 'aria-label': 'Footer' },
         h('a', { href: '#/villages' }, t('villages')), h('a', { href: '#/stays' }, t('stays')),
         h('a', { href: '#/workspaces' }, t('workspaces')), h('a', { href: '#/cabs' }, t('cabs')),
         h('a', { href: '#/partner/join' }, t('become_partner'))),
-      h('p', { class: 'muted small' }, `© ${new Date().getFullYear()} The Himalayan Horizon · Uttarakhand`)));
+      h('div', { class: 'footer-end' },
+        h('span', { class: 'muted small' }, `© ${new Date().getFullYear()} The Himalayan Horizon · ${t('footer_note')}`),
+        h('button', { class: 'lang-btn', onclick: () => { setLang(getLang() === 'hi' ? 'en' : 'hi'); paintShell(); render(); } }, t('language')))));
 }
 
 function updateNav(path) {

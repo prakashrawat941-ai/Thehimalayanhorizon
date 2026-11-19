@@ -125,8 +125,38 @@ export function art(seed, palette) {
   return h('div', { class: 'art', html: svg });
 }
 
+// Bundled stand-in photos for places that have no photo in the database yet.
+// Replace with real photos (admin upload or Unsplash) before launch.
+export const localPhotos = {
+  almora: 'img/places/almora.jpg', jageshwar: 'img/places/jageshwar.jpg',
+  binsar: 'img/places/binsar.jpg', munsiyari: 'img/places/munsiyari.jpg',
+};
+
+// Line icons (static, trusted markup).
+const ICONS = {
+  car: '<path d="M5 17h14M6 17l1.5-5.5A2 2 0 0 1 9.4 10h5.2a2 2 0 0 1 1.9 1.5L18 17v2h-2v-2M6 17v2h2v-2"/>',
+  map: '<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2ZM9 4v14M15 6v14"/>',
+  mountain: '<path d="M2 20 9.5 7l3.5 6 3-5 6 12Z"/>',
+  home: '<path d="M3 11 12 4l9 7M5 10v10h14V10"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+  wifi: '<path d="M2 9a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1" fill="currentColor"/>',
+  leaf: '<path d="M5 19c0-8 5-14 15-15-1 10-7 15-15 15ZM5 19l7-7"/>',
+  people: '<circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="7" r="2.5"/><circle cx="12" cy="10" r="2.5"/><path d="M3 20v-3a4 4 0 0 1 4-4M21 20v-3a4 4 0 0 0-4-4M8 21v-2a4 4 0 0 1 8 0v2"/>',
+  desk: '<path d="M3 10h18M5 10v10M19 10v10M7 6h10v4H7z"/>',
+  shield: '<path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6Z"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
+  house: '<path d="M3 11 12 4l9 7M5 10v10h14V10M10 20v-6h4v6"/>',
+  globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+};
+export function icon(name, size = 20) {
+  return h('span', { class: 'ico', 'aria-hidden': 'true', html:
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ''}</svg>` });
+}
+
 // Cover image or artwork fallback
 export function cover(url, seed, cls = 'cover') {
+  if (!url && localPhotos[seed]) url = localPhotos[seed];
   if (url) {
     const img = h('img', { src: url, alt: '', loading: 'lazy', class: cls });
     img.addEventListener('error', () => img.replaceWith(art(seed)));
