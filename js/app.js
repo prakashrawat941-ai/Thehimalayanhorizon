@@ -52,6 +52,7 @@ route('trips',            () => import('./trip/trips.js').then((m) => m.myTrips)
 route('t/:token',         () => import('./trip/trips.js').then((m) => m.sharedView));
 route('login',            () => import('./pages/account.js').then((m) => m.login));
 route('account',          () => import('./pages/account.js').then((m) => m.account));
+route('account/:tab',     () => import('./pages/account.js').then((m) => m.account));
 route('partner/join',     () => import('./pages/partner.js').then((m) => m.join));
 route('partner',          () => import('./pages/partner.js').then((m) => m.dashboard));
 route('partner/:tab',     () => import('./pages/partner.js').then((m) => m.dashboard));

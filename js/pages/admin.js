@@ -1,6 +1,7 @@
 // Admin portal: approvals, partners, listings, rides, requests, home page,
 // locations, themes, itineraries, users and site settings.
-import { h, toast, empty, badge, fmtDate, inr, modal, busy, lazy, field, input, select } from '../ui.js';
+import { h, toast, empty, badge, fmtDate, inr, modal, busy, lazy, field, input, select, icon } from '../ui.js';
+import { dashShell, statCard } from '../shell.js';
 import { t, pick, getLang } from '../i18n.js';
 import { sb, q } from '../sb.js';
 import { state, user, isAdmin, resetCache, locations, themes, locationById } from '../store.js';
@@ -20,13 +21,6 @@ export async function admin({ params, query }) {
   const allLocs = await q(sb.from('locations').select('*').order('position'));
   const ctx = { locations: allLocs, themes: await q(sb.from('themes').select('*').order('position')) };
   const tab = params.tab || 'overview';
-  const tabs = [
-    ['overview', L('Overview', 'सारांश')], ['partners', L('Partners', 'पार्टनर')],
-    ['homestay', t('stays')], ['workspace', t('workspaces')], ['village_tour', L('Village tours', 'गाँव के टूर')],
-    ['rides', L('Cab rides', 'कैब राइड')], ['requests', L('Requests', 'रिक्वेस्ट')],
-    ['home', L('Home page', 'होम पेज')], ['locations', L('Locations', 'लोकेशन')], ['themes', L('Themes', 'थीम')],
-    ['itineraries', t('itineraries')], ['trips', L('Trip Planner', 'ट्रिप प्लानर')], ['users', L('Users', 'यूज़र')], ['settings', L('Settings', 'सेटिंग्स')],
-  ];
   const views = {
     overview: () => overview(), partners: () => partners(ctx, query), rides: () => rides(), requests: () => requests(),
     home: () => crud('home_sections', SCHEMAS.home_section(), ctx, { order: 'position', title: (r) => `${r.position}. ${r.kind} — ${pick(r, 'title') || '…'}`, flag: 'enabled' }),
@@ -39,13 +33,29 @@ export async function admin({ params, query }) {
   };
   const body = KINDS[tab] ? lazy(() => listingsAdmin(tab, ctx, query)) : lazy(views[tab] || (() => empty()));
 
-  return h('div', { class: 'page admin' },
-    h('div', { class: 'account-head' },
-      h('span', { class: 'avatar', 'aria-hidden': 'true' }, 'HH'),
-      h('div', { class: 'grow' }, h('p', { class: 'eyebrow' }, 'The Himalayan Horizon'), h('h1', {}, t('admin')),
-        h('p', { class: 'muted' }, L('Approvals, home page, places, bookings and users.', 'मंज़ूरियाँ, होम पेज, जगहें, बुकिंग और यूज़र।')))),
-    h('nav', { class: 'tabs tabs-scroll' }, tabs.map(([k, label]) => h('a', { href: `#/admin/${k}`, class: tab === k ? 'active' : '' }, label))),
-    body);
+  // Counters for items waiting for the admin (real counts; 0 hides the badge).
+  const safeCount = (table, f) => count(table, f).catch(() => 0);
+  const [pp, ph, pw, pt, rq, rv] = await Promise.all([
+    safeCount('partners', (x) => x.eq('status', 'pending')), safeCount('homestays', (x) => x.eq('status', 'pending')),
+    safeCount('workspaces', (x) => x.eq('status', 'pending')), safeCount('village_tours', (x) => x.eq('status', 'pending')),
+    safeCount('booking_requests', (x) => x.eq('status', 'requested')), safeCount('destination_reviews', (x) => x.eq('status', 'pending'))]);
+  const it = (key, ic, label, count) => ({ key, href: `#/admin/${key}`, icon: ic, label, count });
+  const groups = [
+    { items: [it('overview', 'grid', L('Dashboard', 'डैशबोर्ड'))] },
+    { label: L('People', 'लोग'), items: [it('users', 'users', L('Users', 'यूज़र')), it('partners', 'shield', L('Partners', 'पार्टनर'), pp)] },
+    { label: L('Listings', 'लिस्टिंग'), items: [it('homestay', 'house', t('stays'), ph), it('workspace', 'desk', t('workspaces'), pw), it('village_tour', 'people', L('Village tours', 'गाँव के टूर'), pt)] },
+    { label: L('Bookings', 'बुकिंग'), items: [it('requests', 'calendar', L('Booking requests', 'बुकिंग रिक्वेस्ट'), rq), it('rides', 'car', L('Cab journeys', 'कैब यात्राएँ'))] },
+    { label: L('Content', 'कंटेंट'), items: [it('home', 'home', L('Home page', 'होम पेज')), it('locations', 'mountain', L('Locations', 'लोकेशन')), it('themes', 'layers', L('Experiences', 'अनुभव')), it('itineraries', 'route', t('itineraries'))] },
+    { label: L('Insights', 'जानकारी'), items: [it('trips', 'chart', L('Trip Planner', 'ट्रिप प्लानर'), rv)] },
+    { label: L('System', 'सिस्टम'), items: [it('settings', 'settings', L('Settings', 'सेटिंग्स'))] },
+  ];
+  const name = state.profile?.full_name?.split(' ')[0] || '';
+  return dashShell({
+    title: tab === 'overview' ? (L(`Namaste${name ? `, ${name}` : ''}`, `नमस्ते${name ? ` ${name}` : ''}`)) : (groups.flatMap((g) => g.items).find((x) => x.key === tab)?.label || t('admin')),
+    eyebrow: L('Admin', 'एडमिन'),
+    subtitle: tab === 'overview' ? L('What needs your attention today.', 'आज किस पर ध्यान देना है।') : null,
+    groups, active: tab, body, brand: L('Admin', 'एडमिन'),
+  });
 }
 
 async function count(table, filter) {
@@ -61,18 +71,38 @@ async function overview() {
     count('partners', (x) => x.eq('status', 'pending')), count('homestays', (x) => x.eq('status', 'pending')),
     count('workspaces', (x) => x.eq('status', 'pending')), count('village_tours', (x) => x.eq('status', 'pending')),
     count('booking_requests', (x) => x.eq('status', 'requested')), count('cab_rides', (x) => x.eq('status', 'open')), count('profiles')]);
-  const stat = (n, label, href, urgent) => h('a', { class: `panel stat${urgent && n ? ' urgent' : ''}`, href }, h('strong', { class: 'stat-n' }, n), h('span', {}, label));
-  return h('div', {},
-    h('div', { class: 'grid grid-4' },
-      stat(pp, L('Partners waiting for approval', 'मंज़ूरी के इंतज़ार में पार्टनर'), '#/admin/partners?status=pending', true),
-      stat(ph, L('Homestays to approve', 'मंज़ूरी बाकी होमस्टे'), '#/admin/homestay?status=pending', true),
-      stat(pw, L('Workspaces to approve', 'मंज़ूरी बाकी वर्कस्पेस'), '#/admin/workspace?status=pending', true),
-      stat(pt, L('Village tours to approve', 'मंज़ूरी बाकी गाँव के टूर'), '#/admin/village_tour?status=pending', true),
-      stat(rq, L('Open booking requests', 'खुली बुकिंग रिक्वेस्ट'), '#/admin/requests'),
-      stat(rides, L('Open cab rides', 'खुली कैब राइड'), '#/admin/rides'),
-      stat(users, L('Registered users', 'रजिस्टर्ड यूज़र'), '#/admin/users')),
-    h('div', { class: 'soft-note' }, L('Tip: everything on the home page — text, order, which blocks show — is under “Home page”. Places are under “Locations”.',
-      'सुझाव: होम पेज का सब कुछ — टेक्स्ट, क्रम, कौन सा हिस्सा दिखे — "होम पेज" में है। जगहें "लोकेशन" में हैं।')));
+  const waiting = pp + ph + pw + pt;
+  // Latest items waiting for approval (real rows).
+  const [wp, wh, ww, wt] = await Promise.all([
+    q(sb.from('partners').select('id,business_name,created_at').eq('status', 'pending').order('created_at', { ascending: false }).limit(5)).catch(() => []),
+    q(sb.from('homestays').select('id,name,created_at').eq('status', 'pending').order('created_at', { ascending: false }).limit(5)).catch(() => []),
+    q(sb.from('workspaces').select('id,name,created_at').eq('status', 'pending').order('created_at', { ascending: false }).limit(5)).catch(() => []),
+    q(sb.from('village_tours').select('id,name,created_at').eq('status', 'pending').order('created_at', { ascending: false }).limit(5)).catch(() => [])]);
+  const rows = [
+    ...wp.map((r) => ({ name: r.business_name, kind: L('Partner', 'पार्टनर'), ic: 'shield', at: r.created_at, href: '#/admin/partners?status=pending' })),
+    ...wh.map((r) => ({ name: r.name, kind: t('stays'), ic: 'house', at: r.created_at, href: '#/admin/homestay?status=pending' })),
+    ...ww.map((r) => ({ name: r.name, kind: t('workspaces'), ic: 'desk', at: r.created_at, href: '#/admin/workspace?status=pending' })),
+    ...wt.map((r) => ({ name: r.name, kind: L('Village tour', 'गाँव टूर'), ic: 'people', at: r.created_at, href: '#/admin/village_tour?status=pending' })),
+  ].sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 8);
+  return h('div', { class: 'ds-body' },
+    h('div', { class: 'ds-stats' },
+      statCard('shield', L('Waiting for approval', 'मंज़ूरी बाकी'), waiting, '#/admin/partners?status=pending', waiting ? 'urgent' : ''),
+      statCard('calendar', L('Open booking requests', 'खुली बुकिंग रिक्वेस्ट'), rq, '#/admin/requests', rq ? 'urgent' : ''),
+      statCard('car', L('Open cab journeys', 'खुली कैब यात्राएँ'), rides, '#/admin/rides'),
+      statCard('users', L('Registered users', 'रजिस्टर्ड यूज़र'), users, '#/admin/users')),
+    h('div', { class: 'ds-cols' },
+      h('section', { class: 'ds-panel' }, h('h2', {}, L('Waiting for your approval', 'आपकी मंज़ूरी का इंतज़ार')),
+        rows.length ? h('div', { class: 'ds-rows' }, rows.map((r) => h('a', { class: 'ds-row', href: r.href },
+          h('span', { class: 'ds-row-ico' }, icon(r.ic, 20)), h('span', { class: 'grow' }, h('strong', {}, r.name), h('span', {}, `${r.kind} · ${fmtDate(r.at)}`)),
+          h('span', { class: 'pill pill-warn' }, L('Pending', 'बाकी')))))
+          : empty(L('Nothing waiting. New partners and listings will show here.', 'कुछ बाकी नहीं। नए पार्टनर और लिस्टिंग यहाँ दिखेंगे।'), null, 'check')),
+      h('section', { class: 'ds-panel' }, h('h2', {}, L('Quick links', 'जल्दी पहुँचें')),
+        h('div', { class: 'ds-rows' },
+          [['home', 'home', L('Edit the home page', 'होम पेज बदलें'), L('Text, order and which blocks show', 'टेक्स्ट, क्रम और कौन से हिस्से दिखें')],
+            ['locations', 'mountain', L('Places and photos', 'जगहें और फ़ोटो'), L('Add photos, best season, how to reach', 'फ़ोटो, सबसे अच्छा मौसम, कैसे पहुँचें')],
+            ['trips', 'chart', L('Trip Planner insights', 'ट्रिप प्लानर जानकारी'), L('Trips, popular places, reviews', 'ट्रिप, लोकप्रिय जगहें, रिव्यू')],
+            ['settings', 'settings', L('Contact and social links', 'संपर्क और सोशल लिंक'), L('Phone, WhatsApp, email', 'फ़ोन, व्हाट्सऐप, ईमेल')]]
+            .map(([k, ic, a, b2]) => h('a', { class: 'ds-row', href: `#/admin/${k}` }, h('span', { class: 'ds-row-ico' }, icon(ic, 20)), h('span', { class: 'grow' }, h('strong', {}, a), h('span', {}, b2))))))));
 }
 
 const statusFilter = (cur, base, opts) => h('div', { class: 'filters' },

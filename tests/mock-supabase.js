@@ -83,6 +83,7 @@ class Query {
   select(cols = '*', opts = {}) { if (this.op === 'select') this.cols = cols; this.returning = true; this.countOpt = opts; return this; }
   eq(c, v) { this.filters.push((r) => r[c] === v); return this; }
   neq(c, v) { this.filters.push((r) => r[c] !== v); return this; }
+  is(c, v) { this.filters.push((r) => (v === null ? r[c] == null : r[c] === v)); return this; }
   gt(c, v) { this.filters.push((r) => r[c] > v); return this; }
   gte(c, v) { this.filters.push((r) => r[c] >= v); return this; }
   lt(c, v) { this.filters.push((r) => r[c] < v); return this; }

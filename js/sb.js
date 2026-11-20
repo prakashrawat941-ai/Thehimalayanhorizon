@@ -16,6 +16,7 @@ export async function q(promise) {
 // Upload an image into the public "media" bucket under the user's own folder.
 export async function uploadImage(file, userId) {
   if (!file) return null;
+  if (!/^image\/(jpeg|png|webp|gif)$/.test(file.type || '')) throw new Error('Please choose a JPG, PNG or WebP image');
   if (file.size > 5 * 1024 * 1024) throw new Error('Image must be under 5 MB');
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
   const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;

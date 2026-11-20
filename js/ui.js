@@ -1,5 +1,5 @@
 // Small DOM helpers so pages stay readable without a framework.
-import { t, statusLabel } from './i18n.js';
+import { t, statusLabel, getLang } from './i18n.js';
 
 export function h(tag, attrs = {}, ...children) {
   const el = document.createElement(tag);
@@ -65,14 +65,21 @@ export function modal(title, body, { wide = false } = {}) {
 
 export const badge = (status) => h('span', { class: `badge badge-${status}` }, statusLabel(status));
 
-export const empty = (text = t('nothing_here'), action) =>
-  h('div', { class: 'empty' }, art('empty', 'meadow'), h('p', {}, text), action || null);
+// Empty state: icon, one line and (optionally) the next step.
+export const empty = (text = t('nothing_here'), action, iconName = 'layers') =>
+  h('div', { class: 'empty' }, h('span', { class: 'empty-ico' }, icon(iconName, 26)), h('p', {}, text), action || null);
 
 export const loading = () => h('div', { class: 'loading' }, h('span', { class: 'spinner' }), t('loading'));
 
 export function errorBox(err) {
   console.error(err);
-  return h('div', { class: 'error-box' }, `${t('error')}: ${err?.message || err}`);
+  const hi = getLang() === 'hi';
+  const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+  return h('div', { class: 'error-box', role: 'alert' },
+    h('span', { class: 'empty-ico err' }, icon('alert', 22)),
+    h('div', {}, h('strong', {}, offline ? (hi ? 'आप ऑफ़लाइन हैं' : 'You are offline') : (hi ? 'यह हिस्सा लोड नहीं हुआ' : "Couldn't load this")),
+      h('p', {}, offline ? (hi ? 'इंटरनेट जुड़ने पर फिर कोशिश करें।' : 'Try again when you are back online.') : `${t('error')}: ${err?.message || err}`)),
+    h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: () => window.dispatchEvent(new HashChangeEvent('hashchange')) }, hi ? 'फिर कोशिश करें' : 'Try again'));
 }
 
 // Async section: shows a spinner, then whatever `fn` returns.
@@ -148,6 +155,25 @@ const ICONS = {
   shield: '<path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6Z"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
   house: '<path d="M3 11 12 4l9 7M5 10v10h14V10M10 20v-6h4v6"/>',
   globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+  grid: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+  users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.5-5 6.5-5s5.7 1.5 6.5 5"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14c2.5 0 4 1.3 4.6 4"/>',
+  calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  route: '<circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.5"/>',
+  star: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9Z"/>',
+  support: '<path d="M4 13a8 8 0 0 1 16 0v4a2 2 0 0 1-2 2h-2v-6h4M4 13v4a2 2 0 0 0 2 2h2v-6H4"/>',
+  log: '<path d="M5 4h14v16H5z"/><path d="M9 8h6M9 12h6M9 16h4"/>',
+  chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
+  bell: '<path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+  doc: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/>',
+  heart: '<path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10Z"/>',
+  pin: '<path d="M12 21s-7-6.5-7-12a7 7 0 0 1 14 0c0 5.5-7 12-7 12Z"/><circle cx="12" cy="9" r="2.5"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  check: '<path d="m5 12 4.5 4.5L19 7"/>',
+  alert: '<path d="M12 3 2 20h20Z"/><path d="M12 10v4M12 17v.5"/>',
+  layers: '<path d="m12 3 9 5-9 5-9-5Z"/><path d="m3 13 9 5 9-5"/>',
+  camera: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+  logout: '<path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/>',
 };
 export function icon(name, size = 20) {
   return h('span', { class: 'ico', 'aria-hidden': 'true', html:
