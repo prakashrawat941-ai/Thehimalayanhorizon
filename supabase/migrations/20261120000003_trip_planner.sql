@@ -36,6 +36,7 @@ create table if not exists public.trip_destinations (
   unique (trip_id, position)
 );
 create index if not exists trip_destinations_location_idx on public.trip_destinations (location_id);
+create index if not exists trip_destinations_place_idx on public.trip_destinations (place_id);
 
 -- 3. Costs: estimate vs actual per category -----------------------------------
 create table if not exists public.trip_expenses (
@@ -212,3 +213,5 @@ revoke all on function public.get_shared_trip(text) from public;
 grant execute on function public.get_shared_trip(text) to anon, authenticated;
 revoke all on function public.admin_trip_stats() from public, anon;
 grant execute on function public.admin_trip_stats() to authenticated;
+revoke all on function private.owns_trip(uuid) from public, anon;
+grant execute on function private.owns_trip(uuid) to authenticated;
