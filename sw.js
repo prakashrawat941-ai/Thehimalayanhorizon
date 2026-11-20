@@ -2,7 +2,7 @@
 // Own files: network first (so updates show at once), cached copy when offline.
 // Fonts and the Supabase library from CDNs: cache first.
 // Supabase API calls are never cached.
-const VERSION = 'hh-v9';
+const VERSION = 'hh-v10';
 const SHELL = [
   './', 'index.html', 'css/app.css', 'manifest.webmanifest', 'icons/icon-192.png', 'img/brand/mark.png',
   'js/app.js', 'js/ui.js', 'js/i18n.js', 'js/store.js', 'js/sb.js', 'js/config.js', 'js/forms.js', 'js/schemas.js',
