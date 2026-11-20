@@ -1,6 +1,6 @@
 // Homestays, workspaces and village tours: lists, detail pages and booking requests.
 import { h, card, grid, empty, inr, cover, chips, field, input, textarea, toast, busy, select, todayISO, whatsappLink, section } from '../ui.js';
-import { t, pick, getLang } from '../i18n.js';
+import { t, pick, getLang, districtName } from '../i18n.js';
 import { sb, q } from '../sb.js';
 import { locations, locationById, user, state, settings } from '../store.js';
 
@@ -83,7 +83,7 @@ export const detail = (kind) => async ({ params }) => {
       images.length ? images.slice(0, 5).map((src, i) => cover(src, x.id, i === 0 ? 'lg-main' : 'lg-thumb')) : cover(null, x.id, 'lg-main')),
     h('div', { class: 'detail-layout' },
       h('div', { class: 'detail-main' },
-        h('p', { class: 'eyebrow' }, [x.village, loc && pick(loc, 'name'), loc?.district].filter(Boolean).join(' · ')),
+        h('p', { class: 'eyebrow' }, [x.village, loc && pick(loc, 'name'), districtName(loc?.district)].filter(Boolean).join(' · ')),
         h('h1', {}, x[k.nameField]),
         host ? h('p', { class: 'muted' }, `${t('hosted_by')} ${host.business_name}`) : null,
         h('p', { class: 'lead' }, x.summary),

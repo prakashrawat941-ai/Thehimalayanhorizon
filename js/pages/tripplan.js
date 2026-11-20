@@ -4,7 +4,7 @@
 // session can carry on. Road routes, weather, itinerary and budget come in later phases;
 // nothing here invents distances, prices or availability.
 import { h, clear, toast, todayISO, icon, art, localPhotos } from '../ui.js';
-import { getLang, pick } from '../i18n.js';
+import { getLang, pick, districtName } from '../i18n.js';
 import { sb, q } from '../sb.js';
 import { locations, themes, user } from '../store.js';
 import { allPlaces, placeInput, placeName, distanceKm, nearestPlace, loadLeaflet } from '../places.js';
@@ -86,7 +86,7 @@ export async function dashboard({ query = {} } = {}) {
       heart(l),
       h('div', { class: 'tp-dest-body' },
         h('a', { href: `#/place/${l.slug}` }, h('strong', {}, pick(l, 'name'))),
-        h('span', { class: 'muted small' }, [l.district, l.region].filter(Boolean).join(' · ')),
+        h('span', { class: 'muted small' }, [districtName(l.district), districtName(l.region)].filter(Boolean).join(' · ')),
         p ? h('a', { class: 'tp-add', href: `#/plan/new?to=${p.id}` }, '+ ', L('Plan a trip here', 'यहाँ की ट्रिप प्लान करें')) : null));
   };
   function paintSaved() {
@@ -299,7 +299,7 @@ export async function mapStep() {
         h('span', { class: `tp-pin${i === 0 ? ' start' : ''}`, 'aria-hidden': 'true' }, label(i)),
         h('div', { class: 'grow' },
           h('strong', {}, pName(p)),
-          h('span', { class: 'muted small' }, [i === 0 ? L('Start', 'शुरुआत') : `${L('Stop', 'पड़ाव')} ${i}`, p.district, `${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`].filter(Boolean).join(' · '))),
+          h('span', { class: 'muted small' }, [i === 0 ? L('Start', 'शुरुआत') : `${L('Stop', 'पड़ाव')} ${i}`, districtName(p.district), `${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`].filter(Boolean).join(' · '))),
         h('div', { class: 'tp-rowtools' },
           i > 1 ? h('button', { type: 'button', class: 'tp-move', 'aria-label': L(`Move stop ${i} up`, `पड़ाव ${i} ऊपर`), onclick: () => { [d.dests[i - 2], d.dests[i - 1]] = [d.dests[i - 1], d.dests[i - 2]]; saveDraft(d); paint(); } }, '↑') : null,
           i > 0 && i < d.dests.length ? h('button', { type: 'button', class: 'tp-move', 'aria-label': L(`Move stop ${i} down`, `पड़ाव ${i} नीचे`), onclick: () => { [d.dests[i], d.dests[i - 1]] = [d.dests[i - 1], d.dests[i]]; saveDraft(d); paint(); } }, '↓') : null,

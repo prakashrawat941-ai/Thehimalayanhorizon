@@ -1,7 +1,7 @@
 // Trip Summary (the "Trip Report" page, laid out like the owner's reference picture).
 // Works for the draft on this device and for a saved or shared trip.
 import { h, clear, toast, icon, inr, lazy, localPhotos, art } from '../ui.js';
-import { getLang, pick } from '../i18n.js';
+import { getLang, pick, districtName } from '../i18n.js';
 import { locations, themes, user } from '../store.js';
 import { allPlaces, placeName } from '../places.js';
 import { fetchListings, listingCard } from '../pages/listings.js';
@@ -106,8 +106,8 @@ function summaryBar(d, n, modeRow, own) {
   const main = d.dests[d.dests.length - 1];
   const people = d.adults + d.children;
   return h('section', { class: 'tr-sum' },
-    item('map', L('Start point', 'शुरुआत'), pName(d.start), d.start.district && d.start.district !== d.start.name ? d.start.district : null),
-    item('mountain', d.dests.length > 1 ? L('Destinations', 'मंज़िलें') : L('Destination', 'मंज़िल'), d.dests.length > 1 ? d.dests.map(pName).join(', ') : pName(main), main.district ? `${main.district}${main.region && main.region !== 'Other' ? ', Uttarakhand' : ''}` : null),
+    item('map', L('Start point', 'शुरुआत'), pName(d.start), d.start.district && d.start.district !== d.start.name ? districtName(d.start.district) : null),
+    item('mountain', d.dests.length > 1 ? L('Destinations', 'मंज़िलें') : L('Destination', 'मंज़िल'), d.dests.length > 1 ? d.dests.map(pName).join(', ') : pName(main), main.district ? `${districtName(main.district)}${main.region && main.region !== 'Other' ? `, ${districtName('Uttarakhand')}` : ''}` : null),
     item('home', L('Duration', 'अवधि'), `${n} ${L(n > 1 ? 'Days' : 'Day', 'दिन')}`, `${fmtD(d.depart)} – ${fmtD(d.ret)}`),
     item('people', L('Travellers', 'यात्री'), String(people), d.children ? `${d.adults} ${L(d.adults > 1 ? 'adults' : 'adult', 'वयस्क')}, ${d.children} ${L(d.children > 1 ? 'children' : 'child', 'बच्चे')}` : null),
     item('car', L('Travel mode', 'साधन'), modeRow ? L(modeRow[1], modeRow[2]) : '—'),
@@ -192,7 +192,7 @@ function placesCard(d, places, locs, themeList) {
       h('span', { class: 'tr-place-body' },
         h('strong', {}, loc ? pick(loc, 'name') : placeName(p)),
         h('span', { class: `tr-tag t${(theme?.slug?.length || p.kind.length) % 4}` }, theme ? pick(theme, 'name') : ({ village: L('Village', 'गाँव'), town: L('Town', 'शहर') })[p.kind] || p.kind),
-        loc?.summary ? h('span', { class: 'tr-place-sub' }, pick(loc, 'summary')) : h('span', { class: 'tr-place-sub' }, p.district || ''),
+        loc?.summary ? h('span', { class: 'tr-place-sub' }, pick(loc, 'summary')) : h('span', { class: 'tr-place-sub' }, districtName(p.district)),
         h('span', { class: 'tr-place-meta' }, `~${Math.round(km)} km ${L('from', 'दूरी:')} ${pName(from)} ${L('(straight line)', '(सीधी दूरी)')}`)));
   }));
 }

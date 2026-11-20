@@ -86,9 +86,10 @@ export async function render() {
   updateNav(path);
   if (path.startsWith('place/')) rememberPlace(path.slice(6));
   try {
-    if (!match) { clear(el).append(notFound()); return; }
+    if (!match) { setPageTitle('404'); clear(el).append(notFound()); return; }
     const params = Object.fromEntries(match.r.keys.map((k, i) => [k, decodeURIComponent(match.m[i + 1])]));
     const page = await match.r.loader();
+    setPageTitle(path);
     const node = await page({ params, query, path });
     if (token !== renderToken) return; // user navigated away meanwhile
     clear(el).append(node);
@@ -99,7 +100,25 @@ export async function render() {
   }
 }
 
-const notFound = () => h('div', { class: 'page narrow' }, h('h1', {}, '404'), h('p', {}, 'Page not found.'), h('a', { class: 'btn', href: '#/' }, t('home')));
+const notFound = () => h('div', { class: 'page narrow' }, h('h1', {}, '404'),
+  h('p', {}, getLang() === 'hi' ? 'यह पेज नहीं मिला।' : 'Page not found.'), h('a', { class: 'btn', href: '#/' }, t('home')));
+
+// Browser tab / share title for each page (a page can refine it, e.g. a place name).
+const TITLES = [
+  [/^$/, null, null], [/^explore/, 'Explore destinations', 'जगहें देखें'], [/^villages/, 'Mountain villages', 'पहाड़ी गाँव'],
+  [/^place\//, 'Destination', 'जगह'], [/^stays?/, 'Homestays', 'होमस्टे'], [/^workspaces?|^work/, 'Work from the mountains', 'पहाड़ों से काम'],
+  [/^itinerar/, 'Itineraries', 'आइटिनरेरी'], [/^plan/, 'Trip Planner', 'ट्रिप प्लानर'], [/^trips?\b|^trip\//, 'My trips', 'मेरी ट्रिप'], [/^t\//, 'Shared trip', 'शेयर की गई ट्रिप'],
+  [/^cab|^drive/, 'Instant Cab', 'इंस्टेंट कैब'], [/^login/, 'Sign in', 'लॉगिन'], [/^account/, 'My account', 'मेरा अकाउंट'],
+  [/^partner/, 'Partner portal', 'पार्टनर पोर्टल'], [/^admin/, 'Admin', 'एडमिन'], [/^404$/, 'Page not found', 'पेज नहीं मिला'],
+];
+export function setPageTitle(path, exact) {
+  const md = document.querySelector('meta[name="description"]');
+  if (md) { md.dataset.def ||= md.getAttribute('content'); md.setAttribute('content', md.dataset.def); }
+  const brand = getLang() === 'hi' ? 'द हिमालयन होराइज़न' : 'The Himalayan Horizon';
+  let name = exact || null;
+  if (!name) { const row = TITLES.find(([re]) => re.test(path)); name = row && row[1] ? (getLang() === 'hi' ? row[2] : row[1]) : null; }
+  document.title = name ? `${name} · ${brand}` : `${brand} — ${getLang() === 'hi' ? 'उत्तराखंड के गाँव, होमस्टे और यात्रा' : 'Uttarakhand villages, homestays and trips'}`;
+}
 
 // ---------- Shell ----------
 const navItems = () => [

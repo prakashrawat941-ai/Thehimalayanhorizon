@@ -2,7 +2,7 @@
 // with a "Did you mean …?" confirmation, current location and a map picker.
 // Uses the public `places` table (Uttarakhand towns, villages and hubs).
 import { h, clear, modal, toast, icon } from './ui.js';
-import { getLang } from './i18n.js';
+import { getLang, districtName } from './i18n.js';
 import { sb, q } from './sb.js';
 
 const L = (en, hi) => (getLang() === 'hi' ? hi : en);
@@ -102,7 +102,7 @@ export function placeInput({ label, value = null, onChange = () => {}, placehold
     clear(chosen);
     if (!selected) { chosen.hidden = true; inp.hidden = false; return; }
     chosen.append(
-      h('span', { class: 'pi-chip' }, h('strong', {}, placeName(selected)), selected.district ? h('small', {}, ` · ${selected.district}`) : null),
+      h('span', { class: 'pi-chip' }, h('strong', {}, placeName(selected)), selected.district ? h('small', {}, ` · ${districtName(selected.district)}`) : null),
       h('button', { type: 'button', class: 'pi-clear', 'aria-label': L('Change place', 'जगह बदलें'), onclick: () => { set(null); inp.focus(); } }, '✕'));
     chosen.hidden = false; inp.hidden = true; clear(hint); close();
   }
@@ -119,7 +119,7 @@ export function placeInput({ label, value = null, onChange = () => {}, placehold
     items.forEach(({ place }, i) => menu.append(h('li', {
       role: 'option', id: `${id}-o${i}`, class: i === active ? 'on' : '', 'aria-selected': String(i === active),
       onmousedown: (e) => { e.preventDefault(); set(place); },
-    }, h('strong', {}, placeName(place)), h('span', {}, [place.district, place.region !== 'Other' ? place.region : ''].filter(Boolean).join(' · ')))));
+    }, h('strong', {}, placeName(place)), h('span', {}, [districtName(place.district), place.region !== 'Other' ? districtName(place.region) : ''].filter(Boolean).join(' · ')))));
     menu.hidden = false; inp.setAttribute('aria-expanded', 'true');
   }
   let items = [];

@@ -1,6 +1,6 @@
 // Public pages: home, explore, place, villages, itineraries.
 import { h, card, section, grid, chips, lazy, empty, inr, cover, art, select, icon, localPhotos } from '../ui.js';
-import { t, pick, getLang } from '../i18n.js';
+import { t, pick, getLang, districtName } from '../i18n.js';
 import { sb, q } from '../sb.js';
 import { locations, themes, locationBySlug, locationById, user } from '../store.js';
 import { listingCard, fetchListings } from './listings.js';
@@ -11,7 +11,7 @@ export function placeCard(l) {
   return card({
     href: `#/place/${l.slug}`, image: l.image_url, seed: l.slug, title: pick(l, 'name'),
     subtitle: pick(l, 'summary'),
-    meta: [regionLabel(l.region), l.district].filter(Boolean).join(' · '),
+    meta: [regionLabel(l.region), districtName(l.district)].filter(Boolean).join(' · '),
     tag: l.kind === 'village' ? t('villages') : null,
   });
 }
@@ -270,6 +270,9 @@ export async function place({ params }) {
   let l = locationBySlug(params.slug);
   if (!l) l = await q(sb.from('locations').select('*').eq('slug', params.slug).maybeSingle());
   if (!l) return empty();
+  document.title = `${pick(l, 'name')} · ${getLang() === 'hi' ? 'द हिमालयन होराइज़न' : 'The Himalayan Horizon'}`;
+  const metaDesc = document.querySelector('meta[name="description"]');
+  if (metaDesc && pick(l, 'summary')) metaDesc.setAttribute('content', pick(l, 'summary').slice(0, 160));
   const themeList = await themes();
   const [stays, works, tours, its] = await Promise.all([
     fetchListings('homestay', { location: l.id }), fetchListings('workspace', { location: l.id }),
@@ -281,7 +284,7 @@ export async function place({ params }) {
   return h('div', { class: 'page' },
     h('div', { class: 'detail-hero' }, cover(l.image_url, l.slug, 'detail-img'),
       h('div', { class: 'detail-hero-text' },
-        h('p', { class: 'eyebrow' }, [regionLabel(l.region), l.district].filter(Boolean).join(' · ')),
+        h('p', { class: 'eyebrow' }, [regionLabel(l.region), districtName(l.district)].filter(Boolean).join(' · ')),
         h('h1', {}, pick(l, 'name')))),
     h('div', { class: 'detail-layout' },
       h('div', { class: 'detail-main' },
