@@ -2,7 +2,7 @@
 // Own files: network first (so updates show at once), cached copy when offline.
 // Fonts and the Supabase library from CDNs: cache first.
 // Supabase API calls are never cached.
-const VERSION = 'hh-v10';
+const VERSION = 'hh-v11';
 const SHELL = [
   './', 'index.html', 'css/app.css', 'manifest.webmanifest', 'icons/icon-192.png', 'img/brand/mark.png',
   'js/app.js', 'js/ui.js', 'js/i18n.js', 'js/store.js', 'js/sb.js', 'js/config.js', 'js/forms.js', 'js/schemas.js',
@@ -11,7 +11,7 @@ const SHELL = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {
@@ -36,7 +36,8 @@ self.addEventListener('fetch', (e) => {
     return;
   }
   if (url.origin !== location.origin) return;
-  e.respondWith(fetch(req).then((res) => {
+  // Always check with the server (cheap 304 when unchanged) so a phone never mixes old and new files.
+  e.respondWith(fetch(req, { cache: 'no-cache' }).then((res) => {
     if (res.ok) { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(req, copy)); }
     return res;
   }).catch(() => caches.match(req).then((hit) => hit || caches.match('index.html'))));
