@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module';
-const { chromium, devices } = createRequire('/opt/npm-tools/node_modules/')('playwright');
+const { chromium, devices } = createRequire(import.meta.url)('playwright');
 import { spawn } from 'node:child_process';
 import { readFileSync, mkdirSync } from 'node:fs';
 
