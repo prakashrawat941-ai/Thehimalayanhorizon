@@ -160,7 +160,7 @@ export async function details({ query }) {
   const errEl = (k) => (errBox[k] = h('p', { class: 'form-err', role: 'alert', id: `tp-err-${k}` }));
 
   // Start
-  const startI = placeInput({ id: 'tp-start', label: L('Starting location', 'कहाँ से शुरू'), placeholder: L('City, town or village', 'शहर, कस्बा या गाँव'),
+  const startI = placeInput({ external: true, id: 'tp-start', label: L('Starting location', 'कहाँ से शुरू'), placeholder: L('City, town or village', 'शहर, कस्बा या गाँव'),
     value: d.start, onChange: (p) => { d.start = slim(p); save(); } });
 
   // Destinations (add / remove / reorder)
@@ -168,7 +168,7 @@ export async function details({ query }) {
   const paintDests = () => {
     clear(destList);
     d.dests.forEach((p, i) => {
-      const pi = placeInput({ id: `tp-dest-${i}`, label: d.dests.length > 1 ? `${L('Destination', 'मंज़िल')} ${i + 1}` : L('Destination', 'मंज़िल'),
+      const pi = placeInput({ external: true, id: `tp-dest-${i}`, label: d.dests.length > 1 ? `${L('Destination', 'मंज़िल')} ${i + 1}` : L('Destination', 'मंज़िल'),
         placeholder: L('Where do you want to go?', 'कहाँ जाना है?'), value: p, compact: true, onChange: (np) => { d.dests[i] = slim(np); save(); } });
       const move = (dir) => { const j = i + dir; [d.dests[i], d.dests[j]] = [d.dests[j], d.dests[i]]; save(); paintDests(); destList.querySelectorAll('.tp-move')[Math.max(0, j * 2 + (dir > 0 ? 1 : 0))]?.focus(); };
       destList.append(h('li', { class: 'tp-destrow' },

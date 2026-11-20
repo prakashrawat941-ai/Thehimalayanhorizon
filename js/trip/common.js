@@ -47,7 +47,7 @@ export const hasContent = (d) => d && (d.start || d.dests.some(Boolean) || d.dep
 
 // Keep a light copy of a place (custom map pins have no id).
 export const slim = (p) => (p ? { id: p.id || null, name: p.name, name_hi: p.name_hi || null, district: p.district || null, region: p.region || null,
-  lat: Number(p.lat), lng: Number(p.lng), location_id: p.location_id || null, custom: !!p.custom, near: p.near || null } : null);
+  lat: Number(p.lat), lng: Number(p.lng), location_id: p.location_id || null, custom: !!p.custom, ext: !!p.ext, near: p.near || null } : null);
 export const pName = (p) => (!p ? '' : p.halt && p.custom ? L(p.name, p.name_hi || p.name) : p.custom ? `${L('Pin near', 'पिन:')} ${p.near || ''}`.trim() : placeName(p));
 
 export const nights = (d) => (d.depart && d.ret ? Math.round((new Date(d.ret) - new Date(d.depart)) / 864e5) : null);

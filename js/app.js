@@ -84,20 +84,22 @@ export async function render() {
   const match = routes.map((r) => ({ r, m: path.match(r.re) })).find((x) => x.m);
   const el = main();
   clear(el).append(loading());
+  document.body.classList.add('is-loading');
   updateNav(path);
   if (path.startsWith('place/')) rememberPlace(path.slice(6));
   try {
-    if (!match) { setPageTitle('404'); clear(el).append(notFound()); return; }
+    if (!match) { setPageTitle('404'); clear(el).append(notFound()); document.body.classList.remove('is-loading'); return; }
     const params = Object.fromEntries(match.r.keys.map((k, i) => [k, decodeURIComponent(match.m[i + 1])]));
     const page = await match.r.loader();
     setPageTitle(path);
     const node = await page({ params, query, path });
     if (token !== renderToken) return; // user navigated away meanwhile
     clear(el).append(node);
+    document.body.classList.remove('is-loading');
     el.focus({ preventScroll: true });
     window.scrollTo({ top: 0 });
   } catch (err) {
-    if (token === renderToken) clear(el).append(errorBox(err));
+    if (token === renderToken) { clear(el).append(errorBox(err)); document.body.classList.remove('is-loading'); }
   }
 }
 
@@ -165,7 +167,9 @@ function tabbar() {
 function footer() {
   return h('footer', { class: 'footer' },
     h('div', { class: 'footer-inner' },
-      h('a', { class: 'footer-brand', href: '#/', 'aria-label': 'The Himalayan Horizon' }, h('img', { class: 'footer-logo', src: 'img/brand/logo-full.jpg', alt: 'The Himalayan Horizon — Discover Beyond the Mountains', loading: 'lazy', width: 240, height: 160 })),
+      h('a', { class: 'footer-brand', href: '#/' }, h('img', { class: 'footer-mark', src: 'img/brand/mark.png', alt: '', width: 48, height: 46 }),
+        h('span', {}, h('strong', {}, getLang() === 'hi' ? 'द हिमालयन होराइज़न' : 'The Himalayan Horizon'),
+          h('small', {}, getLang() === 'hi' ? 'उत्तराखंड · गाँव · होमस्टे · यात्रा' : 'Uttarakhand · Villages · Homestays · Trips'))),
       h('nav', { class: 'footer-links', 'aria-label': 'Footer' },
         h('a', { href: '#/villages' }, t('villages')), h('a', { href: '#/stays' }, t('stays')),
         h('a', { href: '#/workspaces' }, t('workspaces')), h('a', { href: '#/cab' }, t('cabs')),

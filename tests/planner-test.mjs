@@ -37,6 +37,12 @@ function archive(url) {
   const time = []; for (let x = s0; x <= e0 && time.length < 1200; x = add(x, 1)) time.push(x);
   return { daily: { time, temperature_2m_max: time.map(() => 14), temperature_2m_min: time.map(() => 2), precipitation_sum: time.map((_, i) => (i % 3 ? 0 : 3)) } };
 }
+const feat = (name, lat, lon, county) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [lon, lat] }, properties: { name, county, state: 'Uttarakhand', countrycode: 'IN', osm_key: 'place', osm_value: 'village' } });
+function photon(url) {
+  const q = decodeURIComponent((url.match(/q=([^&]+)/) || [])[1] || '').toLowerCase();
+  if (q.startsWith('degh')) return { features: [feat('Deghat', 29.85, 79.24, 'Almora'), feat('Deghat Bazaar', 29.851, 79.242, 'Almora')] };
+  return { features: [] };
+}
 function overpass() {
   return { elements: [
     { type: 'node', lat: 28.84, lon: 78.2, tags: { barrier: 'toll_booth', name: 'Test Toll Plaza' } },
@@ -50,7 +56,7 @@ function overpass() {
 
 async function setup(ctxOpts, lang, role = 'traveler') {
   const ctx = await browser.newContext(ctxOpts);
-  await ctx.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: BASE.slice(0, -1) });
+  await ctx.grantPermissions(['clipboard-read', 'clipboard-write', 'geolocation'], { origin: BASE.slice(0, -1) });
   await ctx.route(/cdn\.jsdelivr\.net\/npm\/@supabase/, (r) => r.fulfill({ contentType: 'application/javascript', body: mock }));
   await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
   await ctx.route(/unpkg\.com\/leaflet.*\.js/, (r) => r.fulfill({ contentType: 'application/javascript', body: stub }));
@@ -58,6 +64,8 @@ async function setup(ctxOpts, lang, role = 'traveler') {
   await ctx.route(/router\.project-osrm\.org/, (r) => (api.failOsrm ? r.fulfill({ status: 503, body: 'down' }) : r.fulfill({ contentType: 'application/json', body: JSON.stringify(osrm(r.request().url())) })));
   await ctx.route(/api\.open-meteo\.com/, (r) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(meteo()) }));
   await ctx.route(/archive-api\.open-meteo\.com/, (r) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(archive(r.request().url())) }));
+  await ctx.route(/photon\.komoot\.io\/api/, (r) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(photon(r.request().url())) }));
+  await ctx.route(/photon\.komoot\.io\/reverse/, (r) => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ features: [feat('Chaukhutia', 29.88, 79.35, 'Almora')] }) }));
   await ctx.route(/overpass-api\.de/, (r) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(overpass()) }));
   const page = await ctx.newPage();
   const errs = [];
@@ -279,6 +287,37 @@ for (const [dev, opts, lang] of [['phone', devices['Pixel 7'], 'en'], ['desktop'
     if (!page.url().includes('#/plan/new?to=') || !/Binsar/.test(await page.locator('.tp-destrow').first().innerText())) problems.push(`${tag}: place link -> ${page.url()}`);
   }
   if (errs.length) problems.push(`${tag}: ${[...new Set(errs)].join(' | ')}`);
+  await ctx.close();
+}
+// Any village (OpenStreetMap search) and phone location in the planner.
+{
+  const { ctx, page, errs } = await setup({ ...devices['Pixel 7'], geolocation: { latitude: 29.881, longitude: 79.351 }, permissions: ['geolocation'] }, 'en');
+  await go(page, 'plan/new', 1000);
+  await page.locator('#tp-dest-0').fill('Deghat'); await page.waitForTimeout(900);
+  const menu = await page.locator('#tp-dest-0-list').innerText();
+  if (!/more places/i.test(menu) || !/Deghat/.test(menu)) problems.push('village search: ' + menu.slice(0, 120));
+  await page.locator('#tp-dest-0-list li[role=option]', { hasText: 'Deghat' }).first().dispatchEvent('mousedown');
+  await page.waitForTimeout(200);
+  if (!/Deghat/.test(await page.locator('.tp-destrow').first().innerText())) problems.push('village not chosen');
+  await page.getByRole('button', { name: 'Use my location' }).first().click();
+  await page.waitForTimeout(1200);
+  const startTxt = await page.locator('.pi').first().innerText();
+  if (!/Chaukhutia/.test(startTxt)) problems.push('my location: ' + startTxt.slice(0, 120));
+  await shot(page, 'phone-en-plan-village-location', false);
+  await page.locator('#tp-ret').fill(add(today(), 9));
+  await page.getByRole('button', { name: 'Continue' }).click(); await page.waitForTimeout(900);
+  if (!page.url().endsWith('#/plan/map')) { problems.push('village trip did not reach map: ' + page.url() + ' ' + (await page.locator('.form-err').allInnerTexts()).join('|')); console.log(problems); }
+  else { await page.getByRole('link', { name: 'Continue' }).click(); await page.waitForTimeout(2500); }
+  if ((await page.locator('.tp-leg').count()) !== 2) problems.push('village route legs: ' + await page.locator('.tp-leg').count());
+  // Location permission denied: clear message, no crash.
+  const c2 = await browser.newContext({ ...devices['Pixel 7'] });
+  await c2.route(/cdn\.jsdelivr\.net\/npm\/@supabase/, (r) => r.fulfill({ contentType: 'application/javascript', body: mock }));
+  const p2 = await c2.newPage(); await p2.addInitScript(() => localStorage.setItem('hh_lang', 'en')); await p2.goto(BASE + '#/plan/new'); await p2.waitForTimeout(900);
+  await p2.evaluate(() => { navigator.geolocation.getCurrentPosition = (ok, bad) => bad({ code: 1, message: 'denied' }); });
+  await p2.getByRole('button', { name: 'Use my location' }).first().click(); await p2.waitForTimeout(300);
+  if (!/permission is off/.test(await p2.locator('.pi').first().innerText())) problems.push('denied message missing');
+  await c2.close();
+  if (errs.length) problems.push(`village: ${errs.join(' | ')}`);
   await ctx.close();
 }
 // Admin: Trip Planner tab (analytics + reviews)
