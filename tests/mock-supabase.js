@@ -174,7 +174,7 @@ export function createClient() {
       getSession: async () => ({ data: { session } }),
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
       signInWithPassword: async () => ({ error: { message: 'Mock: set localStorage mock_role' } }),
-      signInWithOAuth: async () => ({ error: { message: 'Unsupported provider: provider is not enabled' } }),
+      signInWithOAuth: async (o) => (localStorage.getItem('mock_google') === 'ok' ? (window.__oauth = o, { data: { url: 'https://accounts.google.com/' }, error: null }) : { error: { message: 'Unsupported provider: provider is not enabled' } }),
       signUp: async () => ({ data: {}, error: null }),
       signOut: async () => { localStorage.removeItem('mock_role'); return {}; },
       resetPasswordForEmail: async () => ({}),

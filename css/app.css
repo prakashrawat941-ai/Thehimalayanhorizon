@@ -759,9 +759,21 @@ input[type=color].input { padding: 4px; height: 44px; }
 .veh-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; color: var(--green); }
 .veh-row + .veh-row { border-top: 1px solid #efe9dc; }
 .veh-row .grow { color: var(--ink); }
-.btn-google { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 50px; border: 1px solid #d9d2c3; background: #fff; border-radius: 12px; font: 600 1rem var(--font); color: var(--ink); cursor: pointer; }
-.btn-google:hover { border-color: #b9b2a3; background: #fbfaf7; }
-.g-logo svg { display: block; }
+.gbtn { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; padding: 0 48px; border: 1px solid #dadce0; border-radius: 10px; background: #fff; color: #1f1f1f; font: 500 1rem/1.2 'Roboto', 'Mukta', system-ui, sans-serif; letter-spacing: .01em; cursor: pointer; transition: background-color .15s, box-shadow .15s, border-color .15s; -webkit-tap-highlight-color: transparent; }
+.gbtn-logo { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; display: flex; }
+.gbtn-logo svg { width: 20px; height: 20px; display: block; }
+.gbtn-text { white-space: nowrap; }
+.gbtn-spin { position: absolute; right: 16px; top: 50%; width: 18px; height: 18px; margin-top: -9px; border-radius: 50%; border: 2px solid #dadce0; border-top-color: #4285f4; opacity: 0; }
+.gbtn:hover:not(:disabled) { background: #f8f9fa; border-color: #d2d6da; box-shadow: 0 1px 2px rgba(60,64,67,.25), 0 1px 3px 1px rgba(60,64,67,.12); }
+.gbtn:active:not(:disabled) { background: #eef1f4; box-shadow: none; }
+.gbtn:focus-visible { outline: 2px solid #1a73e8; outline-offset: 2px; }
+.gbtn:disabled { cursor: not-allowed; }
+.gbtn:disabled:not(.is-loading) { opacity: .55; }
+.gbtn.is-loading { cursor: progress; background: #fafafa; }
+.gbtn.is-loading .gbtn-spin { opacity: 1; animation: gbtn-spin .8s linear infinite; }
+@keyframes gbtn-spin { to { transform: rotate(360deg); } }
+@media (max-width: 380px) { .gbtn { padding: 0 40px; font-size: .95rem; } .gbtn-logo { left: 12px; } }
+@media (min-width: 900px) { .gbtn { min-height: 50px; } }
 .or-line { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: .85rem; }
 .or-line::before, .or-line::after { content: ''; flex: 1; height: 1px; background: #d9d2c3; }
 @media (max-width: 640px) {
