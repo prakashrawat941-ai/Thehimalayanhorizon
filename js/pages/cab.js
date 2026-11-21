@@ -1,10 +1,10 @@
 // Instant Book Cab — customer side: entry choice, search, results, ride details,
 // seat choice, confirmation, booking page, my bookings and the customer dashboard.
 // Rides are real journeys published by drivers (cost sharing, pay the driver directly).
-import { h, clear, toast, modal, busy, inr, todayISO, empty, loading, icon, lazy } from '../ui.js';
+import { h, clear, toast, modal, busy, inr, todayISO, empty, loading, icon, lazy, whatsappLink } from '../ui.js';
 import { getLang } from '../i18n.js';
 import { sb, q } from '../sb.js';
-import { state, user, loadProfile } from '../store.js';
+import { state, user, loadProfile, settings } from '../store.js';
 import { allPlaces, placeInput, placeName, placeById, placesCached } from '../places.js';
 
 export const L = (en, hi) => (getLang() === 'hi' ? hi : en);
@@ -39,6 +39,8 @@ export function statusPill(status, departure) {
     confirmed: past ? ['done', L('Completed', 'पूरी हुई')] : ['ok', L('Confirmed', 'कन्फ़र्म')],
     completed: ['done', L('Completed', 'पूरी हुई')],
     declined: ['bad', L('Declined', 'मना किया')],
+    expired: ['bad', L('Request expired', 'रिक्वेस्ट की समय-सीमा ख़त्म')],
+    started: ['ok', L('On the way', 'रास्ते में')],
     cancelled: ['bad', L('Cancelled', 'रद्द')],
     open: past ? ['done', L('Done', 'पूरी')] : ['ok', L('Published', 'पब्लिश')],
     full: past ? ['done', L('Done', 'पूरी')] : ['ok', L('Full', 'भरी हुई')],
@@ -55,11 +57,107 @@ export function ridePath(r, places) {
   const stops = (r.stops || []).map((s) => s.place_id).filter(Boolean);
   return [from, ...stops, to].filter(Boolean);
 }
-export const routeLabel = (r) => {
+// Start / end name: listed place, or (rides from any village) the saved name.
+export function endName(r, which) {
   const path = ridePath(r, placesCached());
-  const p = (id) => placeName(placeById(id)) || '?';
-  return `${p(path[0])} → ${p(path[path.length - 1])}`;
-};
+  const id = which === 'from' ? path[0] : path[path.length - 1];
+  return placeName(placeById(id)) || r[`${which}_geo`]?.name || (which === 'from' ? r.pickup_point : r.drop_point) || '?';
+}
+export const routeLabel = (r) => `${endName(r, 'from')} → ${endName(r, 'to')}`;
+
+// IDs: new format first (THH-DDMMYYYY-NNNN), older random codes still shown.
+export const refOf = (b) => b.booking_ref || b.booking_code || b.id.slice(0, 8).toUpperCase();
+// The Ride ID starts with the state + district code of the car (e.g. UK07); the full number stays private.
+export const regionOf = (r) => { const p = (r?.ride_ref || '').slice(0, 4); return p && p !== 'THHX' ? p : ''; };
+export const seatsLeftText = (left) => (left > 0 ? `${left} ${L(left === 1 ? 'seat left' : 'seats left', 'सीट बाकी')}` : L('Full', 'भरी हुई'));
+
+// Driver record from real rides and reviews (database function). Partner rides have none.
+export async function reliability(driverId) {
+  if (!driverId) return null;
+  return q(sb.rpc('driver_reliability', { p_driver: driverId })).catch(() => null);
+}
+function withThh(since) {
+  if (!since) return '—';
+  const months = Math.floor((Date.now() - new Date(since)) / (30.44 * 864e5));
+  if (months < 1) return L('New', 'नए');
+  if (months < 12) return `${months} ${L(months === 1 ? 'month' : 'months', 'महीने')}`;
+  const y = Math.floor(months / 12);
+  return `${y}+ ${L(y === 1 ? 'year' : 'years', 'साल')}`;
+}
+const LEVELS = { excellent: L('Excellent', 'बहुत बढ़िया'), good: L('Good', 'अच्छा'), fair: L('Fair', 'ठीक'), low: L('Needs improvement', 'सुधार चाहिए') };
+export function trustPanel(rel) {
+  if (!rel) return null;
+  const stat = (value, label) => h('div', { class: 'trust-stat' }, h('strong', {}, value), h('span', {}, label));
+  return h('section', { class: 'trust', 'aria-label': L('Driver record', 'ड्राइवर का रिकॉर्ड') },
+    h('div', { class: 'trust-grid' },
+      stat(rel.reviews ? `★ ${Number(rel.avg_rating).toFixed(1)}` : '—', rel.reviews ? `${rel.reviews} ${L(rel.reviews === 1 ? 'review' : 'reviews', 'रिव्यू')}` : L('No reviews yet', 'अभी कोई रिव्यू नहीं')),
+      stat(String(rel.completed_rides), L('Rides completed', 'पूरी राइड')),
+      stat(String(rel.passengers_served), L('Passengers served', 'यात्री पहुँचाए')),
+      stat(withThh(rel.member_since), L('With The Himalayan Horizon', 'द हिमालयन होराइज़न के साथ'))),
+    rel.enough_history
+      ? h('p', { class: 'trust-note' }, h('span', { class: `rel-chip rel-${rel.level}` }, `${L('Reliability', 'भरोसा')}: ${LEVELS[rel.level] || rel.level} · ${rel.score}/100`),
+        rel.cancellation_rate != null ? h('span', { class: 'small muted' }, ` ${L('Cancelled', 'रद्द')} ${Math.round(rel.cancellation_rate * 100)}% ${L('of rides', 'राइड')}`) : null)
+      : h('p', { class: 'trust-note small muted' }, L('New driver: not enough completed rides and reviews yet for a reliability score.', 'नए ड्राइवर: भरोसे का स्कोर बनाने लायक राइड और रिव्यू अभी नहीं हैं।')));
+}
+
+// Live seat counts: other people's bookings update this screen without refreshing.
+export function watchRides(ids, onRow) {
+  const list = [...new Set(ids)].filter(Boolean).slice(0, 100);
+  if (!list.length || typeof sb.channel !== 'function') return () => {};
+  let ch = null;
+  try {
+    ch = sb.channel(`rides-${Math.random().toString(36).slice(2)}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cab_rides', filter: list.length === 1 ? `id=eq.${list[0]}` : `id=in.(${list.join(',')})` },
+        (p) => { if (p?.new?.id) onRow(p.new); })
+      .subscribe();
+  } catch { return () => {}; }
+  const stop = () => { try { sb.removeChannel(ch); } catch { /* ignore */ } window.removeEventListener('hashchange', stop); };
+  window.addEventListener('hashchange', stop);
+  return stop;
+}
+
+// Countdown for a request waiting for the driver (15-minute hold).
+export function holdTimer(until, prefix) {
+  const el = h('span', { class: 'hold', role: 'timer' });
+  let t = null; let shown = false;
+  const tick = () => {
+    if (shown && !el.isConnected) { clearInterval(t); return; }
+    if (el.isConnected) shown = true;
+    const ms = new Date(until) - Date.now();
+    if (ms <= 0) { el.textContent = L('Time is up. The seats are being released.', 'समय ख़त्म। सीटें छोड़ी जा रही हैं।'); el.classList.add('over'); clearInterval(t); return; }
+    const m = Math.floor(ms / 60000); const sec = Math.floor(ms / 1000) % 60;
+    el.textContent = `${prefix} ${m}:${String(sec).padStart(2, '0')}`;
+  };
+  tick(); t = setInterval(tick, 1000);
+  return el;
+}
+
+// Success popup (booking and ride published). Rows are [label, value].
+export function celebrate({ title, message, rows = [], actions = [], wait = false }) {
+  const mark = h('div', { class: `cele-mark${wait ? ' wait' : ''}`, 'aria-hidden': 'true' });
+  mark.innerHTML = wait
+    ? '<svg viewBox="0 0 52 52"><circle class="c" cx="26" cy="26" r="24"/><path class="k" d="M26 14v13l8 5"/></svg>'
+    : '<svg viewBox="0 0 52 52"><circle class="c" cx="26" cy="26" r="24"/><path class="k" d="M15 27l7 7 15-16"/></svg>';
+  const body = h('div', { class: 'cele' }, mark,
+    h('h2', { class: 'cele-title' }, title),
+    message ? h('p', { class: 'cele-msg' }, message) : null,
+    h('dl', { class: 'cele-rows' }, rows.filter((x) => x && x[1]).map(([k, v]) => h('div', { class: 'cele-row' }, h('dt', {}, k), h('dd', {}, v)))),
+    h('div', { class: 'cele-actions' }, actions.filter(Boolean)));
+  const dlg = modal('', body);
+  dlg.el.classList.add('modal-cele');
+  // Leaving the page (back button, bottom menu, a link in the popup) closes the popup too.
+  const onNav = () => { window.removeEventListener('hashchange', onNav); if (dlg.el.isConnected) dlg.close(); };
+  window.addEventListener('hashchange', onNav);
+  return dlg;
+}
+
+// THH support contact from Admin → Settings (WhatsApp first, then phone). Null when not set.
+export async function supportLink(text) {
+  const c = (await settings().catch(() => ({})))?.contact || {};
+  if (c.whatsapp) return { href: whatsappLink(c.whatsapp, text), label: L('Contact THH support', 'THH सपोर्ट से बात करें'), external: true };
+  if (c.phone) return { href: `tel:${String(c.phone).replace(/\s/g, '')}`, label: L('Call THH support', 'THH सपोर्ट को कॉल करें'), number: c.phone };
+  return null;
+}
 
 export async function driverCards(rides) {
   const ids = [...new Set(rides.map((r) => r.driver_id).filter(Boolean))];
@@ -180,7 +278,19 @@ export async function find({ query }) {
         h('a', { class: 'btn btn-ghost btn-sm', href: link(shift(1)) }, L('Next day', 'अगला दिन'))),
       h('p', { class: 'small muted' }, L('Driving this route? ', 'इस रूट पर जा रहे हैं? '), h('a', { href: user() ? '#/drive/publish' : '#/login?next=drive/publish' }, L('Publish your ride', 'अपनी राइड डालें')))));
   }
-  matches.forEach((r) => list.append(rideCard(r, card(r), n, places)));
+  const pills = {};
+  matches.forEach((r) => { const el = rideCard(r, card(r), n, places); pills[r.id] = el; list.append(el); });
+  watchRides(matches.map((r) => r.id), (row) => {
+    const el = pills[row.id]; if (!el) return;
+    const left = row.seats_total - row.seats_booked;
+    const pill = el.querySelector('.seat-pill');
+    pill.textContent = seatsLeftText(left); pill.classList.toggle('low', left <= 2); pill.classList.add('flash');
+    setTimeout(() => pill.classList.remove('flash'), 1200);
+    const enough = left >= n && row.status === 'open';
+    el.classList.toggle('is-off', !enough);
+    const cta = el.querySelector('.rc-foot .btn');
+    if (cta && !enough) cta.replaceWith(h('span', { class: 'muted small' }, L('Not enough seats', 'सीटें कम हैं')));
+  });
   page.append(list);
   return page;
 }
@@ -195,12 +305,12 @@ function rideCard(r, d, n, places) {
       h('div', { class: 'grow' },
         h('strong', { class: 'rc-name' }, d.full_name),
         h('div', { class: 'rc-sub' }, driverBadge(d), d.trips ? h('span', { class: 'muted' }, ` · ${d.trips} ${L('trips', 'ट्रिप')}`) : null)),
-      h('span', { class: `seat-pill${left <= 2 ? ' low' : ''}` }, left > 0 ? `${left} ${L(left === 1 ? 'seat left' : 'seats left', 'सीट बाकी')}` : L('Full', 'भरी हुई'))),
+      h('span', { class: `seat-pill${left <= 2 ? ' low' : ''}`, 'aria-live': 'polite' }, seatsLeftText(left))),
     h('div', { class: 'rc-route' },
       h('div', { class: 'tl' },
-        h('div', { class: 'tl-row' }, h('span', { class: 'tl-dot' }), h('strong', {}, timeOf(r.departure_at)), h('span', {}, placeName(placeById(ridePath(r, places)[0])))),
+        h('div', { class: 'tl-row' }, h('span', { class: 'tl-dot' }), h('strong', {}, timeOf(r.departure_at)), h('span', {}, endName(r, 'from'))),
         (r.stops || []).length ? h('div', { class: 'tl-row tl-via' }, h('span', { class: 'tl-dot small' }), h('span', { class: 'muted' }, L('via ', 'होकर ') + r.stops.map((s) => placeName(placeById(s.place_id)) || s.name).join(', '))) : null,
-        h('div', { class: 'tl-row' }, h('span', { class: 'tl-dot end' }), h('span', {}, placeName(placeById(ridePath(r, places).slice(-1)[0])))))),
+        h('div', { class: 'tl-row' }, h('span', { class: 'tl-dot end' }), h('span', {}, endName(r, 'to'))))),
     h('div', { class: 'rc-meta' }, icon('car', 16), h('span', {}, r.vehicle_model), v ? h('span', { class: 'muted' }, `· ${v.label}`) : null),
     h('div', { class: 'rc-foot' },
       h('div', {}, h('span', { class: 'price' }, inr(r.price_per_seat)), h('span', { class: 'muted small' }, ` / ${L('seat', 'सीट')}`),
@@ -214,9 +324,17 @@ export async function ride({ params, query }) {
   const places = await allPlaces();
   const r = await q(sb.from('cab_rides').select('*').eq('id', params.id).maybeSingle());
   if (!r) return h('div', { class: 'app-page' }, h('div', { class: 'app-head' }, back('#/cab/find'), h('h1', {}, L('Ride not found', 'राइड नहीं मिली'))), empty());
-  const d = (await driverCards([r]))(r);
+  const [cards, rel] = await Promise.all([driverCards([r]), reliability(r.driver_id)]);
+  const d = cards(r);
   const path = ridePath(r, places);
   const n = Math.max(1, Number(query.n) || 1);
+  const seatsLive = h('span', { 'aria-live': 'polite' }, seatsLeftText(r.seats_total - r.seats_booked));
+  watchRides([r.id], (row) => {
+    Object.assign(r, row);
+    seatsLive.textContent = seatsLeftText(r.seats_total - r.seats_booked);
+    seatsLive.parentElement?.classList.add('flash'); setTimeout(() => seatsLive.parentElement?.classList.remove('flash'), 1200);
+    if (st.step === 'seats') loadTaken().then(paint);
+  });
   const saved = (() => { try { return JSON.parse(sessionStorage.getItem(`hh_seats_${r.id}`) || 'null'); } catch { return null; } })();
   const st = { step: query.step === 'confirm' && saved?.length ? 'confirm' : (query.step === 'seats' ? 'seats' : 'details'), seats: saved || [], taken: [] };
   const root = h('div', { class: 'app-page ride-page' });
@@ -236,10 +354,10 @@ export async function ride({ params, query }) {
 
   const v = VEHICLES[r.vehicle_type];
   const timeline = () => h('div', { class: 'tl tl-lg' },
-    h('div', { class: 'tl-row' }, h('span', { class: 'tl-dot' }), h('strong', {}, placeName(placeById(path[0]))), h('span', { class: 'tl-time' }, timeOf(r.departure_at))),
+    h('div', { class: 'tl-row' }, h('span', { class: 'tl-dot' }), h('strong', {}, endName(r, 'from')), h('span', { class: 'tl-time' }, timeOf(r.departure_at))),
     r.pickup_point ? h('div', { class: 'tl-note' }, L('Pickup: ', 'पिकअप: ') + r.pickup_point) : null,
     ...(r.stops || []).map((s) => h('div', { class: 'tl-row tl-via' }, h('span', { class: 'tl-dot small' }), h('span', {}, placeName(placeById(s.place_id)) || s.name))),
-    h('div', { class: 'tl-row' }, h('span', { class: 'tl-dot end' }), h('strong', {}, placeName(placeById(path[path.length - 1])))),
+    h('div', { class: 'tl-row' }, h('span', { class: 'tl-dot end' }), h('strong', {}, endName(r, 'to'))),
     r.drop_point ? h('div', { class: 'tl-note' }, L('Drop: ', 'ड्रॉप: ') + r.drop_point) : null);
 
   function details() {
@@ -247,14 +365,17 @@ export async function ride({ params, query }) {
       h('div', { class: 'ride-hero' }, h('img', { src: 'img/home/hero.jpg', alt: '' }), back(`#/cab/find`)),
       h('div', { class: 'ride-sheet' },
         h('div', { class: 'driver-head' }, avatar(d.photo_url, d.full_name, 'av av-lg'),
-          h('div', {}, h('h1', {}, d.full_name), driverBadge(d), d.trips ? h('p', { class: 'muted small' }, `${d.trips} ${L('trips completed', 'ट्रिप पूरी')}`) : null)),
+          h('div', {}, h('h1', {}, d.full_name), driverBadge(d))),
+        trustPanel(rel),
         h('div', { class: 'feature-row' },
-          h('div', {}, icon('car', 22), h('span', {}, r.vehicle_model)),
-          h('div', {}, icon('people', 22), h('span', {}, `${r.seats_total} ${L('seats', 'सीट')}`)),
+          h('div', {}, icon('car', 22), h('span', {}, r.vehicle_model, regionOf(r) ? h('small', { class: 'muted' }, ` · ${L('Registered', 'रजिस्टर्ड')} ${regionOf(r)}`) : null)),
+          h('div', { class: 'seats-live' }, icon('people', 22), seatsLive),
           h('div', {}, icon('shield', 22), h('span', {}, r.auto_confirm ? L('Instant book', 'तुरंत बुकिंग') : L('Driver confirms', 'ड्राइवर मंज़ूर करेगा'))),
           v ? h('div', {}, icon('mountain', 22), h('span', {}, v.label)) : null),
         d.about ? h('section', {}, h('h2', {}, L('About driver', 'ड्राइवर के बारे में')), h('p', {}, d.about)) : null,
-        h('section', {}, h('h2', {}, L('Route & timing', 'रूट और समय')), h('p', { class: 'muted small' }, dateOf(r.departure_at)), timeline()),
+        h('section', {}, h('h2', {}, L('Route & timing', 'रूट और समय')), h('p', { class: 'muted small' }, dateOf(r.departure_at),
+          r.distance_km ? ` · ${Math.round(r.distance_km)} km` : '', r.duration_min ? ` · ${L('about', 'लगभग')} ${Math.floor(r.duration_min / 60)} h ${r.duration_min % 60} min ${L('driving (estimate)', 'ड्राइविंग (अनुमान)')}` : ''), timeline()),
+        r.ride_ref ? h('p', { class: 'small muted' }, L('Ride ID ', 'राइड आईडी '), h('span', { class: 'mono' }, r.ride_ref)) : null,
         r.notes ? h('section', {}, h('h2', {}, L('Notes from the driver', 'ड्राइवर की बात')), h('p', {}, r.notes)) : null,
         h('div', { class: 'sticky-cta' },
           h('div', {}, h('span', { class: 'price' }, inr(r.price_per_seat * n)), h('div', { class: 'small muted' }, `${inr(r.price_per_seat)} × ${n} ${L('seat(s)', 'सीट')}`)),
@@ -331,6 +452,7 @@ export async function ride({ params, query }) {
         try { sessionStorage.removeItem(`hh_seats_${r.id}`); } catch { /* ignore */ }
         if (!p.phone) sb.from('profiles').update({ phone: phoneI.value.trim() }).eq('id', user().id).then(() => loadProfile());
         location.hash = `#/cab/booking/${b.id}?new=1`;
+        return;
       });
     } },
       h('div', { class: 'confirm-card' },
@@ -346,7 +468,7 @@ export async function ride({ params, query }) {
       h('label', { class: 'field', for: 'bk-phone' }, h('span', { class: 'field-label' }, L('Mobile number', 'मोबाइल नंबर')), phoneI),
       h('label', { class: 'field', for: 'bk-note' }, h('span', { class: 'field-label' }, L('Message to driver', 'ड्राइवर के लिए संदेश')), noteI),
       err, btn,
-      !r.auto_confirm ? h('p', { class: 'small muted center' }, L('The driver will accept or decline your request. Your seats are held until then.', 'ड्राइवर आपकी रिक्वेस्ट मंज़ूर या मना करेगा। तब तक आपकी सीटें रोकी रहेंगी।')) : null);
+      !r.auto_confirm ? h('p', { class: 'small muted center' }, L('The driver has 15 minutes to accept. Your seats are held until then; if there is no answer, they are released automatically.', 'ड्राइवर के पास मंज़ूर करने के लिए 15 मिनट हैं। तब तक सीटें आपके लिए रुकी रहेंगी; जवाब न आए तो अपने आप छूट जाएँगी।')) : null);
     return h('div', {},
       h('div', { class: 'app-head' }, h('button', { class: 'app-back', type: 'button', 'aria-label': L('Back', 'पीछे'), onclick: () => { st.step = 'seats'; paint(); } }, '←'),
         h('h1', {}, L('Confirm your booking', 'बुकिंग कन्फ़र्म करें'))),
@@ -358,35 +480,68 @@ export async function ride({ params, query }) {
   return root;
 }
 
-// ---------- 8. Booking page ----------
+// ---------- 8. Booking page (+ confirmation popup right after booking) ----------
 export async function booking({ params, query }) {
   if (!user()) { location.hash = `#/login?next=${encodeURIComponent(`cab/booking/${params.id}`)}`; return h('div'); }
-  const places = await allPlaces();
+  await allPlaces();
   const b = await q(sb.from('cab_bookings').select('*, cab_rides(*)').eq('id', params.id).maybeSingle());
   if (!b) return h('div', { class: 'app-page' }, h('div', { class: 'app-head' }, back('#/cab/bookings'), h('h1', {}, L('Booking not found', 'बुकिंग नहीं मिली'))));
   const r = b.cab_rides;
-  const d = (await driverCards([r]))(r);
-  const contact = b.status === 'confirmed' ? await q(sb.rpc('cab_booking_contact', { p_booking: b.id })).catch(() => null) : null;
-  const path = ridePath(r, places);
-  const isNew = query.new === '1';
-  const canCancel = ['pending', 'confirmed'].includes(b.status) && new Date(r.departure_at) > new Date();
-  const head = isNew
-    ? h('div', { class: 'success' },
-      h('span', { class: `success-ico${b.status === 'pending' ? ' wait' : ''}` }, b.status === 'pending' ? '…' : '✓'),
-      h('h1', {}, b.status === 'pending' ? L('Request sent!', 'रिक्वेस्ट भेज दी!') : L('Booking confirmed!', 'बुकिंग कन्फ़र्म!')),
-      h('p', { class: 'muted' }, b.status === 'pending'
-        ? L('The driver will reply soon. We will notify you here.', 'ड्राइवर जल्द जवाब देंगे। आपको यहीं सूचना मिलेगी।')
-        : L('Your seat is booked. Have a good journey!', 'आपकी सीट बुक हो गई। शुभ यात्रा!')))
-    : h('div', { class: 'app-head' }, back('#/cab/bookings'), h('h1', {}, L('Booking details', 'बुकिंग की जानकारी')));
+  const [cards, contact, support] = await Promise.all([
+    driverCards([r]),
+    b.status === 'confirmed' || b.status === 'completed' ? q(sb.rpc('cab_booking_contact', { p_booking: b.id })).catch(() => null) : null,
+    supportLink(`${L('Booking', 'बुकिंग')} ${refOf(b)}`),
+  ]);
+  const d = cards(r);
+  const canCancel = ['pending', 'confirmed'].includes(b.status) && new Date(r.departure_at) > new Date() && r.status !== 'started';
+  const when = `${dateOf(r.departure_at)} · ${timeOf(r.departure_at)}`;
+  const seatsTxt = `${b.seats} (${L('seat no.', 'सीट नं.')} ${(b.seat_numbers || []).join(', ') || '—'})`;
+  const statusTxt = { pending: L('Waiting for the driver (15 min)', 'ड्राइवर के जवाब का इंतज़ार (15 मिनट)'), confirmed: L('Confirmed', 'कन्फ़र्म') }[b.status] || b.status;
 
-  return h('div', { class: 'app-page' }, head,
-    h('div', { class: 'code-box' }, h('span', { class: 'small muted' }, L('Booking ID', 'बुकिंग आईडी')), h('strong', {}, b.booking_code || b.id.slice(0, 8).toUpperCase()), statusPill(b.status, r.departure_at)),
+  if (query.new === '1') {
+    history.replaceState(null, '', `#/cab/booking/${b.id}`);
+    const pending = b.status === 'pending';
+    setTimeout(() => {
+      const dlg = celebrate({
+        wait: pending,
+        title: pending ? L('Request sent!', 'रिक्वेस्ट भेज दी!') : L('Your ride is booked!', 'आपकी राइड बुक हो गई!'),
+        message: pending
+          ? L('Your seats are held for 15 minutes while the driver answers. We will tell you here as soon as they reply.', 'ड्राइवर के जवाब तक आपकी सीटें 15 मिनट रुकी हैं। जवाब आते ही हम आपको यहीं बताएँगे।')
+          : L('Your journey with The Himalayan Horizon is one step closer. Sit back and get ready to explore.', 'द हिमालयन होराइज़न के साथ आपकी यात्रा बस एक कदम दूर है। तैयार हो जाइए घूमने के लिए।'),
+        rows: [[L('Booking ID', 'बुकिंग आईडी'), refOf(b)], [L('Driver', 'ड्राइवर'), d.full_name], [L('Vehicle', 'गाड़ी'), r.vehicle_model],
+          [L('Pickup', 'पिकअप'), r.pickup_point || endName(r, 'from')], [L('Destination', 'मंज़िल'), r.drop_point || endName(r, 'to')],
+          [L('Date & time', 'तारीख़ और समय'), when], [L('Seats', 'सीटें'), seatsTxt], [L('Status', 'स्थिति'), statusTxt]],
+        actions: [
+          h('button', { class: 'btn btn-block', type: 'button', onclick: () => dlg.close() }, L('Open booking details', 'बुकिंग की पूरी जानकारी')),
+          h('p', { class: 'cele-wa small muted' }, icon('bell', 15), L('Updates come to your THH notifications. WhatsApp updates will be added soon.', 'अपडेट आपकी THH सूचनाओं में आएँगे। WhatsApp अपडेट जल्द जोड़े जाएँगे।')),
+          support ? h('a', { class: 'btn btn-ghost btn-block', href: support.href, target: support.external ? '_blank' : null, rel: 'noopener' }, support.label) : null,
+        ],
+      });
+    }, 60);
+  }
+
+  const notes = {
+    pending: b.hold_expires_at ? h('div', { class: 'soft-note warn' }, holdTimer(b.hold_expires_at, L('Driver has', 'ड्राइवर के पास')), h('span', { class: 'small' }, ' ', L('to answer. Your seats are held until then.', 'जवाब देने के लिए। तब तक आपकी सीटें रुकी हैं।')))
+      : h('p', { class: 'soft-note' }, L('Waiting for the driver to answer.', 'ड्राइवर के जवाब का इंतज़ार।')),
+    expired: h('div', { class: 'soft-note warn' }, L('This request expired because the driver did not answer in time. Your seats were released.', 'ड्राइवर ने समय पर जवाब नहीं दिया, इसलिए यह रिक्वेस्ट ख़त्म हो गई। आपकी सीटें छोड़ दी गईं।'),
+      h('div', {}, h('a', { class: 'btn btn-sm', href: '#/cab/find' }, L('Find another ride', 'दूसरी राइड खोजें')))),
+    declined: h('div', { class: 'soft-note warn' }, L('The driver could not take this request. Please choose another ride.', 'ड्राइवर यह रिक्वेस्ट नहीं ले सके। कृपया दूसरी राइड चुनें।'), h('div', {}, h('a', { class: 'btn btn-sm', href: '#/cab/find' }, L('Find another ride', 'दूसरी राइड खोजें')))),
+    started: h('p', { class: 'soft-note ok' }, L('Your ride is on the way. Have a safe journey!', 'आपकी राइड रास्ते में है। शुभ यात्रा!')),
+  };
+
+  return h('div', { class: 'app-page' },
+    h('div', { class: 'app-head' }, back('#/cab/bookings'), h('h1', {}, L('Booking details', 'बुकिंग की जानकारी'))),
+    h('div', { class: 'code-box' },
+      h('span', { class: 'small muted' }, L('Booking ID', 'बुकिंग आईडी')), h('strong', { class: 'mono' }, refOf(b)), statusPill(r.status === 'started' && b.status === 'confirmed' ? 'started' : b.status, r.departure_at),
+      r.ride_ref ? h('span', { class: 'small muted code-sub' }, L('Ride ID ', 'राइड आईडी '), h('span', { class: 'mono' }, r.ride_ref)) : null),
+    r.status === 'started' && b.status === 'confirmed' ? notes.started : notes[b.status] || null,
     h('div', { class: 'confirm-card' },
       h('div', { class: 'tl' },
-        h('div', { class: 'tl-row' }, h('span', { class: 'tl-dot' }), h('strong', {}, placeName(placeById(path[0])))),
-        h('div', { class: 'tl-row' }, h('span', { class: 'tl-dot end' }), h('strong', {}, placeName(placeById(path[path.length - 1]))))),
-      h('p', { class: 'small muted' }, `${dateOf(r.departure_at)} · ${timeOf(r.departure_at)}`),
-      r.pickup_point ? h('p', { class: 'small' }, L('Pickup: ', 'पिकअप: ') + r.pickup_point) : null,
+        h('div', { class: 'tl-row' }, h('span', { class: 'tl-dot' }), h('strong', {}, endName(r, 'from'))),
+        r.pickup_point ? h('div', { class: 'tl-note' }, L('Pickup: ', 'पिकअप: ') + r.pickup_point) : null,
+        h('div', { class: 'tl-row' }, h('span', { class: 'tl-dot end' }), h('strong', {}, endName(r, 'to'))),
+        r.drop_point ? h('div', { class: 'tl-note' }, L('Drop: ', 'ड्रॉप: ') + r.drop_point) : null),
+      h('p', { class: 'small muted' }, when),
       h('div', { class: 'driver-head' }, avatar(d.photo_url, d.full_name),
         h('div', {}, h('strong', {}, d.full_name), h('div', { class: 'small muted' }, [contact?.vehicle || r.vehicle_model, contact?.registration].filter(Boolean).join(' · ')),
           h('div', { class: 'small' }, `${L('Seats', 'सीट')} ${(b.seat_numbers || []).join(', ') || b.seats} · ${inr(r.price_per_seat * b.seats)}`))),
@@ -396,7 +551,7 @@ export async function booking({ params, query }) {
       b.status === 'pending' ? h('p', { class: 'small muted' }, L('Driver phone and car number appear here after the driver confirms.', 'ड्राइवर के कन्फ़र्म करने के बाद फ़ोन और गाड़ी का नंबर यहाँ दिखेगा।')) : null),
     h('div', { class: 'stack' },
       h('a', { class: 'btn btn-block', href: '#/cab/bookings' }, L('My bookings', 'मेरी बुकिंग')),
-      h('a', { class: 'btn btn-ghost btn-block', href: '#/cab/me' }, L('Go to dashboard', 'डैशबोर्ड पर जाएँ')),
+      support ? h('a', { class: 'btn btn-ghost btn-block', href: support.href, target: support.external ? '_blank' : null, rel: 'noopener' }, support.label) : null,
       canCancel ? h('button', { class: 'btn btn-danger-ghost btn-block', type: 'button', onclick: () => confirmCancel(b) }, L('Cancel booking', 'बुकिंग रद्द करें')) : null));
 }
 
@@ -418,13 +573,15 @@ export async function bookings({ query }) {
   await allPlaces();
   const rows = await q(sb.from('cab_bookings').select('*, cab_rides(*)').eq('user_id', user().id).order('created_at', { ascending: false }));
   const now = new Date();
+  const future = (b) => new Date(b.cab_rides?.departure_at) > now;
   const groups = {
-    upcoming: rows.filter((b) => ['pending', 'confirmed'].includes(b.status) && new Date(b.cab_rides?.departure_at) > now),
-    completed: rows.filter((b) => ['confirmed', 'completed'].includes(b.status) && new Date(b.cab_rides?.departure_at) <= now),
-    cancelled: rows.filter((b) => ['cancelled', 'declined'].includes(b.status)),
+    upcoming: rows.filter((b) => b.status === 'confirmed' && (future(b) || b.cab_rides?.status === 'started')),
+    requests: rows.filter((b) => b.status === 'pending' && future(b)),
+    completed: rows.filter((b) => b.status === 'completed' || (b.status === 'confirmed' && !future(b) && b.cab_rides?.status !== 'started')),
+    cancelled: rows.filter((b) => ['cancelled', 'declined', 'expired'].includes(b.status)),
   };
-  const tab = groups[query.tab] ? query.tab : 'upcoming';
-  const label = { upcoming: L('Upcoming', 'आने वाली'), completed: L('Completed', 'पूरी'), cancelled: L('Cancelled', 'रद्द') };
+  const tab = groups[query.tab] ? query.tab : (groups.upcoming.length || !groups.requests.length ? 'upcoming' : 'requests');
+  const label = { upcoming: L('Upcoming', 'आने वाली'), requests: L('Requests', 'रिक्वेस्ट'), completed: L('Completed', 'पूरी'), cancelled: L('Cancelled', 'रद्द') };
   const cards = await driverCards(rows.map((b) => b.cab_rides).filter(Boolean));
   return h('div', { class: 'app-page' },
     h('div', { class: 'app-head' }, back('#/cab/me'), h('h1', {}, L('My bookings', 'मेरी बुकिंग'))),
@@ -436,13 +593,14 @@ export async function bookings({ query }) {
 
 export function bookingCard(b, d) {
   const r = b.cab_rides;
-  const canCancel = ['pending', 'confirmed'].includes(b.status) && new Date(r.departure_at) > new Date();
+  const canCancel = ['pending', 'confirmed'].includes(b.status) && new Date(r.departure_at) > new Date() && r.status !== 'started';
   return h('article', { class: 'bk-card' },
-    h('div', { class: 'bk-top' }, h('strong', {}, `#${b.booking_code || b.id.slice(0, 8).toUpperCase()}`), statusPill(b.status, r.departure_at)),
+    h('div', { class: 'bk-top' }, h('strong', { class: 'mono' }, refOf(b)), statusPill(r.status === 'started' && b.status === 'confirmed' ? 'started' : b.status, r.departure_at)),
     h('div', { class: 'bk-route' }, routeLabel(r)),
     h('div', { class: 'small muted' }, `${dateOf(r.departure_at)} · ${timeOf(r.departure_at)}`),
     h('div', { class: 'driver-head' }, avatar(d.photo_url, d.full_name), h('div', {}, h('strong', {}, d.full_name), h('div', { class: 'small muted' }, r.vehicle_model))),
     h('div', { class: 'small' }, `${L('Seats', 'सीट')}: ${(b.seat_numbers || []).join(', ') || b.seats} · ${b.seats} ${L('passenger(s)', 'यात्री')}`),
+    b.status === 'pending' && b.hold_expires_at && new Date(r.departure_at) > new Date() ? holdTimer(b.hold_expires_at, L('Driver has', 'ड्राइवर के पास')) : null,
     h('div', { class: 'row-actions' },
       h('a', { class: 'btn btn-ghost btn-sm', href: `#/cab/booking/${b.id}` }, L('View details', 'पूरी जानकारी')),
       canCancel ? h('button', { class: 'btn btn-danger-ghost btn-sm', type: 'button', onclick: () => confirmCancel(b) }, L('Cancel', 'रद्द करें')) : null));

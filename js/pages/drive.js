@@ -2,9 +2,9 @@
 // my rides, ride requests, trip details and driver/vehicle profile.
 import { h, clear, toast, modal, busy, inr, todayISO, icon, lazy } from '../ui.js';
 import { sb, q } from '../sb.js';
-import { state, user } from '../store.js';
+import { state, user, isAdmin } from '../store.js';
 import { allPlaces, placeInput, placeName, placeById } from '../places.js';
-import { L, avatar, timeOf, dateOf, VEHICLES, statusPill, routeLabel, ridePath, notifications } from './cab.js';
+import { L, avatar, timeOf, dateOf, VEHICLES, statusPill, routeLabel, ridePath, notifications, endName, refOf, holdTimer, celebrate, reliability, trustPanel } from './cab.js';
 
 const back = (href) => h('a', { class: 'app-back', href, 'aria-label': L('Back', 'पीछे') }, h('span', { 'aria-hidden': 'true' }, '←'));
 const needLogin = (next) => { location.hash = `#/login?next=${encodeURIComponent(next)}`; return h('div'); };
@@ -18,6 +18,41 @@ async function me() {
 }
 
 const isUpcoming = (r) => new Date(r.departure_at) > new Date();
+const isActive = (r) => r.status === 'started' || (['open', 'full'].includes(r.status) && isUpcoming(r));
+const canPublish = (profile) => profile?.is_verified || isAdmin();
+const verifyNote = () => h('div', { class: 'soft-note warn verify-note' }, icon('shield', 18),
+  h('div', {}, h('strong', {}, L('Waiting for verification', 'वेरिफ़िकेशन का इंतज़ार')),
+    h('p', { class: 'small' }, L('The Himalayan Horizon team checks every driver before their first ride. You can complete your profile and vehicle now; publishing opens after approval.',
+      'हर ड्राइवर की पहली राइड से पहले द हिमालयन होराइज़न टीम जाँच करती है। अभी प्रोफ़ाइल और गाड़ी पूरी कर लें; मंज़ूरी के बाद राइड डाल पाएँगे।'))));
+
+// Start (up to 3 hours before departure, with confirmed passengers) and Complete.
+function lifecycle(r, confirmedCount) {
+  if (r.status === 'started') {
+    const b = h('button', { class: 'btn', type: 'button' }, icon('check', 16), L('Complete ride', 'राइड पूरी करें'));
+    b.addEventListener('click', () => askLifecycle(r, 'complete', b));
+    return b;
+  }
+  if (!['open', 'full'].includes(r.status)) return null;
+  const opensAt = new Date(new Date(r.departure_at).getTime() - 3 * 3600e3);
+  if (new Date() < opensAt || !confirmedCount) return null;
+  const b = h('button', { class: 'btn', type: 'button' }, icon('route', 16), L('Start ride', 'राइड शुरू करें'));
+  b.addEventListener('click', () => askLifecycle(r, 'start', b));
+  return b;
+}
+function askLifecycle(r, what, btn) {
+  const start = what === 'start';
+  const yes = h('button', { class: 'btn', type: 'button' }, start ? L('Yes, start now', 'हाँ, अभी शुरू करें') : L('Yes, ride completed', 'हाँ, राइड पूरी हुई'));
+  const dlg = modal(start ? L('Start this ride?', 'राइड शुरू करें?') : L('Complete this ride?', 'राइड पूरी करें?'), h('div', { class: 'stack' },
+    h('p', {}, start
+      ? L('Passengers are told the ride has started. Requests you have not answered will close.', 'यात्रियों को बताया जाएगा कि राइड शुरू हो गई। जिन रिक्वेस्ट का जवाब नहीं दिया, वे बंद हो जाएँगी।')
+      : L('Confirmed passengers are marked as dropped. Both sides will be asked for feedback.', 'कन्फ़र्म यात्री पहुँचे हुए माने जाएँगे। दोनों से फ़ीडबैक माँगा जाएगा।')),
+    h('div', { class: 'row-actions' }, h('button', { class: 'btn btn-ghost', type: 'button', onclick: () => dlg.close() }, L('Not now', 'अभी नहीं')), yes)));
+  yes.addEventListener('click', () => busy(yes, async () => {
+    await q(sb.rpc(start ? 'start_cab_ride' : 'complete_cab_ride', { p_ride: r.id }));
+    dlg.close(); toast(start ? L('Ride started. Drive safely!', 'राइड शुरू हुई। सुरक्षित चलाएँ!') : L('Ride completed', 'राइड पूरी हुई'));
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+  }).catch((ex) => toast(ex.message, 'err')));
+}
 
 // ---------- Onboarding (first time) ----------
 function onboarding() {
@@ -92,10 +127,11 @@ export async function dashboard() {
   const ids = rides.map((r) => r.id);
   const books = ids.length ? await q(sb.from('cab_bookings').select('*').in('ride_id', ids)) : [];
   const rideOf = (b) => rides.find((r) => r.id === b.ride_id);
-  const active = rides.filter((r) => ['open', 'full'].includes(r.status) && isUpcoming(r));
+  const active = rides.filter(isActive);
   const pending = books.filter((b) => b.status === 'pending' && isUpcoming(rideOf(b)));
-  const accepted = books.filter((b) => b.status === 'confirmed' && isUpcoming(rideOf(b)));
-  const history = rides.filter((r) => !isUpcoming(r) || r.status === 'cancelled' || r.status === 'completed');
+  const accepted = books.filter((b) => b.status === 'confirmed' && isActive(rideOf(b)));
+  const history = rides.filter((r) => !isActive(r));
+  const rel = await reliability(user().id);
   const shared = books.filter((b) => ['confirmed', 'completed'].includes(b.status) && !isUpcoming(rideOf(b)))
     .reduce((sum, b) => sum + b.seats * (rideOf(b)?.price_per_seat || 0), 0);
   const expected = accepted.reduce((sum, b) => sum + b.seats * (rideOf(b)?.price_per_seat || 0), 0);
@@ -113,8 +149,11 @@ export async function dashboard() {
     h('div', { class: 'stat-grid' },
       stat(active.length, L('Upcoming rides', 'आने वाली राइड')), stat(pending.length, L('New requests', 'नई रिक्वेस्ट')),
       stat(accepted.reduce((s, b) => s + b.seats, 0), L('Seats confirmed', 'कन्फ़र्म सीटें')), stat(inr(shared), L('Cost shared so far', 'अब तक मिला हिस्सा'))),
-    vehicles.length ? h('a', { class: 'btn btn-block btn-lg publish-btn', href: '#/drive/publish' }, '+ ', L('Publish ride', 'राइड पब्लिश करें'))
-      : h('a', { class: 'btn btn-block btn-lg', href: '#/drive/profile' }, L('Add your vehicle first', 'पहले अपनी गाड़ी जोड़ें')),
+    canPublish(profile) ? null : verifyNote(),
+    !vehicles.length ? h('a', { class: 'btn btn-block btn-lg', href: '#/drive/profile' }, L('Add your vehicle first', 'पहले अपनी गाड़ी जोड़ें'))
+      : canPublish(profile) ? h('a', { class: 'btn btn-block btn-lg publish-btn', href: '#/drive/publish' }, '+ ', L('Publish ride', 'राइड पब्लिश करें'))
+      : h('button', { class: 'btn btn-block btn-lg', type: 'button', disabled: true }, L('Publishing opens after verification', 'वेरिफ़िकेशन के बाद राइड डाल पाएँगे')),
+    rel ? h('section', {}, h('h2', {}, L('Your record', 'आपका रिकॉर्ड')), trustPanel(rel)) : null,
     h('nav', { class: 'menu' },
       item('#/drive/requests', 'people', L('Ride requests', 'राइड रिक्वेस्ट'), pending.length, true),
       item('#/drive/rides', 'map', L('My published rides', 'मेरी पब्लिश राइड'), active.length),
@@ -134,6 +173,7 @@ export async function publish({ params }) {
   const { profile, vehicles } = await me();
   if (!profile) return onboarding();
   if (!vehicles.length) { location.hash = '#/drive/profile'; return h('div'); }
+  if (!params.id && !canPublish(profile)) return h('div', { class: 'app-page' }, h('div', { class: 'app-head' }, back('#/drive'), h('h1', {}, L('Publish new ride', 'नई राइड पब्लिश करें'))), verifyNote());
   const places = await allPlaces();
   let r = null;
   if (params.id) {
@@ -207,7 +247,6 @@ export async function publish({ params }) {
         location.hash = `#/drive/trip/${r.id}`;
       } else {
         const saved = await q(sb.from('cab_rides').insert(row).select().single());
-        toast(L('Your ride is published', 'आपकी राइड पब्लिश हो गई'));
         location.hash = `#/drive/trip/${saved.id}?new=1`;
       }
     }).catch((ex) => { rerr.textContent = ex.message; }));
@@ -273,8 +312,8 @@ export async function rides({ query }) {
   await allPlaces();
   const all = await q(sb.from('cab_rides').select('*').eq('driver_id', user().id).order('departure_at', { ascending: false }).limit(300));
   const groups = {
-    active: all.filter((r) => ['open', 'full'].includes(r.status) && isUpcoming(r)).reverse(),
-    history: all.filter((r) => r.status !== 'cancelled' && !isUpcoming(r)),
+    active: all.filter(isActive).reverse(),
+    history: all.filter((r) => r.status !== 'cancelled' && !isActive(r)),
     cancelled: all.filter((r) => r.status === 'cancelled'),
   };
   const tab = groups[query.tab] ? query.tab : 'active';
@@ -291,10 +330,11 @@ function rideRow(r) {
   const live = ['open', 'full'].includes(r.status) && isUpcoming(r);
   return h('article', { class: 'bk-card' },
     h('div', { class: 'bk-top' }, h('strong', { class: 'bk-route' }, routeLabel(r)), statusPill(r.status, r.departure_at)),
+    r.ride_ref ? h('div', { class: 'small mono muted' }, r.ride_ref) : null,
     h('div', { class: 'small muted' }, `${dateOf(r.departure_at)} · ${timeOf(r.departure_at)}`),
     h('div', { class: 'small' }, `${r.seats_booked}/${r.seats_total} ${L('seats booked', 'सीट बुक')} · ${inr(r.price_per_seat)} / ${L('seat', 'सीट')}`, r.is_test ? h('span', { class: 'pill pill-warn' }, ' TEST') : null),
     h('div', { class: 'row-actions' },
-      h('a', { class: 'btn btn-ghost btn-sm', href: `#/drive/trip/${r.id}` }, L('Trip details', 'ट्रिप की जानकारी')),
+      h('a', { class: r.status === 'started' ? 'btn btn-sm' : 'btn btn-ghost btn-sm', href: `#/drive/trip/${r.id}` }, r.status === 'started' ? L('Open trip', 'ट्रिप खोलें') : L('Trip details', 'ट्रिप की जानकारी')),
       live ? h('a', { class: 'btn btn-ghost btn-sm', href: `#/drive/ride/${r.id}/edit` }, L('Edit', 'बदलें')) : null,
       live ? h('button', { class: 'btn btn-danger-ghost btn-sm', type: 'button', onclick: () => cancelRide(r) }, L('Cancel ride', 'राइड रद्द करें')) : null));
 }
@@ -321,11 +361,11 @@ export async function requests({ query }) {
   const rideOf = (b) => myRides.find((r) => r.id === b.ride_id);
   const groups = {
     new: rows.filter((b) => b.status === 'pending' && isUpcoming(rideOf(b))),
-    accepted: rows.filter((b) => b.status === 'confirmed' && isUpcoming(rideOf(b))),
-    closed: rows.filter((b) => ['declined', 'cancelled'].includes(b.status)),
+    accepted: rows.filter((b) => b.status === 'confirmed' && isActive(rideOf(b))),
+    closed: rows.filter((b) => ['declined', 'cancelled', 'expired'].includes(b.status)),
   };
   const tab = groups[query.tab] ? query.tab : 'new';
-  const label = { new: L('New', 'नई'), accepted: L('Accepted', 'मंज़ूर'), closed: L('Declined / cancelled', 'मना / रद्द') };
+  const label = { new: L('New', 'नई'), accepted: L('Accepted', 'मंज़ूर'), closed: L('Closed', 'बंद') };
   return h('div', { class: 'app-page' },
     h('div', { class: 'app-head' }, back('#/drive'), h('h1', {}, L('Ride requests', 'राइड रिक्वेस्ट'))),
     h('nav', { class: 'seg-tabs' }, Object.keys(groups).map((k) => h('a', { href: `#/drive/requests?tab=${k}`, class: k === tab ? 'on' : '' }, `${label[k]} (${groups[k].length})`))),
@@ -344,13 +384,14 @@ function requestCard(b, r) {
   const acc = h('button', { class: 'btn btn-sm', type: 'button' }, L('Accept', 'मंज़ूर करें'));
   dec.addEventListener('click', () => answer(false, dec)); acc.addEventListener('click', () => answer(true, acc));
   return h('article', { class: 'bk-card' },
-    h('div', { class: 'bk-top' }, h('strong', { class: 'bk-route' }, routeLabel(r)), h('span', { class: 'small muted' }, `#${b.booking_code || ''}`)),
+    h('div', { class: 'bk-top' }, h('strong', { class: 'bk-route' }, routeLabel(r)), h('span', { class: 'small muted mono' }, refOf(b))),
     h('div', { class: 'small muted' }, `${dateOf(r.departure_at)} · ${timeOf(r.departure_at)}`),
     h('div', { class: 'driver-head' }, avatar('', b.passenger_name),
       h('div', { class: 'grow' }, h('strong', {}, b.passenger_name),
         h('div', { class: 'small' }, `${b.seats} ${L('seat(s)', 'सीट')} · ${L('Seats', 'सीट')} ${(b.seat_numbers || []).join(', ')} · ${inr(b.seats * r.price_per_seat)}`)),
       b.status === 'pending' ? h('span', { class: 'pill pill-warn' }, L('Needs your answer', 'आपका जवाब चाहिए')) : statusPill(b.status, r.departure_at)),
     b.note ? h('p', { class: 'small' }, `“${b.note}”`) : null,
+    actions && b.hold_expires_at ? holdTimer(b.hold_expires_at, L('Answer within', 'इतने समय में जवाब दें:')) : null,
     b.status === 'confirmed' ? h('div', { class: 'row-actions' }, h('a', { class: 'btn btn-ghost btn-sm', href: `tel:${b.phone}` }, L('Call', 'कॉल करें')), h('span', { class: 'small muted selectable' }, b.phone)) : null,
     actions ? h('div', { class: 'row-actions' }, dec, acc) : null);
 }
@@ -367,15 +408,32 @@ export async function trip({ params, query }) {
   const path = ridePath(r, places);
   const live = ['open', 'full'].includes(r.status) && isUpcoming(r);
   const total = confirmed.reduce((s, b) => s + b.seats * r.price_per_seat, 0);
+  if (query.new === '1') {
+    history.replaceState(null, '', `#/drive/trip/${r.id}`);
+    setTimeout(() => {
+      const dlg = celebrate({
+        title: L('Your ride is published!', 'आपकी राइड पब्लिश हो गई!'),
+        message: L('Travellers searching this route can now find and book it.', 'इस रूट को खोजने वाले यात्री अब इसे देखकर बुक कर सकते हैं।'),
+        rows: [[L('Ride ID', 'राइड आईडी'), r.ride_ref], [L('Route', 'रूट'), routeLabel(r)], [L('Departure', 'रवानगी'), `${dateOf(r.departure_at)} · ${timeOf(r.departure_at)}`],
+          [L('Vehicle', 'गाड़ी'), r.vehicle_model], [L('Seats', 'सीटें'), String(r.seats_total)], [L('Booking', 'बुकिंग'), r.auto_confirm ? L('Instant book', 'तुरंत बुकिंग') : L('You approve each request (15 min to answer)', 'हर रिक्वेस्ट आप मंज़ूर करेंगे (जवाब के लिए 15 मिनट)')]],
+        actions: [h('button', { class: 'btn btn-block', type: 'button', onclick: () => dlg.close() }, L('View ride', 'राइड देखें')),
+          h('a', { class: 'btn btn-ghost btn-block', href: '#/drive' }, L('Go to dashboard', 'डैशबोर्ड पर जाएँ'))],
+      });
+    }, 60);
+  }
+  const lc = lifecycle(r, confirmed.length);
   return h('div', { class: 'app-page' },
     h('div', { class: 'app-head' }, back('#/drive/rides'), h('div', { class: 'grow' }, h('h1', {}, L('Trip details', 'ट्रिप की जानकारी'))), statusPill(r.status, r.departure_at)),
-    query.new === '1' ? h('div', { class: 'success compact' }, h('span', { class: 'success-ico' }, '✓'), h('p', {}, L('Your ride is live. Travellers searching this route can now find it.', 'आपकी राइड चालू है। इस रूट को खोजने वाले यात्री इसे देख सकते हैं।'))) : null,
+    r.status === 'started' ? h('p', { class: 'soft-note ok' }, L('Ride in progress. Tap “Complete ride” when everyone is dropped.', 'राइड चल रही है। सबको छोड़ने के बाद “राइड पूरी करें” दबाएँ।')) : null,
+    lc ? h('div', { class: 'stack' }, lc) : (['open', 'full'].includes(r.status) && confirmed.length && isUpcoming(r)
+      ? h('p', { class: 'small muted' }, L('“Start ride” appears 3 hours before departure.', '“राइड शुरू करें” रवानगी से 3 घंटे पहले दिखेगा।')) : null),
     h('div', { class: 'confirm-card' },
-      h('strong', {}, routeLabel(r)), h('p', { class: 'small muted' }, `${dateOf(r.departure_at)} · ${timeOf(r.departure_at)}`),
+      h('strong', {}, routeLabel(r)), r.ride_ref ? h('span', { class: 'small mono muted' }, `${L('Ride ID', 'राइड आईडी')} ${r.ride_ref}`) : null,
+      h('p', { class: 'small muted' }, `${dateOf(r.departure_at)} · ${timeOf(r.departure_at)}`),
       h('div', { class: 'tl' },
-        h('div', { class: 'tl-row' }, h('span', { class: 'tl-dot' }), h('span', {}, L('Pickup: ', 'पिकअप: ') + (r.pickup_point || placeName(placeById(path[0]))))),
+        h('div', { class: 'tl-row' }, h('span', { class: 'tl-dot' }), h('span', {}, L('Pickup: ', 'पिकअप: ') + (r.pickup_point || endName(r, 'from')))),
         ...(r.stops || []).map((s) => h('div', { class: 'tl-row tl-via' }, h('span', { class: 'tl-dot small' }), h('span', {}, placeName(placeById(s.place_id))))),
-        h('div', { class: 'tl-row' }, h('span', { class: 'tl-dot end' }), h('span', {}, L('Drop: ', 'ड्रॉप: ') + (r.drop_point || placeName(placeById(path[path.length - 1])))))),
+        h('div', { class: 'tl-row' }, h('span', { class: 'tl-dot end' }), h('span', {}, L('Drop: ', 'ड्रॉप: ') + (r.drop_point || endName(r, 'to'))))),
       h('div', { class: 'small' }, `${r.vehicle_model} · ${r.seats_booked}/${r.seats_total} ${L('seats booked', 'सीट बुक')} · ${r.auto_confirm ? L('Instant book', 'तुरंत बुकिंग') : L('You approve requests', 'रिक्वेस्ट आप मंज़ूर करते हैं')}`)),
     h('section', {}, h('h2', {}, `${L('Passengers', 'यात्री')} (${confirmed.length})`),
       confirmed.length ? h('div', { class: 'stack' }, confirmed.map((b) => requestCard(b, r))) : h('p', { class: 'soft-note' }, L('No confirmed passengers yet.', 'अभी कोई कन्फ़र्म यात्री नहीं।'))),

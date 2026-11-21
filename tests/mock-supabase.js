@@ -39,14 +39,14 @@ const db = {
   ],
   cab_rides: [
     { id: 'r1', partner_id: 'p1', from_location_id: loc('kathgodam'), to_location_id: loc('munsiyari'), pickup_point: 'Kathgodam station gate', drop_point: 'Munsiyari bus stand', departure_at: inDays(1, 7), vehicle_model: 'Mahindra Bolero', vehicle_type: 'suv', seats_total: 7, seats_booked: 3, price_per_seat: 900, auto_confirm: true, notes: 'Breakfast stop at Bageshwar.', status: 'open', created_at: now() },
-    { id: 'r3', partner_id: null, driver_id: 'u-driver', vehicle_id: 've1', from_place_id: pl('Rishikesh'), to_place_id: pl('Mussoorie'), from_location_id: null, to_location_id: null, stops: [{ place_id: pl('Dehradun'), name: 'Dehradun' }], pickup_point: 'Rishikesh bus stand', drop_point: 'Library chowk', departure_at: inDays(1, 8), vehicle_model: 'Maruti Ertiga', vehicle_type: 'ertiga', seats_total: 6, seats_booked: 2, price_per_seat: 500, auto_confirm: false, notes: 'Tea stop at Dehradun.', status: 'open', is_test: false, created_at: now() },
-    { id: 'r4', partner_id: null, driver_id: 'u-driver', vehicle_id: 've1', from_place_id: pl('Haridwar'), to_place_id: pl('Rishikesh'), from_location_id: null, to_location_id: null, stops: [], pickup_point: '', drop_point: '', departure_at: inDays(-3, 10), vehicle_model: 'Maruti Ertiga', vehicle_type: 'ertiga', seats_total: 6, seats_booked: 3, price_per_seat: 300, auto_confirm: true, notes: '', status: 'open', is_test: false, created_at: now() },
+    { id: 'r3', partner_id: null, driver_id: 'u-driver', vehicle_id: 've1', from_place_id: pl('Rishikesh'), to_place_id: pl('Mussoorie'), from_location_id: null, to_location_id: null, stops: [{ place_id: pl('Dehradun'), name: 'Dehradun' }], pickup_point: 'Rishikesh bus stand', drop_point: 'Library chowk', departure_at: inDays(1, 8), vehicle_model: 'Maruti Ertiga', vehicle_type: 'ertiga', seats_total: 6, seats_booked: 2, price_per_seat: 500, auto_confirm: false, notes: 'Tea stop at Dehradun.', status: 'open', is_test: false, ride_ref: 'UK07-2011-2026-THH-0003', created_at: now() },
+    { id: 'r4', partner_id: null, driver_id: 'u-driver', vehicle_id: 've1', from_place_id: pl('Haridwar'), to_place_id: pl('Rishikesh'), from_location_id: null, to_location_id: null, stops: [], pickup_point: '', drop_point: '', departure_at: inDays(-3, 10), vehicle_model: 'Maruti Ertiga', vehicle_type: 'ertiga', seats_total: 6, seats_booked: 3, price_per_seat: 300, auto_confirm: true, notes: '', status: 'open', is_test: false, ride_ref: 'UK07-1511-2026-THH-0001', created_at: now() },
     { id: 'r2', partner_id: 'p1', from_location_id: loc('rishikesh'), to_location_id: loc('joshimath'), pickup_point: 'Rishikesh ISBT', drop_point: '', departure_at: inDays(2, 6), vehicle_model: 'Toyota Innova', vehicle_type: 'suv', seats_total: 6, seats_booked: 5, price_per_seat: 1100, auto_confirm: false, notes: '', status: 'open', created_at: now() },
   ],
   cab_bookings: [
-    { id: 'cb1', ride_id: 'r1', user_id: 'u-traveler', seats: 2, passenger_name: 'Asha Negi', phone: '9876543210', note: '', status: 'confirmed', booking_code: 'THH-7K2P9Q', seat_numbers: [2, 3], created_at: now() },
-    { id: 'cb2', ride_id: 'r3', user_id: 'u-traveler', seats: 2, passenger_name: 'Asha Negi', phone: '9876543210', note: 'Two small bags', status: 'pending', booking_code: 'THH-A1B2C3', seat_numbers: [2, 3], created_at: now() },
-    { id: 'cb3', ride_id: 'r4', user_id: 'u-traveler', seats: 3, passenger_name: 'Asha Negi', phone: '9876543210', note: '', status: 'confirmed', booking_code: 'THH-Z9Y8X7', seat_numbers: [1, 2, 3], created_at: now() },
+    { id: 'cb1', ride_id: 'r1', user_id: 'u-traveler', seats: 2, passenger_name: 'Asha Negi', phone: '9876543210', note: '', status: 'confirmed', booking_code: 'THH-7K2P9Q', booking_ref: 'THH-19112026-0001', seat_numbers: [2, 3], created_at: now() },
+    { id: 'cb2', ride_id: 'r3', user_id: 'u-traveler', seats: 2, passenger_name: 'Asha Negi', phone: '9876543210', note: 'Two small bags', status: 'pending', booking_code: 'THH-20112026-0002', booking_ref: 'THH-20112026-0002', hold_expires_at: new Date(Date.now() + 11 * 60e3 + 42e3).toISOString(), seat_numbers: [2, 3], created_at: now() },
+    { id: 'cb3', ride_id: 'r4', user_id: 'u-traveler', seats: 3, passenger_name: 'Asha Negi', phone: '9876543210', note: '', status: 'completed', booking_code: 'THH-15112026-0001', booking_ref: 'THH-15112026-0001', seat_numbers: [1, 2, 3], created_at: now() },
   ],
   booking_requests: [
     { id: 'b1', kind: 'homestay', homestay_id: 'h1', village_tour_id: null, workspace_id: null, partner_id: 'p1', user_id: 'u-traveler', guest_name: 'Asha Negi', guest_phone: '9876543210', start_date: inDays(10).slice(0, 10), end_date: inDays(12).slice(0, 10), guests: 2, message: 'Vegetarian food please', status: 'requested', partner_note: '', created_at: now() },
@@ -63,6 +63,7 @@ const db = {
   destination_reviews: [{ id: 'dr1', user_id: 'u-traveler', location_id: loc('mukteshwar'), rating: 5, body: 'Quiet orchards and a great sunrise view.', status: 'pending', created_at: now() }],
 };
 
+window.__db = db; // tests may adjust data, then re-render with a hashchange
 const singular = { homestays: 'homestay', village_tours: 'village_tour', workspaces: 'workspace', partners: 'partner', cab_rides: 'ride', profiles: 'user' };
 db.cab_seat_holds = [{ ride_id: 'r3', booking_id: 'cb2', seat_no: 2, released_at: null }, { ride_id: 'r3', booking_id: 'cb2', seat_no: 3, released_at: null }];
 
@@ -150,13 +151,22 @@ export function createClient() {
         const taken = db.cab_seat_holds.filter((x) => x.ride_id === r.id && !x.released_at).map((x) => x.seat_no);
         const clash = args.p_seat_numbers.find((s) => taken.includes(s));
         if (clash) return { data: null, error: { message: `Seat ${clash} has just been taken. Please choose another seat.` } };
-        const b = { id: uid(), ride_id: r.id, user_id: session.user.id, seats: args.p_seat_numbers.length, passenger_name: args.p_name, phone: args.p_phone, note: args.p_note, status: r.auto_confirm ? 'confirmed' : 'pending', booking_code: 'THH-' + Math.random().toString(36).slice(2, 8).toUpperCase(), seat_numbers: args.p_seat_numbers, created_at: now() };
+        const b = { id: uid(), ride_id: r.id, user_id: session.user.id, seats: args.p_seat_numbers.length, passenger_name: args.p_name, phone: args.p_phone, note: args.p_note, status: r.auto_confirm ? 'confirmed' : 'pending', booking_code: 'THH-21112026-0007', booking_ref: 'THH-21112026-0007', hold_expires_at: r.auto_confirm ? null : new Date(Date.now() + 15 * 60e3).toISOString(), seat_numbers: args.p_seat_numbers, created_at: now() };
         db.cab_bookings.push(b); args.p_seat_numbers.forEach((s) => db.cab_seat_holds.push({ ride_id: r.id, booking_id: b.id, seat_no: s, released_at: null }));
         r.seats_booked += b.seats; return { data: b, error: null };
       }
       if (name === 'respond_cab_request') { const b = db.cab_bookings.find((x) => x.id === args.p_booking); b.status = args.p_accept ? 'confirmed' : 'declined'; return { data: b, error: null }; }
       if (name === 'cancel_cab_booking') { const b = db.cab_bookings.find((x) => x.id === args.p_booking); b.status = 'cancelled'; return { data: b, error: null }; }
       if (name === 'cancel_cab_ride') { const r = db.cab_rides.find((x) => x.id === args.p_ride); r.status = 'cancelled'; return { data: r, error: null }; }
+      if (name === 'driver_reliability') {
+        const d = db.driver_profiles.find((x) => x.user_id === args.p_driver);
+        if (!d) return { data: null, error: null };
+        const rich = localStorage.getItem('mock_rel') === 'rich';
+        return { data: rich ? { verified: d.is_verified, member_since: '2025-03-01', completed_rides: 42, passengers_served: 118, cancelled_rides: 1, cancellation_rate: 0.023, reviews: 37, avg_rating: 4.8, category_avg: { safety: 4.9, punctuality: 4.6 }, score: 96, level: 'excellent', enough_history: true }
+          : { verified: d.is_verified, member_since: '2026-10-02', completed_rides: 2, passengers_served: 5, cancelled_rides: 0, cancellation_rate: 0, reviews: 2, avg_rating: 5, category_avg: {}, score: null, level: 'new', enough_history: false }, error: null };
+      }
+      if (name === 'start_cab_ride') { const r = db.cab_rides.find((x) => x.id === args.p_ride); r.status = 'started'; r.started_at = now(); db.cab_bookings.filter((b) => b.ride_id === r.id && b.status === 'pending').forEach((b) => { b.status = 'expired'; }); return { data: r, error: null }; }
+      if (name === 'complete_cab_ride') { const r = db.cab_rides.find((x) => x.id === args.p_ride); r.status = 'completed'; r.completed_at = now(); db.cab_bookings.filter((b) => b.ride_id === r.id && b.status === 'confirmed').forEach((b) => { b.status = 'completed'; }); return { data: r, error: null }; }
       if (name === 'set_booking_status') { const b = db.booking_requests.find((x) => x.id === args.p_id); b.status = args.p_status; return { data: b, error: null }; }
       if (name === 'set_cab_booking_status') { const b = db.cab_bookings.find((x) => x.id === args.p_booking); b.status = args.p_status; return { data: b, error: null }; }
       if (name === 'set_trip_share') { const t = db.trips.find((x) => x.id === args.p_trip); if (!t) return { data: null, error: { message: 'Trip not found' } }; t.share_token = args.p_on ? (t.share_token || 'tok' + uid().replace(/-/g, '').slice(0, 20)) : null; return { data: t.share_token, error: null }; }
@@ -181,6 +191,13 @@ export function createClient() {
       resetPasswordForEmail: async () => ({}),
       updateUser: async () => ({}),
     },
+    // Realtime stand-in: tests call window.__rtPush(row) to simulate a seat change from another phone.
+    channel() {
+      const ch = { handlers: [], on(_e, _f, cb) { this.handlers.push(cb); return this; }, subscribe() { (window.__rtChannels ||= []).push(this); return this; } };
+      window.__rtPush = (row) => { const r = db.cab_rides.find((x) => x.id === row.id); if (r) Object.assign(r, row); (window.__rtChannels || []).forEach((c) => c.handlers.forEach((fn) => fn({ new: r || row }))); };
+      return ch;
+    },
+    removeChannel(ch) { window.__rtChannels = (window.__rtChannels || []).filter((c) => c !== ch); },
     storage: { from: () => ({ upload: async () => ({ error: null }), getPublicUrl: (p) => ({ data: { publicUrl: 'https://example.com/' + p } }) }) },
   };
 }
