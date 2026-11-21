@@ -4,6 +4,10 @@ import { h, clear, toast, modal, busy, inr, todayISO, icon, lazy } from '../ui.j
 import { sb, q } from '../sb.js';
 import { state, user, isAdmin } from '../store.js';
 import { allPlaces, placeInput, placeName, placeById } from '../places.js';
+import { vehiclePicker, vehicleVisual, catalog } from '../cab/vehicles.js';
+import { fetchLeg, fmtKm, fmtDur } from '../trip/engine.js';
+import { routeMap } from '../trip/steps.js';
+import { getLang } from '../i18n.js';
 import { L, avatar, timeOf, dateOf, VEHICLES, statusPill, routeLabel, ridePath, notifications, endName, refOf, holdTimer, celebrate, reliability, trustPanel } from './cab.js';
 
 const back = (href) => h('a', { class: 'app-back', href, 'aria-label': L('Back', 'पीछे') }, h('span', { 'aria-hidden': 'true' }, '←'));
@@ -89,30 +93,19 @@ function onboarding() {
 }
 
 function vehicleFields(v = {}) {
-  const typeS = h('select', { class: 'input', id: 'vh-type' }, Object.entries(VEHICLES).map(([k, x]) => h('option', { value: k }, x.label)));
-  typeS.value = v.vehicle_type || 'ertiga';
-  const modelI = h('input', { class: 'input', id: 'vh-model', value: v.model || VEHICLES[typeS.value].model, placeholder: 'Maruti Ertiga' });
   const regI = h('input', { class: 'input', id: 'vh-reg', value: v.registration_no || '', placeholder: 'UK07 AB 1234', autocapitalize: 'characters' });
-  const seatsI = h('input', { class: 'input', id: 'vh-seats', type: 'number', min: 1, max: 12, value: v.seats || VEHICLES[typeS.value].seats });
-  const acI = h('input', { type: 'checkbox', id: 'vh-ac' }); acI.checked = !!v.has_ac;
-  typeS.addEventListener('change', () => { const x = VEHICLES[typeS.value]; if (x.model) modelI.value = x.model; seatsI.value = x.seats; });
+  const acI = h('input', { type: 'checkbox', id: 'vh-ac' }); acI.checked = v.has_ac ?? true;
+  const picker = vehiclePicker(v);
   return {
-    el: h('div', { class: 'stack' },
-      h('div', { class: 'row2' },
-        h('label', { class: 'field', for: 'vh-type' }, h('span', { class: 'field-label' }, L('Vehicle type', 'गाड़ी का प्रकार')), typeS),
-        h('label', { class: 'field', for: 'vh-model' }, h('span', { class: 'field-label' }, L('Model', 'मॉडल')), modelI)),
-      h('div', { class: 'row2' },
-        h('label', { class: 'field', for: 'vh-reg' }, h('span', { class: 'field-label' }, L('Registration number', 'रजिस्ट्रेशन नंबर')), regI),
-        h('label', { class: 'field', for: 'vh-seats' }, h('span', { class: 'field-label' }, L('Passenger seats', 'यात्री सीटें')), seatsI)),
+    el: h('div', { class: 'stack' }, picker.el,
+      h('label', { class: 'field', for: 'vh-reg' }, h('span', { class: 'field-label' }, L('Registration number', 'रजिस्ट्रेशन नंबर')), regI),
       h('label', { class: 'check' }, acI, h('span', {}, L('Car has AC', 'गाड़ी में AC है'))),
-      h('p', { class: 'small muted' }, L('The registration number is shown only to passengers you confirm.', 'रजिस्ट्रेशन नंबर सिर्फ़ उन्हीं यात्रियों को दिखेगा जिन्हें आप कन्फ़र्म करेंगे।'))),
+      h('p', { class: 'small muted' }, L('Travellers see only the state code (e.g. UK07). The full number is shown only to passengers you confirm.', 'यात्रियों को सिर्फ़ राज्य कोड (जैसे UK07) दिखेगा। पूरा नंबर सिर्फ़ कन्फ़र्म यात्रियों को।'))),
     value() {
+      const pv = picker.value(); if (pv.error) return pv;
       const reg = regI.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-      const seats = Number(seatsI.value);
-      if (modelI.value.trim().length < 2) return { error: L('Please enter the car model.', 'गाड़ी का मॉडल लिखें।') };
       if (reg.length < 4) return { error: L('Please enter the registration number.', 'रजिस्ट्रेशन नंबर लिखें।') };
-      if (!(seats >= 1 && seats <= 12)) return { error: L('Seats must be between 1 and 12.', 'सीटें 1 से 12 के बीच हों।') };
-      return { row: { vehicle_type: typeS.value, model: modelI.value.trim(), registration_no: reg, seats, has_ac: acI.checked } };
+      return { row: { ...pv.row, registration_no: reg, has_ac: acI.checked } };
     },
   };
 }
@@ -181,18 +174,19 @@ export async function publish({ params }) {
     if (!r) return h('div', { class: 'app-page' }, h('div', { class: 'app-head' }, back('#/drive/rides'), h('h1', {}, L('Ride not found', 'राइड नहीं मिली'))));
   }
   const locked = r && r.seats_booked > 0;
-  const fromI = placeInput({ id: 'pr-from', label: L('Starting location', 'कहाँ से'), value: r ? placeById(r.from_place_id) : null, placeholder: L('Town or village', 'शहर या गाँव') });
-  const toI = placeInput({ id: 'pr-to', label: L('Destination', 'मंज़िल'), value: r ? placeById(r.to_place_id) : null, placeholder: L('Town or village', 'शहर या गाँव') });
+  const asPlace = (id, geo) => placeById(id) || (geo ? { id: null, ext: true, name: geo.name || '', lat: geo.lat, lng: geo.lng, district: null } : null);
+  const fromI = placeInput({ id: 'pr-from', external: true, label: L('Starting location', 'कहाँ से'), value: r ? asPlace(r.from_place_id, r.from_geo) : null, placeholder: L('Any town or village in India', 'भारत का कोई भी शहर या गाँव') });
+  const toI = placeInput({ id: 'pr-to', external: true, label: L('Destination', 'मंज़िल'), value: r ? asPlace(r.to_place_id, r.to_geo) : null, placeholder: L('Any town or village in India', 'भारत का कोई भी शहर या गाँव') });
   const stops = [];
   const stopsBox = h('div', { class: 'stack' });
   const addStop = (place = null) => {
     if (stops.length >= 4) return;
     const idx = stops.length;
-    const si = placeInput({ id: `pr-stop-${Date.now()}-${idx}`, label: `${L('Stop', 'स्टॉप')} ${idx + 1}`, value: place, compact: true });
+    const si = placeInput({ id: `pr-stop-${Date.now()}-${idx}`, external: true, label: `${L('Stop', 'स्टॉप')} ${idx + 1}`, value: place, compact: true });
     const row = h('div', { class: 'stop-row' }, si.el, h('button', { type: 'button', class: 'icon-btn', 'aria-label': L('Remove stop', 'स्टॉप हटाएँ'), onclick: () => { stops.splice(stops.indexOf(si), 1); row.remove(); } }, '✕'));
     stops.push(si); stopsBox.append(row);
   };
-  (r?.stops || []).forEach((s) => addStop(placeById(s.place_id)));
+  (r?.stops || []).forEach((s) => addStop(asPlace(s.place_id, s.lat != null ? s : null)));
   const dep = r ? new Date(r.departure_at) : null;
   const istParts = (d) => { const x = new Date(d.getTime() + 5.5 * 3600e3); return [x.toISOString().slice(0, 10), x.toISOString().slice(11, 16)]; };
   const [d0, t0] = dep ? istParts(dep) : [todayISO(1), '08:00'];
@@ -204,7 +198,8 @@ export async function publish({ params }) {
   let seats = r ? r.seats_total : veh().seats;
   const seatsOut = h('output', { class: 'stepper-n', id: 'pr-seats' }, String(seats));
   const stepSeats = (d) => { seats = Math.min(veh().seats, Math.max(r ? Math.max(1, r.seats_booked) : 1, seats + d)); seatsOut.textContent = String(seats); };
-  vehS.addEventListener('change', () => { seats = Math.min(seats, veh().seats); seatsOut.textContent = String(seats); });
+  const vehPic = h('div', { class: 'pr-vehpic' }, vehicleVisual(veh().model, { variantId: veh().variant_id }));
+  vehS.addEventListener('change', () => { seats = Math.min(seats, veh().seats); seatsOut.textContent = String(seats); clear(vehPic).append(vehicleVisual(veh().model, { variantId: veh().variant_id })); });
   const priceI = h('input', { class: 'input', id: 'pr-price', type: 'number', min: 0, max: 100000, step: 10, value: r ? r.price_per_seat : '', placeholder: '500' });
   const pickI = h('input', { class: 'input', id: 'pr-pick', maxlength: 200, value: r?.pickup_point || '', placeholder: L('e.g. Rishikesh bus stand', 'जैसे ऋषिकेश बस स्टैंड') });
   const dropI = h('input', { class: 'input', id: 'pr-drop', maxlength: 200, value: r?.drop_point || '', placeholder: L('e.g. Mussoorie library chowk', 'जैसे मसूरी लाइब्रेरी चौक') });
@@ -215,11 +210,29 @@ export async function publish({ params }) {
   const err = h('p', { class: 'form-err', role: 'alert' });
   const root = h('div', { class: 'app-page' });
 
+  const geoOf = (p) => ({ name: (placeName(p) || p.name || '').slice(0, 200), lat: +(+p.lat).toFixed(5), lng: +(+p.lng).toFixed(5) });
+  const routeCache = {};
+  // Road route through all points (free OSRM). Saved so passengers see the same distance and time.
+  async function roadRoute(row) {
+    const pts = [row.from_geo, ...row.stops, row.to_geo];
+    const key = pts.map((p) => `${p.lat},${p.lng}`).join(';');
+    if (routeCache[key]) return routeCache[key];
+    const legs = [];
+    for (let i = 1; i < pts.length; i += 1) legs.push(await fetchLeg(pts[i - 1], pts[i]));
+    if (legs.some((l) => l.error)) return (routeCache[key] = { error: true, pts });
+    const coords = legs.flatMap((l, i) => (i ? l.coords.slice(1) : l.coords));
+    const step = Math.max(1, Math.ceil(coords.length / 450));
+    const line = coords.filter((_, i) => i % step === 0 || i === coords.length - 1).map(([a, b]) => [+a.toFixed(4), +b.toFixed(4)]);
+    return (routeCache[key] = { legs, pts, line, km: legs.reduce((x, l) => x + l.km, 0), secs: legs.reduce((x, l) => x + l.secs, 0) });
+  }
+
   function collect() {
-    if (!fromI.validate() || !toI.validate()) return { error: L('Choose the start and destination from the list.', 'शुरुआत और मंज़िल सूची से चुनें।') };
-    const ids = [fromI.get().id, ...stops.map((s) => s.get()?.id).filter(Boolean), toI.get().id];
-    if (new Set(ids).size !== ids.length) return { error: L('Start, stops and destination must all be different.', 'शुरुआत, स्टॉप और मंज़िल अलग-अलग हों।') };
-    if (stops.some((s) => !s.get())) return { error: L('Choose each stop from the list, or remove it.', 'हर स्टॉप सूची से चुनें या हटा दें।') };
+    if (!fromI.validate() || !toI.validate()) return { error: L('Choose the start and destination from the suggestions.', 'शुरुआत और मंज़िल सुझावों में से चुनें।') };
+    if (stops.some((s) => !s.get())) return { error: L('Choose each stop from the suggestions, or remove it.', 'हर स्टॉप सुझावों में से चुनें या हटा दें।') };
+    const pts = [fromI.get(), ...stops.map((s) => s.get()), toI.get()];
+    const keys = pts.map((p) => p.id || `${(+p.lat).toFixed(3)},${(+p.lng).toFixed(3)}`);
+    if (new Set(keys).size !== keys.length) return { error: L('Start, stops and destination must all be different.', 'शुरुआत, स्टॉप और मंज़िल अलग-अलग हों।') };
+    if (pts.some((p) => p.lat == null || p.lng == null)) return { error: L('One of the places has no map position. Please choose it again.', 'किसी जगह की मैप पोज़िशन नहीं है। उसे फिर से चुनें।') };
     if (!dateI.value || !timeI.value) return { error: L('Choose the date and time.', 'तारीख़ और समय चुनें।') };
     const when = new Date(`${dateI.value}T${timeI.value}:00+05:30`);
     if (!locked && when <= new Date(Date.now() + 15 * 60e3)) return { error: L('Departure must be at least 15 minutes from now.', 'रवानगी अभी से कम से कम 15 मिनट बाद हो।') };
@@ -228,20 +241,42 @@ export async function publish({ params }) {
     const v = veh();
     return { row: {
       driver_id: user().id, vehicle_id: v.id, vehicle_model: v.model, vehicle_type: v.vehicle_type,
-      from_place_id: fromI.get().id, to_place_id: toI.get().id,
-      stops: stops.map((s) => ({ place_id: s.get().id, name: s.get().name })),
+      from_place_id: fromI.get().id || null, to_place_id: toI.get().id || null,
+      from_geo: geoOf(fromI.get()), to_geo: geoOf(toI.get()),
+      stops: stops.map((s) => ({ place_id: s.get().id || null, name: s.get().name, lat: +s.get().lat, lng: +s.get().lng })),
       departure_at: when.toISOString(), seats_total: seats, price_per_seat: price,
       pickup_point: pickI.value.trim(), drop_point: dropI.value.trim(), auto_confirm: instantI.checked, notes: notesI.value.trim(),
     } };
   }
 
-  function review(row) {
+  async function review(row) {
     const pub = h('button', { class: 'btn btn-lg', type: 'button' }, r ? L('Save changes', 'बदलाव सेव करें') : L('Publish ride', 'राइड पब्लिश करें'));
     const rerr = h('p', { class: 'form-err', role: 'alert' });
+    const routeBox = h('section', { class: 'panel stack' }, h('h2', {}, L('Route on the map', 'मैप पर रूट')), h('p', { class: 'muted small' }, L('Working out the road route…', 'सड़क का रूट निकाला जा रहा है…')));
+    if (!locked) {
+      pub.disabled = true;
+      roadRoute(row).then((rt) => {
+        clear(routeBox).append(h('h2', {}, L('Route on the map', 'मैप पर रूट')));
+        const d = { start: { ...rt.pts[0] }, dests: rt.pts.slice(1).map((p) => ({ ...p })), roundTrip: false,
+          route: rt.error ? null : { legs: rt.legs.map((l) => ({ ...l, ret: false })) } };
+        routeBox.append(routeMap(d, { height: '280px' }).el);
+        if (rt.error) {
+          routeBox.append(h('p', { class: 'soft-note warn' }, L('The road route could not be worked out right now (map server busy or offline). You can still publish; travellers will see the start and end points.', 'अभी सड़क का रूट नहीं निकल पाया (मैप सर्वर व्यस्त या इंटरनेट नहीं)। फिर भी राइड डाल सकते हैं; यात्रियों को शुरुआत और मंज़िल दिखेगी।')));
+        } else {
+          row.route_line = rt.line; row.distance_km = Math.round(rt.km * 10) / 10; row.duration_min = Math.round(rt.secs / 60);
+          const arrive = new Date(new Date(row.departure_at).getTime() + rt.secs * 1000);
+          routeBox.append(h('div', { class: 'review-grid' },
+            h('div', {}, h('span', { class: 'small muted' }, L('Distance', 'दूरी')), h('strong', {}, fmtKm(rt.km))),
+            h('div', {}, h('span', { class: 'small muted' }, L('Driving time (estimate, no traffic)', 'ड्राइविंग समय (अनुमान, ट्रैफ़िक के बिना)')), h('strong', {}, fmtDur(rt.secs, getLang() === 'hi'))),
+            h('div', {}, h('span', { class: 'small muted' }, L('Estimated arrival', 'अनुमानित पहुँच')), h('strong', {}, `${timeOf(arrive)}${dateOf(arrive) !== dateOf(row.departure_at) ? ` (${dateOf(arrive)})` : ''}`))));
+        }
+        pub.disabled = false;
+      });
+    }
     pub.addEventListener('click', () => busy(pub, async () => {
       if (r) {
         const { driver_id, ...patch } = row;
-        if (locked) { delete patch.departure_at; delete patch.price_per_seat; delete patch.vehicle_id; delete patch.from_place_id; delete patch.to_place_id; delete patch.stops; delete patch.vehicle_model; delete patch.vehicle_type; }
+        if (locked) ['departure_at', 'price_per_seat', 'vehicle_id', 'from_place_id', 'to_place_id', 'from_geo', 'to_geo', 'stops', 'vehicle_model', 'vehicle_type', 'route_line', 'distance_km', 'duration_min'].forEach((k) => delete patch[k]);
         await q(sb.from('cab_rides').update(patch).eq('id', r.id));
         toast(L('Ride updated', 'राइड अपडेट हो गई'));
         location.hash = `#/drive/trip/${r.id}`;
@@ -255,10 +290,10 @@ export async function publish({ params }) {
         h('div', { class: 'grow' }, h('h1', {}, L('Review your journey', 'अपनी यात्रा जाँच लें')), h('p', { class: 'muted' }, L('This is how travellers will see it.', 'यात्री इसे ऐसे देखेंगे।')))),
       h('div', { class: 'confirm-card' },
         h('div', { class: 'tl tl-lg' },
-          h('div', { class: 'tl-row' }, h('span', { class: 'tl-dot' }), h('strong', {}, placeName(placeById(row.from_place_id))), h('span', { class: 'tl-time' }, timeOf(row.departure_at))),
+          h('div', { class: 'tl-row' }, h('span', { class: 'tl-dot' }), h('strong', {}, row.from_geo.name), h('span', { class: 'tl-time' }, timeOf(row.departure_at))),
           row.pickup_point ? h('div', { class: 'tl-note' }, L('Pickup: ', 'पिकअप: ') + row.pickup_point) : null,
-          ...row.stops.map((s) => h('div', { class: 'tl-row tl-via' }, h('span', { class: 'tl-dot small' }), h('span', {}, placeName(placeById(s.place_id))))),
-          h('div', { class: 'tl-row' }, h('span', { class: 'tl-dot end' }), h('strong', {}, placeName(placeById(row.to_place_id)))),
+          ...row.stops.map((s) => h('div', { class: 'tl-row tl-via' }, h('span', { class: 'tl-dot small' }), h('span', {}, s.name))),
+          h('div', { class: 'tl-row' }, h('span', { class: 'tl-dot end' }), h('strong', {}, row.to_geo.name)),
           row.drop_point ? h('div', { class: 'tl-note' }, L('Drop: ', 'ड्रॉप: ') + row.drop_point) : null),
         h('div', { class: 'review-grid' },
           h('div', {}, h('span', { class: 'small muted' }, L('Date', 'तारीख़')), h('strong', {}, dateOf(row.departure_at))),
@@ -267,6 +302,7 @@ export async function publish({ params }) {
           h('div', {}, h('span', { class: 'small muted' }, L('Per seat', 'प्रति सीट')), h('strong', {}, inr(row.price_per_seat))),
           h('div', {}, h('span', { class: 'small muted' }, L('Booking', 'बुकिंग')), h('strong', {}, row.auto_confirm ? L('Instant book', 'तुरंत बुकिंग') : L('You approve each request', 'हर रिक्वेस्ट आप मंज़ूर करेंगे')))),
         row.notes ? h('p', { class: 'small' }, row.notes) : null),
+      locked ? null : routeBox,
       rerr,
       h('div', { class: 'row-actions' }, h('button', { class: 'btn btn-ghost btn-lg', type: 'button', onclick: () => { clear(root).append(...formView()); } }, L('Edit', 'बदलें')), pub));
     window.scrollTo({ top: 0 });
@@ -288,7 +324,7 @@ export async function publish({ params }) {
           h('label', { class: 'field', for: 'pr-date' }, h('span', { class: 'field-label' }, L('Journey date', 'यात्रा की तारीख़')), dateI),
           h('label', { class: 'field', for: 'pr-time' }, h('span', { class: 'field-label' }, L('Departure time', 'रवानगी का समय')), timeI))),
       h('section', { class: 'panel stack' }, h('h2', {}, L('Vehicle and seats', 'गाड़ी और सीटें')),
-        h('label', { class: 'field', for: 'pr-veh' }, h('span', { class: 'field-label' }, L('Vehicle', 'गाड़ी')), vehS),
+        h('label', { class: 'field', for: 'pr-veh' }, h('span', { class: 'field-label' }, L('Vehicle', 'गाड़ी')), vehS), vehPic,
         h('a', { class: 'small', href: '#/drive/profile' }, L('Add another vehicle', 'दूसरी गाड़ी जोड़ें')),
         h('div', { class: 'row2' },
           h('div', { class: 'field' }, h('span', { class: 'field-label', id: 'pr-seats-l' }, L('Available seats', 'खाली सीटें')),
@@ -409,8 +445,9 @@ export async function trip({ params, query }) {
   const live = ['open', 'full'].includes(r.status) && isUpcoming(r);
   const total = confirmed.reduce((s, b) => s + b.seats * r.price_per_seat, 0);
   if (query.new === '1') {
-    history.replaceState(null, '', `#/drive/trip/${r.id}`);
     setTimeout(() => {
+      if (!location.hash.startsWith(`#/drive/trip/${r.id}`)) return;
+      history.replaceState(null, '', `#/drive/trip/${r.id}`);
       const dlg = celebrate({
         title: L('Your ride is published!', 'आपकी राइड पब्लिश हो गई!'),
         message: L('Travellers searching this route can now find and book it.', 'इस रूट को खोजने वाले यात्री अब इसे देखकर बुक कर सकते हैं।'),
@@ -477,7 +514,7 @@ export async function profile() {
       save),
     h('section', { class: 'panel stack' }, h('h2', {}, L('My vehicles', 'मेरी गाड़ियाँ')),
       allVeh.length ? allVeh.map((v) => h('div', { class: 'veh-row' },
-        icon('car', 22), h('div', { class: 'grow' }, h('strong', {}, v.model), h('div', { class: 'small muted' }, `${v.registration_no} · ${v.seats} ${L('seats', 'सीट')}${v.has_ac ? ' · AC' : ''}`)),
+        vehicleVisual(v.model, { size: 'sm', variantId: v.variant_id }), h('div', { class: 'grow' }, h('strong', {}, v.model), h('div', { class: 'small muted' }, `${v.registration_no} · ${v.seats} ${L('passenger seats', 'यात्री सीटें')}${v.has_ac ? ' · AC' : ''}${v.variant_id ? '' : ` · ${L('not from the list', 'सूची से नहीं')}`}`)),
         h('button', { class: 'btn btn-ghost btn-sm', type: 'button', onclick: async (e) => {
           await busy(e.currentTarget, async () => { await q(sb.from('vehicles').update({ is_active: !v.is_active }).eq('id', v.id)); window.dispatchEvent(new HashChangeEvent('hashchange')); });
         } }, v.is_active ? L('Hide', 'छिपाएँ') : L('Use again', 'फिर से इस्तेमाल करें')))) : h('p', { class: 'muted' }, L('No vehicle yet.', 'अभी कोई गाड़ी नहीं।'))),

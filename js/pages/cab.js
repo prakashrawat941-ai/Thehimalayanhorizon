@@ -6,6 +6,17 @@ import { getLang } from '../i18n.js';
 import { sb, q } from '../sb.js';
 import { state, user, loadProfile, settings } from '../store.js';
 import { allPlaces, placeInput, placeName, placeById, placesCached } from '../places.js';
+import { vehicleVisual, catalog } from '../cab/vehicles.js';
+
+// Places in links: listed places by id (?from=…), any other village by position (?fromg=lat,lng|name).
+const placeKey = (p) => p?.id || (p ? `${(+p.lat).toFixed(4)},${(+p.lng).toFixed(4)}` : '');
+function putPlace(qs, k, p) { if (p.id) qs.set(k, p.id); else qs.set(`${k}g`, `${(+p.lat).toFixed(5)},${(+p.lng).toFixed(5)}|${placeName(p) || p.name}`); }
+function readPlace(query, k, places) {
+  const byId = places.find((p) => p.id === query[k]) || places.find((p) => query[`${k}_loc`] && p.location_id === query[`${k}_loc`]);
+  if (byId) return byId;
+  const g = String(query[`${k}g`] || ''); const m = g.match(/^(-?[\d.]+),(-?[\d.]+)\|(.{1,200})$/);
+  return m ? { id: null, ext: true, name: m[3], lat: +m[1], lng: +m[2], district: null } : null;
+}
 
 export const L = (en, hi) => (getLang() === 'hi' ? hi : en);
 const back = (href) => h('a', { class: 'app-back', href, 'aria-label': L('Back', 'पीछे') }, h('span', { 'aria-hidden': 'true' }, '←'));
@@ -202,8 +213,8 @@ export async function entry() {
 
 // ---------- Search form (used on dashboard and results) ----------
 export function searchForm({ from = null, to = null, date = todayISO(), n = 1, onSearch } = {}) {
-  const fromI = placeInput({ id: 'cab-from', label: L('From', 'कहाँ से'), placeholder: L('Pickup town or village', 'पिकअप शहर या गाँव'), value: from });
-  const toI = placeInput({ id: 'cab-to', label: L('To', 'कहाँ तक'), placeholder: L('Destination', 'मंज़िल'), value: to });
+  const fromI = placeInput({ id: 'cab-from', external: true, label: L('From', 'कहाँ से'), placeholder: L('Pickup: any town or village', 'पिकअप: कोई भी शहर या गाँव'), value: from });
+  const toI = placeInput({ id: 'cab-to', external: true, label: L('To', 'कहाँ तक'), placeholder: L('Destination', 'मंज़िल'), value: to });
   const dateI = h('input', { class: 'input', type: 'date', id: 'cab-date', min: todayISO(), value: date, required: true });
   let count = Math.max(1, Number(n) || 1);
   const countEl = h('output', { class: 'stepper-n', id: 'cab-n', 'aria-live': 'polite' }, String(count));
@@ -213,10 +224,11 @@ export function searchForm({ from = null, to = null, date = todayISO(), n = 1, o
     e.preventDefault();
     clear(err);
     const okFrom = fromI.validate(); const okTo = toI.validate();
-    if (!okFrom || !okTo) { err.textContent = L('Please choose both places from the list.', 'दोनों जगह सूची से चुनें।'); return; }
-    if (fromI.get().id === toI.get().id) { err.textContent = L('Start and destination cannot be the same.', 'शुरुआत और मंज़िल एक नहीं हो सकतीं।'); return; }
+    if (!okFrom || !okTo) { err.textContent = L('Please choose both places from the suggestions.', 'दोनों जगह सुझावों में से चुनें।'); return; }
+    if (placeKey(fromI.get()) === placeKey(toI.get())) { err.textContent = L('Start and destination cannot be the same.', 'शुरुआत और मंज़िल एक नहीं हो सकतीं।'); return; }
     if (!dateI.value || dateI.value < todayISO()) { err.textContent = L('Choose today or a future date.', 'आज या आगे की तारीख़ चुनें।'); dateI.focus(); return; }
-    const qs = new URLSearchParams({ from: fromI.get().id, to: toI.get().id, date: dateI.value, n: String(count) });
+    const qs = new URLSearchParams({ date: dateI.value, n: String(count) });
+    putPlace(qs, 'from', fromI.get()); putPlace(qs, 'to', toI.get());
     if (onSearch) onSearch(qs); else location.hash = `#/cab/find?${qs}`;
   } },
     h('div', { class: 'cab-tabs', role: 'tablist' }, h('span', { class: 'cab-tab on', role: 'tab', 'aria-selected': 'true' }, icon('car', 17), L('Shared cab', 'शेयर कैब'))),
@@ -237,8 +249,8 @@ export function searchForm({ from = null, to = null, date = todayISO(), n = 1, o
 // ---------- 2. Results ----------
 export async function find({ query }) {
   const places = await allPlaces();
-  const from = places.find((p) => p.id === query.from) || places.find((p) => query.from_loc && p.location_id === query.from_loc) || null;
-  const to = places.find((p) => p.id === query.to) || places.find((p) => query.to_loc && p.location_id === query.to_loc) || null;
+  const from = readPlace(query, 'from', places);
+  const to = readPlace(query, 'to', places);
   const date = query.date && query.date >= todayISO() ? query.date : todayISO();
   const n = Math.max(1, Number(query.n) || 1);
   const page = h('div', { class: 'app-page' });
@@ -252,23 +264,29 @@ export async function find({ query }) {
   page.append(
     h('div', { class: 'app-head' }, back('#/cab'),
       h('div', { class: 'grow' }, h('h1', {}, L('Available cabs', 'उपलब्ध कैब')),
-        h('p', { class: 'muted' }, `${placeName(from)} → ${placeName(to)} · ${dateOf(`${date}T12:00:00+05:30`)} · ${n} ${L(n > 1 ? 'travellers' : 'traveller', 'यात्री')}`)),
+        h('p', { class: 'muted' }, `${placeName(from) || from.name} → ${placeName(to) || to.name} · ${dateOf(`${date}T12:00:00+05:30`)} · ${n} ${L(n > 1 ? 'travellers' : 'traveller', 'यात्री')}`)),
       h('button', { class: 'icon-btn', type: 'button', 'aria-label': L('Change search', 'खोज बदलें'), onclick: () => { editBox.hidden = !editBox.hidden; } }, icon('search', 20))),
     editBox);
 
   const [startIso, endIso] = istDayRange(date);
   const rides = await q(sb.from('cab_rides').select('*').in('status', ['open', 'full'])
     .gte('departure_at', startIso).lt('departure_at', endIso).gt('departure_at', new Date().toISOString()).order('departure_at').limit(200));
-  const matches = rides.filter((r) => {
-    const path = ridePath(r, places);
-    const a = path.indexOf(from.id); const b = path.indexOf(to.id);
-    return a >= 0 && b > a;
-  });
+  // 1) Road-route matching in the database: pickup and drop within the corridor (50 km) of the route, in the right direction.
+  const meta = {};
+  if (from.lat != null && to.lat != null) {
+    const m = await q(sb.rpc('match_cab_rides', { p_pick_lat: +from.lat, p_pick_lng: +from.lng, p_drop_lat: +to.lat, p_drop_lng: +to.lng, p_date: date, p_seats: n })).catch(() => []);
+    (m || []).forEach((x, i) => { meta[x.ride_id] = { ...x, rank: i }; });
+  }
+  // 2) Rides that list both places on their way (older rides and full rides still shown).
+  const onPath = (r) => { const path = ridePath(r, places); const a = from.id ? path.indexOf(from.id) : -1; const b = to.id ? path.indexOf(to.id) : -1; return a >= 0 && b > a; };
+  const matches = rides.filter((r) => meta[r.id] || onPath(r))
+    .sort((a, b) => (meta[a.id]?.rank ?? 999) - (meta[b.id]?.rank ?? 999) || new Date(a.departure_at) - new Date(b.departure_at));
+  await catalog().catch(() => {});
   const card = await driverCards(matches);
   const list = h('div', { class: 'ride-cards' });
   if (!matches.length) {
     const shift = (d) => { const x = new Date(`${date}T12:00:00+05:30`); x.setDate(x.getDate() + d); return x.toISOString().slice(0, 10); };
-    const link = (d) => `#/cab/find?${new URLSearchParams({ from: from.id, to: to.id, date: d, n: String(n) })}`;
+    const link = (d) => { const qs = new URLSearchParams({ date: d, n: String(n) }); putPlace(qs, 'from', from); putPlace(qs, 'to', to); return `#/cab/find?${qs}`; };
     list.append(h('div', { class: 'empty-state' },
       h('span', { class: 'empty-ico' }, icon('car', 34)),
       h('h2', {}, L('No rides on this route yet', 'इस रूट पर अभी कोई राइड नहीं')),
@@ -279,7 +297,7 @@ export async function find({ query }) {
       h('p', { class: 'small muted' }, L('Driving this route? ', 'इस रूट पर जा रहे हैं? '), h('a', { href: user() ? '#/drive/publish' : '#/login?next=drive/publish' }, L('Publish your ride', 'अपनी राइड डालें')))));
   }
   const pills = {};
-  matches.forEach((r) => { const el = rideCard(r, card(r), n, places); pills[r.id] = el; list.append(el); });
+  matches.forEach((r) => { const el = rideCard(r, card(r), n, places, meta[r.id], from); pills[r.id] = el; list.append(el); });
   watchRides(matches.map((r) => r.id), (row) => {
     const el = pills[row.id]; if (!el) return;
     const left = row.seats_total - row.seats_booked;
@@ -295,7 +313,7 @@ export async function find({ query }) {
   return page;
 }
 
-function rideCard(r, d, n, places) {
+function rideCard(r, d, n, places, mt = null, from = null) {
   const left = r.seats_total - r.seats_booked;
   const enough = left >= n && r.status === 'open';
   const v = VEHICLES[r.vehicle_type];
@@ -311,11 +329,16 @@ function rideCard(r, d, n, places) {
         h('div', { class: 'tl-row' }, h('span', { class: 'tl-dot' }), h('strong', {}, timeOf(r.departure_at)), h('span', {}, endName(r, 'from'))),
         (r.stops || []).length ? h('div', { class: 'tl-row tl-via' }, h('span', { class: 'tl-dot small' }), h('span', { class: 'muted' }, L('via ', 'होकर ') + r.stops.map((s) => placeName(placeById(s.place_id)) || s.name).join(', '))) : null,
         h('div', { class: 'tl-row' }, h('span', { class: 'tl-dot end' }), h('span', {}, endName(r, 'to'))))),
-    h('div', { class: 'rc-meta' }, icon('car', 16), h('span', {}, r.vehicle_model), v ? h('span', { class: 'muted' }, `· ${v.label}`) : null),
+    mt ? h('div', { class: 'rc-near small' }, icon('pin', 15),
+      mt.pickup_km <= 2 ? L('Your pickup is on this route', 'आपका पिकअप इसी रूट पर है')
+        : `${L('Pickup about', 'पिकअप लगभग')} ${Math.round(mt.pickup_km)} km ${L('from the route', 'रूट से')}`,
+      mt.drop_km > 2 ? h('span', { class: 'muted' }, ` · ${L('drop', 'ड्रॉप')} ${Math.round(mt.drop_km)} km`) : null,
+      r.distance_km ? h('span', { class: 'muted' }, ` · ${L('ride', 'राइड')} ${Math.round(r.distance_km)} km`) : null) : null,
+    h('div', { class: 'rc-meta' }, vehicleVisual(r.vehicle_model, { size: 'sm' }), h('span', {}, r.vehicle_model), v ? h('span', { class: 'muted' }, `· ${v.label}`) : null),
     h('div', { class: 'rc-foot' },
       h('div', {}, h('span', { class: 'price' }, inr(r.price_per_seat)), h('span', { class: 'muted small' }, ` / ${L('seat', 'सीट')}`),
         n > 1 ? h('div', { class: 'small muted' }, `${inr(r.price_per_seat * n)} ${L('for', 'कुल')} ${n}`) : null),
-      enough ? h('a', { class: 'btn', href: `#/cab/ride/${r.id}?n=${n}` }, L('Book now', 'बुक करें'))
+      enough ? h('a', { class: 'btn', href: `#/cab/ride/${r.id}?${new URLSearchParams({ n: String(n), ...(mt && from && mt.pickup_km > 2 ? { pn: (placeName(from) || from.name).slice(0, 80) } : {}) })}` }, L('Book now', 'बुक करें'))
         : h('span', { class: 'muted small' }, L('Not enough seats', 'सीटें कम हैं'))));
 }
 
@@ -367,6 +390,7 @@ export async function ride({ params, query }) {
         h('div', { class: 'driver-head' }, avatar(d.photo_url, d.full_name, 'av av-lg'),
           h('div', {}, h('h1', {}, d.full_name), driverBadge(d))),
         trustPanel(rel),
+        vehicleVisual(r.vehicle_model),
         h('div', { class: 'feature-row' },
           h('div', {}, icon('car', 22), h('span', {}, r.vehicle_model, regionOf(r) ? h('small', { class: 'muted' }, ` · ${L('Registered', 'रजिस्टर्ड')} ${regionOf(r)}`) : null)),
           h('div', { class: 'seats-live' }, icon('people', 22), seatsLive),
@@ -440,6 +464,7 @@ export async function ride({ params, query }) {
     const nameI = h('input', { class: 'input', id: 'bk-name', required: true, minlength: 2, value: p.full_name || '', autocomplete: 'name' });
     const phoneI = h('input', { class: 'input', id: 'bk-phone', type: 'tel', required: true, inputmode: 'tel', value: p.phone || '', autocomplete: 'tel', placeholder: '98xxxxxxxx' });
     const noteI = h('textarea', { class: 'input', id: 'bk-note', rows: 2, maxlength: 300, placeholder: L('Luggage, pickup landmark… (optional)', 'सामान, पिकअप की जगह… (वैकल्पिक)') });
+    if (query.pn) noteI.value = `${L('Please pick me up near', 'कृपया मुझे यहाँ के पास से लें:')} ${String(query.pn).slice(0, 80)}`;
     const err = h('p', { class: 'form-err', role: 'alert' });
     const btn = h('button', { class: 'btn btn-block btn-lg', type: 'submit' }, r.auto_confirm ? L('Confirm booking', 'बुकिंग कन्फ़र्म करें') : L('Send ride request', 'राइड रिक्वेस्ट भेजें'));
     const form = h('form', { class: 'stack', novalidate: true, onsubmit: async (e) => {
@@ -499,9 +524,10 @@ export async function booking({ params, query }) {
   const statusTxt = { pending: L('Waiting for the driver (15 min)', 'ड्राइवर के जवाब का इंतज़ार (15 मिनट)'), confirmed: L('Confirmed', 'कन्फ़र्म') }[b.status] || b.status;
 
   if (query.new === '1') {
-    history.replaceState(null, '', `#/cab/booking/${b.id}`);
     const pending = b.status === 'pending';
     setTimeout(() => {
+      if (!location.hash.startsWith(`#/cab/booking/${b.id}`)) return;
+      history.replaceState(null, '', `#/cab/booking/${b.id}`);
       const dlg = celebrate({
         wait: pending,
         title: pending ? L('Request sent!', 'रिक्वेस्ट भेज दी!') : L('Your ride is booked!', 'आपकी राइड बुक हो गई!'),

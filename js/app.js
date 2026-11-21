@@ -12,6 +12,7 @@ const route = (pattern, loader) => {
 };
 
 // Pages are loaded on demand so the first screen is fast.
+export const APP_VERSION = '15'; // shown in the footer; tells us which version a phone is running
 route('',                 () => import('./pages/public.js').then((m) => m.home));
 route('explore',          () => import('./pages/public.js').then((m) => m.explore));
 route('place/:slug',      () => import('./pages/public.js').then((m) => m.place));
@@ -175,7 +176,7 @@ function footer() {
         h('a', { href: '#/workspaces' }, t('workspaces')), h('a', { href: '#/cab' }, t('cabs')),
         h('a', { href: '#/partner/join' }, t('become_partner'))),
       h('div', { class: 'footer-end' },
-        h('span', { class: 'muted small' }, `© ${new Date().getFullYear()} The Himalayan Horizon · ${t('footer_note')}`),
+        h('span', { class: 'muted small' }, `© ${new Date().getFullYear()} The Himalayan Horizon · ${t('footer_note')} · v${APP_VERSION}`),
         h('button', { class: 'lang-btn', onclick: () => { setLang(getLang() === 'hi' ? 'en' : 'hi'); paintShell(); render(); } }, t('language')))));
 }
 
@@ -252,7 +253,14 @@ async function boot() {
   onChange(paintShell);
   await render();
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
-    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => reg.update()).catch(console.error);
+    // Check for a new version on start, whenever the app comes back to the screen, and every 30 minutes,
+    // so an installed app that stays open in the background still gets updates.
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => {
+      const check = () => reg.update().catch(() => {});
+      check();
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); });
+      setInterval(check, 30 * 60e3);
+    }).catch(console.error);
     // When a new version takes over, reload once so every file is from the same version.
     let reloaded = false;
     const hadController = !!navigator.serviceWorker.controller;

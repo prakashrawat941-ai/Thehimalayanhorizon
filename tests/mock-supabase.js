@@ -20,8 +20,19 @@ const db = {
   ...fx,
   profiles: Object.values(users).map((u) => ({ id: u.id, full_name: u.full_name, phone: '9876543210', role: u.role, lang: 'hi', avatar_url: '', created_at: now() })),
   driver_profiles: [{ user_id: 'u-driver', full_name: 'Amit Rawat', phone: '9876500011', photo_url: '', about: 'Driving the Rishikesh–Mussoorie road for 8 years. Safe, calm, knows every bend.', is_verified: true, status: 'active', created_at: now() }],
-  vehicles: [{ id: 've1', owner_id: 'u-driver', vehicle_type: 'ertiga', model: 'Maruti Ertiga', registration_no: 'UK07AB1234', seats: 6, color: '', has_ac: true, is_active: true, created_at: now() }],
+  vehicles: [{ id: 've1', owner_id: 'u-driver', vehicle_type: 'ertiga', model: 'Maruti Ertiga', registration_no: 'UK07AB1234', seats: 6, color: '', has_ac: true, is_active: true, variant_id: 'vv1', created_at: now() }],
   cab_seat_holds: [],
+  vehicle_makes: [{ id: 'mk1', name: 'Maruti Suzuki', is_active: true }, { id: 'mk2', name: 'Mahindra', is_active: true }, { id: 'mk3', name: 'Toyota', is_active: true }],
+  vehicle_models: [{ id: 'mo1', make_id: 'mk1', name: 'Ertiga', category: 'muv', is_active: true }, { id: 'mo2', make_id: 'mk1', name: 'Swift', category: 'hatchback', is_active: true },
+    { id: 'mo3', make_id: 'mk2', name: 'Bolero', category: 'suv', is_active: true }, { id: 'mo4', make_id: 'mk3', name: 'Innova Crysta', category: 'muv', is_active: true }, { id: 'mo5', make_id: 'mk1', name: 'Eeco', category: 'van', is_active: true }],
+  vehicle_variants: [{ id: 'vv1', model_id: 'mo1', model_year: null, variant: 'Standard', seats_total: 7, passenger_seats: 6, is_verified: false, is_active: true },
+    { id: 'vv2', model_id: 'mo2', model_year: null, variant: 'Standard', seats_total: 5, passenger_seats: 4, is_verified: true, is_active: true },
+    { id: 'vv3', model_id: 'mo3', model_year: null, variant: 'Standard', seats_total: 7, passenger_seats: 6, is_verified: false, is_active: true },
+    { id: 'vv4', model_id: 'mo4', model_year: null, variant: '7-seater', seats_total: 7, passenger_seats: 6, is_verified: false, is_active: true },
+    { id: 'vv5', model_id: 'mo4', model_year: null, variant: '8-seater', seats_total: 8, passenger_seats: 7, is_verified: false, is_active: true },
+    { id: 'vv6', model_id: 'mo5', model_year: null, variant: '5-seater', seats_total: 5, passenger_seats: 4, is_verified: false, is_active: true },
+    { id: 'vv7', model_id: 'mo5', model_year: null, variant: '7-seater', seats_total: 7, passenger_seats: 6, is_verified: false, is_active: true }],
+  vehicle_images: [], driver_documents: [],
   partners: [
     { id: 'p1', owner_id: 'u-partner', business_name: 'Rawat Family Homestay & Cabs', contact_name: 'Ram Singh Rawat', phone: '9876500001', whatsapp: '', email: '', categories: ['homestay', 'cab', 'village_tour'], village: 'Sari', location_id: loc('sari'), address: '', about: '', status: 'approved', admin_note: '', created_at: now() },
     { id: 'p2', owner_id: null, business_name: 'Mukteshwar Desk Co.', contact_name: 'Meena Bisht', phone: '9876500002', categories: ['workspace'], village: 'Mukteshwar', location_id: loc('mukteshwar'), address: '', about: '', status: 'approved', admin_note: '', created_at: now() },
@@ -165,6 +176,10 @@ export function createClient() {
         return { data: rich ? { verified: d.is_verified, member_since: '2025-03-01', completed_rides: 42, passengers_served: 118, cancelled_rides: 1, cancellation_rate: 0.023, reviews: 37, avg_rating: 4.8, category_avg: { safety: 4.9, punctuality: 4.6 }, score: 96, level: 'excellent', enough_history: true }
           : { verified: d.is_verified, member_since: '2026-10-02', completed_rides: 2, passengers_served: 5, cancelled_rides: 0, cancellation_rate: 0, reviews: 2, avg_rating: 5, category_avg: {}, score: null, level: 'new', enough_history: false }, error: null };
       }
+      if (name === 'match_cab_rides') {
+        return { data: db.cab_rides.filter((r) => r.driver_id && ['open'].includes(r.status) && r.departure_at > now() && new Date(new Date(r.departure_at).getTime() + 5.5 * 3600e3).toISOString().slice(0, 10) === args.p_date && r.seats_total - r.seats_booked >= args.p_seats)
+          .map((r) => ({ ride_id: r.id, ride_ref: r.ride_ref, departure_at: r.departure_at, seats_left: r.seats_total - r.seats_booked, price_per_seat: r.price_per_seat, pickup_km: 12.4, drop_km: 0.8, detour_km: 26.4, route_km: r.distance_km || null, minutes_off: null })), error: null };
+      }
       if (name === 'start_cab_ride') { const r = db.cab_rides.find((x) => x.id === args.p_ride); r.status = 'started'; r.started_at = now(); db.cab_bookings.filter((b) => b.ride_id === r.id && b.status === 'pending').forEach((b) => { b.status = 'expired'; }); return { data: r, error: null }; }
       if (name === 'complete_cab_ride') { const r = db.cab_rides.find((x) => x.id === args.p_ride); r.status = 'completed'; r.completed_at = now(); db.cab_bookings.filter((b) => b.ride_id === r.id && b.status === 'confirmed').forEach((b) => { b.status = 'completed'; }); return { data: r, error: null }; }
       if (name === 'set_booking_status') { const b = db.booking_requests.find((x) => x.id === args.p_id); b.status = args.p_status; return { data: b, error: null }; }
@@ -198,6 +213,6 @@ export function createClient() {
       return ch;
     },
     removeChannel(ch) { window.__rtChannels = (window.__rtChannels || []).filter((c) => c !== ch); },
-    storage: { from: () => ({ upload: async () => ({ error: null }), getPublicUrl: (p) => ({ data: { publicUrl: 'https://example.com/' + p } }) }) },
+    storage: { from: () => ({ createSignedUrl: async (p) => ({ data: { signedUrl: 'https://example.com/signed/' + p }, error: null }), upload: async () => ({ error: null }), getPublicUrl: (p) => ({ data: { publicUrl: 'https://example.com/' + p } }) }) },
   };
 }

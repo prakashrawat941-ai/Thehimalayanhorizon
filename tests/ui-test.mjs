@@ -44,6 +44,8 @@ for (const [ctxName, ctxOpts] of [['phone', { ...devices['Pixel 7'] }], ['deskto
     const ctx = await browser.newContext(ctxOpts);
     await ctx.route(/cdn\.jsdelivr\.net\/npm\/@supabase/, (r) => r.fulfill({ contentType: 'application/javascript', body: mock }));
     await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
+    await ctx.route(/photon\.komoot\.io/, (r) => r.fulfill({ contentType: 'application/json', body: '{"features":[]}' }));
+    await ctx.route(/router\.project-osrm\.org|tile\.openstreetmap|unpkg\.com/, (r) => r.abort());
     for (const [path, name, role] of pages) {
       if (ctxName === 'desktop' && !['home', 'villages', 'stay', 'cabs-route', 'plan', 'admin', 'admin-partners', 'itinerary', 'partner-rides', 'cab-entry', 'cab-results', 'cab-ride', 'cab-me', 'drive', 'drive-publish'].includes(name)) continue;
       if (lang === 'en' && ctxName === 'phone' && !['home', 'cabs-route', 'stay', 'plan'].includes(name) && !name.startsWith('cab') && !name.startsWith('drive')) continue;
@@ -71,6 +73,8 @@ for (const [ctxName, ctxOpts] of [['phone', { ...devices['Pixel 7'] }], ['deskto
   const ctx = await browser.newContext({ ...devices['Pixel 7'] });
   await ctx.route(/cdn\.jsdelivr\.net\/npm\/@supabase/, (r) => r.fulfill({ contentType: 'application/javascript', body: mock }));
   await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
+  await ctx.route(/photon\.komoot\.io/, (r) => r.fulfill({ contentType: 'application/json', body: '{"features":[]}' }));
+  await ctx.route(/router\.project-osrm\.org|tile\.openstreetmap|unpkg\.com/, (r) => r.abort());
   const page = await ctx.newPage();
   const errs = []; page.on('pageerror', (e) => errs.push(String(e)));
   await page.addInitScript(() => { if (!sessionStorage.getItem('init')) { localStorage.setItem('mock_role', 'traveler'); sessionStorage.setItem('init', '1'); } localStorage.setItem('hh_lang', 'en'); });

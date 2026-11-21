@@ -190,6 +190,8 @@ export function placeInput({ label, value = null, onChange = () => {}, placehold
     items = [...local, ...ext];
     if (active >= items.length) active = items.length - 1;
     if (active < 0 && items.length) active = 0;
+    // A late OpenStreetMap answer after the person has left the field: keep the "did you mean" hint instead of reopening the list.
+    if (document.activeElement !== inp) { if (!selected && inp.value.trim()) suggestFix(); return; }
     if (inp.value.trim()) open(items); else close();
   }
   inp.addEventListener('input', () => {
@@ -219,12 +221,13 @@ export function placeInput({ label, value = null, onChange = () => {}, placehold
   // Typed text that was not picked: offer the closest match, never change it silently.
   function suggestFix() {
     if (selected || !inp.value.trim()) return false;
+    const best = matchPlaces(list, inp.value, 3);
     if (external && extItems.length) {
-      clear(hint).append(h('span', {}, L('Choose one: ', 'एक चुनें: ')),
-        ...extItems.slice(0, 3).flatMap((place, i) => [i ? ' / ' : '', h('button', { type: 'button', class: 'pi-fix', onclick: () => set(place) }, `${place.name}${place.district ? `, ${place.district}` : ''}`)]));
+      const opts = [...best.slice(0, 2).map(({ place }) => place), ...extItems.filter((e) => !best.some(({ place }) => near(place, e) && norm(place.name) === norm(e.name))).slice(0, 3)];
+      clear(hint).append(h('span', {}, best.length ? L('Did you mean ', 'क्या आपका मतलब ') : L('Choose one: ', 'एक चुनें: ')),
+        ...opts.flatMap((place, i) => [i ? ' / ' : '', h('button', { type: 'button', class: 'pi-fix', onclick: () => set(place) }, place.ext ? `${place.name}${place.district ? `, ${place.district}` : ''}` : placeName(place))]));
       return true;
     }
-    const best = matchPlaces(list, inp.value, 3);
     clear(hint);
     if (!best.length) {
       hint.append(h('span', { class: 'pi-warn' }, L(`We could not find “${inp.value.trim()}”. Check the spelling or pick on the map.`, `“${inp.value.trim()}” नहीं मिला। स्पेलिंग देखें या मैप से चुनें।`)));

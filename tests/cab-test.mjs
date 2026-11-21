@@ -13,13 +13,27 @@ const mock = readFileSync('tests/mock-supabase.js', 'utf8');
 const fx = JSON.parse(readFileSync('tests/fixtures.json', 'utf8'));
 const pid = (n) => fx.places.find((p) => p.name === n).id;
 const tomorrow = new Date(Date.now() + 864e5 + 5.5 * 3600e3).toISOString().slice(0, 10);
+const stub = readFileSync('tests/leaflet-stub.js', 'utf8');
+const hav = (a, c) => { const R = (x) => (x * Math.PI) / 180; const dLa = R(c.lat - a.lat); const dLo = R(c.lng - a.lng); const x = Math.sin(dLa / 2) ** 2 + Math.cos(R(a.lat)) * Math.cos(R(c.lat)) * Math.sin(dLo / 2) ** 2; return 6371 * 2 * Math.asin(Math.sqrt(x)); };
+function osrm(url) {
+  const m = url.match(/driving\/([-\d.]+),([-\d.]+);([-\d.]+),([-\d.]+)/);
+  const a = { lng: +m[1], lat: +m[2] }; const c = { lng: +m[3], lat: +m[4] };
+  const km = hav(a, c) * 1.35; const line = Array.from({ length: 40 }, (_, i) => { const f = i / 39; return [a.lng + (c.lng - a.lng) * f + Math.sin(f * Math.PI) * 0.04, a.lat + (c.lat - a.lat) * f]; });
+  return { code: 'Ok', routes: [{ distance: km * 1000, duration: (km / 38) * 3600, geometry: { coordinates: line } }] };
+}
+const feat = (name, lat, lon, county) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [lon, lat] }, properties: { name, county, state: 'Uttarakhand', countrycode: 'IN', osm_key: 'place', osm_value: 'village' } });
+const photon = (url) => { const t = decodeURIComponent((url.match(/q=([^&]+)/) || [])[1] || '').toLowerCase(); return { features: t.startsWith('degh') || t.startsWith('dega') ? [feat('Deghat', 29.85, 79.24, 'Almora')] : [] }; };
 const b = await chromium.launch(); const problems = [];
 const check = (ok, msg) => { if (!ok) problems.push(msg); };
 
 async function open(dev, opts, role, path, init) {
   const ctx = await b.newContext({ ...opts });
   await ctx.route(/cdn\.jsdelivr\.net\/npm\/@supabase/, (r) => r.fulfill({ contentType: 'application/javascript', body: mock }));
-  await ctx.route(/fonts\.(googleapis|gstatic)\.com|unpkg\.com/, (r) => r.abort());
+  await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
+  await ctx.route(/unpkg\.com\/leaflet.*\.js/, (r) => r.fulfill({ contentType: 'application/javascript', body: stub }));
+  await ctx.route(/unpkg\.com\/leaflet.*\.css|tile\.openstreetmap/, (r) => r.fulfill({ body: '' }));
+  await ctx.route(/router\.project-osrm\.org/, (r) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(osrm(r.request().url())) }));
+  await ctx.route(/photon\.komoot\.io\/api/, (r) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(photon(r.request().url())) }));
   const p = await ctx.newPage(); p.errs = [];
   p.on('pageerror', (e) => p.errs.push(String(e)));
   p.on('console', (m) => { if (m.type() === 'error' && !/Failed to load resource|net::ERR/.test(m.text())) p.errs.push(m.text()); });
@@ -118,6 +132,65 @@ for (const [dev, opts] of [['phone', devices['Pixel 7']], ['laptop', { viewport:
   await done(p, 'driver-trip-started');
   await p.locator('button', { hasText: 'Complete ride' }).click(); await p.locator('dialog button', { hasText: 'Yes, ride completed' }).click(); await p.waitForTimeout(900);
   check(await p.evaluate(() => window.__db.cab_rides.find((x) => x.id === 'r3').status) === 'completed', `${dev} complete ride`);
+  await p.ctx.close();
+
+  // 8. Traveller search: spelling mistakes still find the place; route matching shows distance from the route
+  p = await open(dev, opts, 'traveler', 'cab/find');
+  await p.locator('#cab-from').fill('rishikes'); await p.waitForTimeout(250);
+  check(/Rishikesh/.test(await p.locator('#cab-from-list').innerText().catch(() => '')), `${dev} search: misspelt "rishikes" not suggested`);
+  await p.locator('#cab-from').press('Enter');
+  await p.locator('#cab-to').fill('musoori'); await p.waitForTimeout(250);
+  check(/Mussoorie/.test(await p.locator('#cab-to-list').innerText().catch(() => '')), `${dev} search: misspelt "musoori" not suggested`);
+  await p.locator('#cab-to').press('Enter');
+  await p.fill('#cab-date', tomorrow);
+  await done(p, 'search-form');
+  await p.locator('form.cab-search-card button[type=submit]').click(); await p.waitForTimeout(1200);
+  check(/Pickup about 12 km from the route/.test(await p.locator('main').innerText()), `${dev} search: route distance line missing`);
+  await done(p, 'results-route-match');
+  // any village (OpenStreetMap) in the search
+  await p.goto(`http://127.0.0.1:8773/#/cab/find`); await p.waitForTimeout(800);
+  await p.locator('#cab-from').fill('deghat'); await p.waitForTimeout(900);
+  check(/Deghat/.test(await p.locator('#cab-from-list').innerText().catch(() => '')), `${dev} search: village from OpenStreetMap not suggested`);
+  await p.ctx.close();
+
+  // 9. Driver adds a car from the catalog (typo "inova"), picks the 8-seater layout → 7 passenger seats
+  p = await open(dev, opts, 'driver', 'drive/profile');
+  await p.locator('#vh-search').fill('inova'); await p.waitForTimeout(300);
+  check(/Innova Crysta/.test(await p.locator('#vh-results').innerText()), `${dev} vehicle: typo search failed`);
+  await p.locator('.vh-opt', { hasText: 'Innova Crysta' }).click(); await p.waitForTimeout(200);
+  await p.locator('.chip-btn', { hasText: '8-seater' }).click(); await p.waitForTimeout(200);
+  check(/7 passenger seats/.test(await p.locator('.vh-picker').innerText()), `${dev} vehicle: seats not from catalog`);
+  check(!(await p.locator('#vh-model').isVisible()), `${dev} vehicle: manual form still showing after choosing a car`);
+  await p.fill('#vh-reg', 'UK04 TA 7788');
+  await done(p, 'vehicle-picker');
+  await p.locator('button', { hasText: 'Add vehicle' }).click(); await p.waitForTimeout(900);
+  const nv = await p.evaluate(() => window.__db.vehicles.find((v) => v.registration_no === 'UK04TA7788'));
+  check(nv && nv.variant_id === 'vv5' && nv.seats === 7 && /Toyota Innova Crysta/.test(nv.model), `${dev} vehicle saved wrong: ${JSON.stringify(nv)}`);
+  await p.ctx.close();
+
+  // 10. Publish from any village with road distance, time and map before publishing
+  p = await open(dev, opts, 'driver', 'drive/publish');
+  await p.locator('#pr-from').fill('deghat'); await p.waitForTimeout(900); await p.locator('#pr-from-list li', { hasText: 'Deghat' }).first().dispatchEvent('mousedown');
+  await p.locator('#pr-to').fill('rishikesh'); await p.waitForTimeout(250); await p.locator('#pr-to').press('Enter');
+  await p.fill('#pr-price', '900');
+  await p.locator('button', { hasText: 'Review journey' }).click(); await p.waitForTimeout(1800);
+  const rv = await p.locator('main').innerText();
+  check(/Distance/.test(rv) && /km/.test(rv) && /Estimated arrival/.test(rv) && await p.locator('.tp-map').count() === 1, `${dev} publish review: route info missing`);
+  await done(p, 'publish-route-review');
+  await p.locator('button', { hasText: 'Publish ride' }).click(); await p.waitForTimeout(1500);
+  const nr = await p.evaluate(() => window.__db.cab_rides.slice(-1)[0]);
+  check(nr.from_geo?.name === 'Deghat' && !nr.from_place_id && nr.route_line?.length > 5 && nr.distance_km > 0 && nr.duration_min > 0, `${dev} published ride missing route: ${JSON.stringify({ g: nr.from_geo, d: nr.distance_km, l: nr.route_line?.length })}`);
+  await p.ctx.close();
+
+  // 11. Admin: drivers (verify) and vehicle list
+  p = await open(dev, opts, 'admin', 'admin/drivers');
+  await p.evaluate(() => { window.__db.driver_profiles[0].is_verified = false; }); await rerender(p); await p.waitForTimeout(1000);
+  await p.locator('button', { hasText: 'Verify driver' }).first().click(); await p.waitForTimeout(700);
+  check(await p.evaluate(() => window.__db.driver_profiles[0].is_verified) === true, `${dev} admin: verify driver`);
+  await done(p, 'admin-drivers');
+  await p.goto('http://127.0.0.1:8773/#/admin/vehicles'); await p.waitForTimeout(1200);
+  check(/seat layouts still to check/.test(await p.locator('main').innerText()), `${dev} admin vehicles page`);
+  await done(p, 'admin-vehicles');
   await p.ctx.close();
 
   // 7. Unverified driver: clear notice, no publish
