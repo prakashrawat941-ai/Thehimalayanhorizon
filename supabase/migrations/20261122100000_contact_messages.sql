@@ -1,4 +1,4 @@
--- Contact form messages (Next.js site, Part 2). NOT APPLIED YET — needs "DB approved".
+-- Contact form messages (Next.js site, Part 2). Applied 22 Nov 2026 ("DB approved").
 -- Visitors can send; only admins can read. Small per-email rate limit in the database.
 create table if not exists public.contact_messages (
   id         uuid primary key default gen_random_uuid(),
@@ -12,6 +12,7 @@ create table if not exists public.contact_messages (
   created_at timestamptz not null default now()
 );
 create index if not exists contact_messages_created_idx on public.contact_messages (created_at desc);
+create index if not exists contact_messages_user_idx on public.contact_messages (user_id);
 alter table public.contact_messages enable row level security;
 
 -- Anyone may send a message (status is always 'new'; user_id must be their own or empty).
@@ -20,6 +21,9 @@ create policy "contact_messages: anyone can send" on public.contact_messages for
 create policy "contact_messages: admin read" on public.contact_messages for select to authenticated using ((select private.is_admin()));
 create policy "contact_messages: admin update" on public.contact_messages for update to authenticated
   using ((select private.is_admin())) with check ((select private.is_admin()));
+
+grant insert on public.contact_messages to anon, authenticated;
+grant select, update on public.contact_messages to authenticated;
 
 -- Max 3 messages per email per 10 minutes.
 create or replace function private.contact_rate_limit()
@@ -31,5 +35,6 @@ begin
   end if;
   return new;
 end $$;
+revoke all on function private.contact_rate_limit() from public, anon, authenticated;
 drop trigger if exists contact_messages_rate on public.contact_messages;
 create trigger contact_messages_rate before insert on public.contact_messages for each row execute function private.contact_rate_limit();

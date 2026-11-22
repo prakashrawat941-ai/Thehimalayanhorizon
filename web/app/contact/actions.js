@@ -35,6 +35,8 @@ export async function sendContact(_prev, fd) {
         // Table not created yet (waiting for "DB approved") → say so honestly.
         if (error.code === '42P01' || error.code === 'PGRST205' || /does not exist|could not find the table/i.test(error.message))
             return { status: 'unavailable' };
+        if (/too many messages/i.test(error.message))
+            return { status: 'error', message: 'rate' };
         console.error('[contact]', error.message);
         return { status: 'error', message: 'server' };
     }
