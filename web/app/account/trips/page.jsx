@@ -2,7 +2,6 @@ import Link from 'next/link';
 import { getT } from '@/lib/i18n/server';
 import { requireUser, rows } from '@/lib/account';
 import { fmtDate, inr } from '@/lib/format';
-import { LEGACY_APP } from '@/lib/config';
 import { Empty } from '@/components/Blocks';
 import { Icon } from '@/components/Icon';
 
@@ -22,7 +21,7 @@ export default async function Trips() {
   return (
     <>
       <div className="ds-head"><div className="grow"><h1>{t('my_trips')}</h1>
-        <p className="muted">{L('Trips you planned with the Trip Planner. Editing opens in the current app until the new planner is ready (Part 4).', 'ट्रिप प्लानर से बनाई आपकी यात्राएँ। नया प्लानर तैयार होने तक (Part 4) बदलाव मौजूदा ऐप में खुलेंगे।')}</p></div>
+        <p className="muted">{L('Trips you planned with the Trip Planner. Open a trip to see its report, share it or edit it.', 'ट्रिप प्लानर से बनाई आपकी यात्राएँ। ट्रिप खोलकर रिपोर्ट देखें, शेयर करें या बदलें।')}</p></div>
         <div className="ds-actions"><Link className="btn" href="/plan"><Icon name="plus" size={16} /> {t('new_trip')}</Link></div>
       </div>
       {list.length ? (
@@ -39,8 +38,8 @@ export default async function Trips() {
                   <span className={`badge badge-${CLS[x.status] || 'draft'}`}>{lang === 'hi' ? s[1] : s[0]}</span>
                 </div>
                 <div className="row-actions">
-                  <a className="btn btn-sm" href={`${LEGACY_APP}trip/${x.id}`}>{L('Open', 'खोलें')}</a>
-                  {x.share_token ? <a className="btn btn-ghost btn-sm" href={`${LEGACY_APP}t/${x.share_token}`}>{L('Shared link', 'शेयर लिंक')}</a> : null}
+                  <Link className="btn btn-sm" href={`/trip/${x.id}`}>{L('Open', 'खोलें')}</Link>
+                  {x.share_token ? <Link className="btn btn-ghost btn-sm" href={`/t/${x.share_token}`}>{L('Shared link', 'शेयर लिंक')}</Link> : null}
                 </div>
               </article>
             );

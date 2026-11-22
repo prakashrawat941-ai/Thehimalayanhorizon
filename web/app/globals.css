@@ -1468,3 +1468,52 @@ html, body { overflow-x: hidden; }
 .vc-head { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .vc-code { margin-left: auto; text-align: right; }
 @media print { .ds-main { padding: 0 !important; } }
+
+/* Part 4: Trip Planner (Next.js) */
+.tp { display: flex; flex-direction: column; gap: 16px; max-width: 980px; margin: 0 auto; }
+.tp-steps button { all: unset; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; min-height: 40px; }
+.tp-steps button:focus-visible { outline: 2px solid var(--green-2); outline-offset: 2px; border-radius: 8px; }
+.tp-form { gap: 16px; }
+.tp-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 760px) { .tp-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 380px) { .tp-grid { grid-template-columns: minmax(0, 1fr); } }
+.tp-choices { display: grid; gap: 8px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 520px) { .tp-choices { grid-template-columns: minmax(0, 1fr); } }
+.tp-choice { display: flex; flex-direction: column; gap: 2px; border: 1.5px solid var(--line); border-radius: 14px; padding: 12px; cursor: pointer; background: var(--card); min-height: 44px; }
+.tp-choice input { position: absolute; opacity: 0; pointer-events: none; }
+.tp-choice small { color: var(--muted); }
+.tp-choice.on { border-color: var(--green); background: #eef3ee; }
+.tp-choice:focus-within { outline: 2px solid var(--green-2); outline-offset: 2px; }
+.tp-dests { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.tp-dests li { display: flex; gap: 8px; align-items: center; }
+.tp-dests .grow { flex: 1; min-width: 0; }
+.tp-dest-btns { display: flex; gap: 2px; flex: none; }
+.tp-dest-btns .icon-link { width: 36px; height: 44px; border: 0; background: transparent; cursor: pointer; font-size: 1rem; }
+.tp-dest-btns .icon-link:disabled { opacity: .3; cursor: default; }
+.tp-nav { display: flex; justify-content: space-between; gap: 12px; position: sticky; bottom: calc(var(--tabbar) + 8px + env(safe-area-inset-bottom)); z-index: 5; background: rgba(247,244,238,.92); backdrop-filter: blur(6px); padding: 10px 0; }
+@media (min-width: 900px) { .tp-nav { bottom: 0; } }
+.tp-day-title { font-weight: 600; margin: 6px 0; }
+.input-sm { min-height: 40px; padding: 6px 10px; font-size: .92rem; max-width: 100%; }
+.block { display: block; }
+.pp-chosen { display: flex; gap: 10px; align-items: center; background: var(--card); border: 1.5px solid var(--line); border-radius: 14px; padding: 6px 6px 6px 14px; min-height: 52px; }
+.pp-chosen .grow { flex: 1; min-width: 0; }
+.pp .psearch-box { box-shadow: none; border-radius: 14px; }
+.pp .psearch-loc { padding: 0 10px; }
+.pp-modal { position: fixed; inset: 0; z-index: 80; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; padding: 12px; }
+.pp-modal-card { background: var(--card); border-radius: 18px; width: min(820px, 100%); overflow: hidden; display: flex; flex-direction: column; }
+.pp-modal-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 14px; }
+.pp-modal-map { height: min(70vh, 560px); }
+.tr-top { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.tr-top h1 { margin: 0; }
+.tr-bar { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px; margin-bottom: 14px; }
+@media (min-width: 760px) { .tr-bar { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.tr-bar div { display: flex; flex-direction: column; min-width: 0; }
+.tr-bar span { color: var(--muted); font-size: .82rem; }
+.tr-bar strong { overflow-wrap: anywhere; }
+.tr-bar small { color: var(--muted); }
+.tr-tiles > div { display: flex; flex-direction: column; }
+@media print { .tp-nav, .tp-steps { display: none !important; } .tr-card { break-inside: avoid; } }
+.tp-steps { overflow-x: auto; scrollbar-width: none; }
+.tp-steps li { min-width: 92px; }
+.lg-route::before { background: #1f4d3a; border-radius: 2px; height: 5px; width: 16px; vertical-align: 2px; }
+.lg-toll::before { background: #e0533d; } .lg-fuel::before { background: #1d8f6a; } .lg-hosp::before { background: #c2185b; }
