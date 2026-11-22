@@ -38,7 +38,7 @@ export default async function Trips() {
                   <span className={`badge badge-${CLS[x.status] || 'draft'}`}>{lang === 'hi' ? s[1] : s[0]}</span>
                 </div>
                 <div className="row-actions">
-                  <Link className="btn btn-sm" href={`/trip/${x.id}`}>{L('Open', 'खोलें')}</Link>
+                  <Link className="btn btn-sm" href={`/trips/${x.id}`}>{L('Open', 'खोलें')}</Link>
                   {x.share_token ? <Link className="btn btn-ghost btn-sm" href={`/t/${x.share_token}`}>{L('Shared link', 'शेयर लिंक')}</Link> : null}
                 </div>
               </article>

@@ -71,7 +71,7 @@ export default async function AccountOverview() {
           <section className="ds-panel">
             <h2>{L('Next trip', 'अगली यात्रा')} <Link href="/account/trips">{t('view_all')}</Link></h2>
             {next ? (
-              <Link className="acc-trip" href={`/trip/${next.id}`}>
+              <Link className="acc-trip" href={`/trips/${next.id}`}>
                 <span className="small muted">{fmtDate(next.start_date, lang)} · {next.days_count} {t('days')}</span>
                 <strong>{next.title}</strong>
                 <span className="acc-link">{L('Open trip', 'यात्रा खोलें')} <Icon name="arrow" size={14} /></span>
