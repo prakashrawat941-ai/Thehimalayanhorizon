@@ -1,0 +1,10 @@
+# Next.js rebuild (Part 1 + 2). The app lives in /web.
+# Only Deploy Previews of this branch use it until the owner approves the switch.
+[build]
+  base = "web"
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NEXT_TELEMETRY_DISABLED = "1"
