@@ -1296,3 +1296,4 @@ a.ds-stat:hover { border-color: var(--green); }
 .vc-vars { display: flex; flex-wrap: wrap; gap: 6px; }
 .vc-vars .chip-btn { min-height: 34px; padding: 5px 11px; font-size: .85rem; }
 .vh-picker [hidden] { display: none !important; }
+.gbtn-note { margin: -4px 0 4px; }

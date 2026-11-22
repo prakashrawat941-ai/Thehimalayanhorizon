@@ -12,7 +12,7 @@ const route = (pattern, loader) => {
 };
 
 // Pages are loaded on demand so the first screen is fast.
-export const APP_VERSION = '15'; // shown in the footer; tells us which version a phone is running
+export const APP_VERSION = '16'; // shown in the footer; tells us which version a phone is running
 route('',                 () => import('./pages/public.js').then((m) => m.home));
 route('explore',          () => import('./pages/public.js').then((m) => m.explore));
 route('place/:slug',      () => import('./pages/public.js').then((m) => m.place));

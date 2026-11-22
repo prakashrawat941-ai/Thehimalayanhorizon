@@ -14,6 +14,14 @@ export async function login({ query }) {
   const hi = getLang() === 'hi';
   let mode = query.mode === 'signup' ? 'signup' : 'signin';
   const box = h('div', { class: 'auth-form' });
+  // Who is signing in: the page they came from decides the heading. Everyone can use Google.
+  const who = /^partner/.test(next) ? 'partner' : /^drive/.test(next) ? 'driver' : /^cab/.test(next) ? 'cab' : /^admin/.test(next) ? 'admin' : null;
+  const CTX = {
+    partner: [hi ? 'पार्टनर बनें' : 'Join as a partner', hi ? 'Google से एक टैप में लॉगिन करें, फिर अपने होमस्टे, कैब या टूर की जानकारी भरें।' : 'Sign in with Google in one tap, then add your homestay, cab or village tour details.'],
+    driver: [hi ? 'द हिमालयन होराइज़न के साथ गाड़ी चलाएँ' : 'Drive with The Himalayan Horizon', hi ? 'Google से लॉगिन करें, फिर अपनी प्रोफ़ाइल और गाड़ी जोड़ें।' : 'Sign in with Google, then add your profile and vehicle.'],
+    cab: [hi ? 'सीट बुक करने के लिए लॉगिन करें' : 'Sign in to book your seat', hi ? 'Google से एक टैप में लॉगिन करें। आपकी चुनी राइड यहीं इंतज़ार कर रही है।' : 'One tap with Google. The ride you chose is waiting for you.'],
+    admin: [hi ? 'एडमिन लॉगिन' : 'Admin sign in', hi ? 'अपने एडमिन ईमेल वाले Google या ईमेल-पासवर्ड से लॉगिन करें।' : 'Use Google with your admin email, or email and password.'],
+  };
 
   const paint = () => {
     box.replaceChildren();
@@ -44,9 +52,10 @@ export async function login({ query }) {
       h('div', { class: 'seg', role: 'tablist' },
         h('button', { type: 'button', role: 'tab', 'aria-selected': String(mode === 'signin'), class: mode === 'signin' ? 'on' : '', onclick: () => { mode = 'signin'; paint(); } }, t('signin')),
         h('button', { type: 'button', role: 'tab', 'aria-selected': String(mode === 'signup'), class: mode === 'signup' ? 'on' : '', onclick: () => { mode = 'signup'; paint(); } }, t('signup'))),
-      h('h1', {}, mode === 'signup' ? (hi ? 'नया अकाउंट' : 'Create your account') : (hi ? 'फिर से स्वागत है' : 'Welcome back')),
-      h('p', { class: 'muted' }, hi ? 'अपनी यात्राएँ, बुकिंग और सूचनाएँ एक जगह देखिए।' : 'See your trips, bookings and notifications in one place.'),
+      h('h1', {}, who ? CTX[who][0] : mode === 'signup' ? (hi ? 'नया अकाउंट' : 'Create your account') : (hi ? 'फिर से स्वागत है' : 'Welcome back')),
+      h('p', { class: 'muted' }, who ? CTX[who][1] : hi ? 'अपनी यात्राएँ, बुकिंग और सूचनाएँ एक जगह देखिए।' : 'See your trips, bookings and notifications in one place.'),
       googleButton(next),
+      h('p', { class: 'small muted center gbtn-note' }, hi ? 'नया हो या पुराना, Google से लॉगिन करें। अकाउंट न हो तो अपने आप बन जाएगा।' : 'New or returning, just continue with Google. An account is created automatically if you don\u2019t have one.'),
       h('div', { class: 'or-line' }, h('span', {}, t('or_email'))),
       mode === 'signup' ? nameF : null,
       field(t('email'), input({ name: 'email', type: 'email', required: true, autocomplete: 'email' })),
@@ -58,7 +67,8 @@ export async function login({ query }) {
         mode === 'signup' ? (hi ? 'पहले से अकाउंट है? लॉगिन करें' : 'Already have an account? Sign in')
           : (hi ? 'नया अकाउंट बनाएँ' : 'New here? Create an account')),
       mode === 'signin' ? h('button', { type: 'button', class: 'link', onclick: () => resetPassword(form) }, hi ? 'पासवर्ड भूल गए?' : 'Forgot password?') : null,
-      h('p', { class: 'muted small center' }, hi ? 'होमस्टे, कैब या गाँव टूर चलाते हैं? ' : 'Run a homestay, cab or village tour? ', h('a', { href: '#/partner/join' }, t('become_partner'))));
+      who === 'partner' ? null : h('p', { class: 'muted small center' }, hi ? 'होमस्टे, कैब या गाँव टूर चलाते हैं? ' : 'Run a homestay, cab or village tour? ', h('a', { href: '#/partner/join' }, t('become_partner'))),
+      who === 'driver' || who === 'partner' ? null : h('p', { class: 'muted small center' }, hi ? 'अपनी गाड़ी से सवारी ले जाते हैं? ' : 'Drive your own car on these routes? ', h('a', { href: '#/drive' }, hi ? 'ड्राइवर बनें' : 'Become a driver')));
     box.append(form);
   };
   paint();
