@@ -12,7 +12,7 @@ const route = (pattern, loader) => {
 };
 
 // Pages are loaded on demand so the first screen is fast.
-export const APP_VERSION = '16'; // shown in the footer; tells us which version a phone is running
+export const APP_VERSION = '17'; // shown in the footer; tells us which version a phone is running
 route('',                 () => import('./pages/public.js').then((m) => m.home));
 route('explore',          () => import('./pages/public.js').then((m) => m.explore));
 route('place/:slug',      () => import('./pages/public.js').then((m) => m.place));
@@ -57,6 +57,8 @@ route('account/:tab',     () => import('./pages/account.js').then((m) => m.accou
 route('partner/join',     () => import('./pages/partner.js').then((m) => m.join));
 route('partner',          () => import('./pages/partner.js').then((m) => m.dashboard));
 route('partner/:tab',     () => import('./pages/partner.js').then((m) => m.dashboard));
+route('partner/:tab/:id', () => import('./pages/partner.js').then((m) => m.dashboard));
+route('voucher/:id',      () => import('./pages/host.js').then((m) => m.voucher));
 route('admin',            () => import('./pages/admin.js').then((m) => m.admin));
 route('admin/:tab',       () => import('./pages/admin.js').then((m) => m.admin));
 

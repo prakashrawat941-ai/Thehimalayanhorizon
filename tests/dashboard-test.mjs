@@ -27,7 +27,7 @@ for (const [dev, opts] of [['phone', devices['Pixel 7']], ['laptop', { viewport:
       await p.setInputFiles('#acc-photo', { name: 'me.png', mimeType: 'image/png', buffer: readFileSync('icons/icon-192.png') });
       await p.waitForTimeout(800);
       const src = await p.locator('.acc-avatar-lg img').getAttribute('src').catch(() => null);
-      if (!src || !src.includes('example.com')) problems.push('avatar upload: ' + src);
+      if (!src || !/hero\.jpg\?u=u-traveler/.test(src)) problems.push('avatar upload: ' + src);
       await p.setInputFiles('#acc-photo', { name: 'x.txt', mimeType: 'text/plain', buffer: Buffer.from('hello') });
       await p.waitForTimeout(500);
       if (!/JPG, PNG or WebP/.test(await p.locator('body').innerText())) problems.push('bad file not refused');

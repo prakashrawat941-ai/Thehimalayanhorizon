@@ -137,9 +137,10 @@ export function pick(row, field) {
 const statusWords = {
   hi: { pending: 'मंज़ूरी बाकी', approved: 'मंज़ूर', rejected: 'नामंज़ूर', suspended: 'निलंबित', draft: 'ड्राफ़्ट', hidden: 'छिपा',
         requested: 'रिक्वेस्ट भेजी', confirmed: 'कन्फर्म', declined: 'मना', cancelled: 'रद्द', completed: 'पूरा',
-        open: 'खुली', full: 'भर गई' },
+        open: 'खुली', full: 'भर गई', checked_in: 'चेक-इन' },
+  en: { checked_in: 'checked in' },
 };
-export const statusLabel = (s) => (lang === 'hi' && statusWords.hi[s]) || s;
+export const statusLabel = (s) => (lang === 'hi' && statusWords.hi[s]) || statusWords.en[s] || s;
 
 // District and region names in Hindi (shown when the site is in Hindi).
 const DISTRICT_HI = {

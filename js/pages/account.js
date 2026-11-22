@@ -284,9 +284,10 @@ async function bookingsList() {
           await busy(e.target, async () => { await q(sb.rpc('set_booking_status', { p_id: r.id, p_status: 'cancelled', p_note: '' })); toast(t('saved')); location.reload(); });
         } }, t('cancel')) : null;
       return h('tr', {},
-        h('td', {}, h('strong', {}, name), r.partner_note ? h('div', { class: 'muted small' }, r.partner_note) : null),
-        h('td', {}, fmtDate(r.start_date) + (r.end_date !== r.start_date ? ` → ${fmtDate(r.end_date)}` : '')),
-        h('td', {}, r.guests), h('td', {}, badge(r.status)), h('td', {}, cancel));
+        h('td', {}, h('strong', {}, name), r.booking_code ? h('div', { class: 'small mono muted' }, r.booking_code) : null, r.partner_note ? h('div', { class: 'muted small' }, r.partner_note) : null),
+        h('td', {}, fmtDate(r.start_date) + (r.end_date !== r.start_date ? ` → ${fmtDate(r.end_date)}` : ''), r.total_amount != null ? h('div', { class: 'small' }, `${r.status === 'requested' ? (hi ? 'अनुमान ' : 'Estimate ') : ''}${inr(r.total_amount)}`) : null),
+        h('td', {}, r.guests), h('td', {}, badge(r.status)),
+        h('td', {}, cancel, r.kind === 'homestay' && ['confirmed', 'checked_in', 'completed'].includes(r.status) ? h('a', { class: 'btn btn-ghost btn-sm', href: `#/voucher/${r.id}` }, hi ? 'वाउचर' : 'Voucher') : null));
     }))));
 }
 

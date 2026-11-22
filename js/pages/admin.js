@@ -32,21 +32,29 @@ export async function admin({ params, query }) {
     trips: () => import('../trip/admin.js').then((m) => m.tripAdmin()),
     drivers: () => import('./admin-cab.js').then((m) => m.driversAdmin(query)),
     vehicles: () => import('./admin-cab.js').then((m) => m.vehiclesAdmin()),
+    business: () => import('./admin-homestay.js').then((m) => m.business()),
+    queue: () => import('./admin-homestay.js').then((m) => m.queue(query)),
+    'hs-bookings': () => import('./admin-homestay.js').then((m) => m.hsBookings(query)),
+    payouts: () => import('./admin-homestay.js').then((m) => m.payouts()),
+    tickets: () => import('./admin-homestay.js').then((m) => m.tickets(query)),
   };
   const body = KINDS[tab] ? lazy(() => listingsAdmin(tab, ctx, query)) : lazy(views[tab] || (() => empty()));
 
   // Counters for items waiting for the admin (real counts; 0 hides the badge).
   const safeCount = (table, f) => count(table, f).catch(() => 0);
-  const [pp, ph, pw, pt, rq, rv, dw] = await Promise.all([
+  const [pp, ph, pw, pt, rq, rv, dw, kq, pq, tq] = await Promise.all([
     safeCount('partners', (x) => x.eq('status', 'pending')), safeCount('homestays', (x) => x.eq('status', 'pending')),
     safeCount('workspaces', (x) => x.eq('status', 'pending')), safeCount('village_tours', (x) => x.eq('status', 'pending')),
     safeCount('booking_requests', (x) => x.eq('status', 'requested')), safeCount('destination_reviews', (x) => x.eq('status', 'pending')),
-    safeCount('driver_profiles', (x) => x.eq('is_verified', false).eq('status', 'active'))]);
+    safeCount('driver_profiles', (x) => x.eq('is_verified', false).eq('status', 'active')),
+    safeCount('partner_kyc', (x) => x.eq('status', 'pending')), safeCount('payout_requests', (x) => x.eq('status', 'pending')), safeCount('support_tickets', (x) => x.eq('status', 'open'))]);
   const it = (key, ic, label, count) => ({ key, href: `#/admin/${key}`, icon: ic, label, count });
   const groups = [
     { items: [it('overview', 'grid', L('Dashboard', 'डैशबोर्ड'))] },
     { label: L('People', 'लोग'), items: [it('users', 'users', L('Users', 'यूज़र')), it('partners', 'shield', L('Partners', 'पार्टनर'), pp)] },
     { label: L('Listings', 'लिस्टिंग'), items: [it('homestay', 'house', t('stays'), ph), it('workspace', 'desk', t('workspaces'), pw), it('village_tour', 'people', L('Village tours', 'गाँव के टूर'), pt)] },
+    { label: L('Homestay business', 'होमस्टे बिज़नेस'), items: [it('business', 'chart', L('Business overview', 'बिज़नेस सारांश')), it('queue', 'check', L('Approval queue', 'मंज़ूरी की सूची'), ph + kq),
+      it('hs-bookings', 'calendar', L('Homestay bookings', 'होमस्टे बुकिंग')), it('payouts', 'layers', L('Payouts', 'पेआउट'), pq), it('tickets', 'support', L('Support tickets', 'सपोर्ट टिकट'), tq)] },
     { label: L('Bookings', 'बुकिंग'), items: [it('requests', 'calendar', L('Booking requests', 'बुकिंग रिक्वेस्ट'), rq), it('rides', 'car', L('Cab journeys', 'कैब यात्राएँ'))] },
     { label: L('Instant Cab', 'इंस्टेंट कैब'), items: [it('drivers', 'users', L('Drivers', 'ड्राइवर'), dw), it('vehicles', 'car', L('Vehicle list & photos', 'गाड़ियाँ और फ़ोटो'))] },
     { label: L('Content', 'कंटेंट'), items: [it('home', 'home', L('Home page', 'होम पेज')), it('locations', 'mountain', L('Locations', 'लोकेशन')), it('themes', 'layers', L('Experiences', 'अनुभव')), it('itineraries', 'route', t('itineraries'))] },

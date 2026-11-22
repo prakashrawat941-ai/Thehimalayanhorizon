@@ -38,38 +38,58 @@ export async function join() {
   return page;
 }
 
-export async function dashboard({ params }) {
+export async function dashboard({ params, query = {} }) {
   if (!user()) { location.hash = '#/login?next=partner'; return h('div'); }
   await Promise.all([locations(), themes()]);
   if (!state.partners.length) { location.hash = '#/partner/join'; return h('div'); }
   const partner = state.partners.find((p) => p.status === 'approved') || state.partners[0];
   const cats = partner.categories;
   const tab = params.tab || 'overview';
-  const tabs = [
-    ['overview', hi() ? 'सारांश' : 'Overview'],
-    ['requests', hi() ? 'रिक्वेस्ट' : 'Requests'],
-    ...(cats.includes('homestay') ? [['homestay', t('stays')]] : []),
-    ...(cats.includes('workspace') ? [['workspace', t('workspaces')]] : []),
-    ...(cats.includes('village_tour') ? [['village_tour', hi() ? 'गाँव के टूर' : 'Village tours']] : []),
-    ...(cats.includes('cab') ? [['rides', hi() ? 'कैब राइड' : 'Cab rides']] : []),
-    ['profile', t('profile')],
+  const host = await import('./host.js');
+  const isHost = cats.includes('homestay');
+  const [newReq, kycRow] = await Promise.all([
+    q(sb.from('booking_requests').select('id').eq('partner_id', partner.id).eq('status', 'requested')).then((r) => r.length).catch(() => 0),
+    isHost ? q(sb.from('partner_kyc').select('status').eq('partner_id', partner.id).maybeSingle()).catch(() => null) : null,
+  ]);
+  const L2 = (en, hiTxt) => (hi() ? hiTxt : en);
+  const it = (key, ic, label, count) => ({ key, icon: ic, label, href: `#/partner/${key}`, count });
+  const groups = [
+    isHost ? { label: L2('Homestay', 'होमस्टे'), items: [
+      it('overview', 'grid', L2('Overview', 'सारांश')), it('properties', 'layers', L2('My properties', 'मेरी प्रॉपर्टी')),
+      it('calendar', 'calendar', L2('Rate calendar', 'रेट कैलेंडर')), it('bookings', 'users', L2('Bookings', 'बुकिंग'), newReq),
+      it('earnings', 'chart', L2('Earnings & payouts', 'कमाई और पेआउट')), it('kyc', 'doc', L2('KYC & bank', 'KYC और बैंक'), !kycRow || kycRow.status === 'rejected' ? 1 : 0),
+      it('support', 'support', L2('Support', 'सपोर्ट'))] } : { label: '', items: [it('overview', 'grid', L2('Overview', 'सारांश')), it('support', 'support', L2('Support', 'सपोर्ट'))] },
+    { label: L2('Other services', 'अन्य सेवाएँ'), items: [
+      ...(cats.includes('workspace') ? [it('workspace', 'layers', t('workspaces'))] : []),
+      ...(cats.includes('village_tour') ? [it('village_tour', 'pin', hi() ? 'गाँव के टूर' : 'Village tours')] : []),
+      ...(cats.includes('cab') ? [it('rides', 'route', hi() ? 'कैब राइड' : 'Cab rides')] : []),
+      ...(cats.some((c) => c === 'workspace' || c === 'village_tour') ? [it('requests', 'bell', hi() ? 'टूर / वर्कस्पेस रिक्वेस्ट' : 'Tour & workspace requests')] : []),
+      it('profile', 'settings', t('profile'))] },
   ];
-  const body = tab === 'overview' ? overview(partner)
+  const sub = params.id;
+  const body = tab === 'overview' ? (isHost ? lazy(() => host.overview(partner)) : overview(partner))
+    : tab === 'properties' ? lazy(() => (sub ? host.propertyForm(partner, sub) : host.properties(partner)))
+    : tab === 'calendar' ? lazy(() => host.calendar(partner, query))
+    : tab === 'bookings' ? lazy(() => host.bookings(partner, query))
+    : tab === 'earnings' ? lazy(() => host.earnings(partner))
+    : tab === 'kyc' ? lazy(() => host.kyc(partner))
+    : tab === 'support' ? lazy(() => host.support(partner, query))
     : tab === 'requests' ? lazy(() => requests(partner))
     : tab === 'rides' ? lazy(() => rides(partner))
     : tab === 'profile' ? profileTab(partner)
+    : tab === 'homestay' ? (location.hash = '#/partner/properties', h('div'))
     : KINDS[tab] ? lazy(() => listings(partner, tab)) : empty();
-
-  return h('div', { class: 'page' },
-    h('div', { class: 'account-head' },
-      h('span', { class: 'avatar', 'aria-hidden': 'true' }, partner.business_name.split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()),
-      h('div', { class: 'grow' }, h('p', { class: 'eyebrow' }, t('partner')), h('h1', {}, partner.business_name)),
-      badge(partner.status)),
-    partner.status !== 'approved' ? h('div', { class: 'soft-note warn' },
-      partner.status === 'pending' ? t('partner_pending') : (hi() ? 'आपका आवेदन मंज़ूर नहीं है।' : 'Your application is not approved.'),
-      partner.admin_note ? h('div', {}, h('strong', {}, 'Admin: '), partner.admin_note) : null) : null,
-    h('nav', { class: 'tabs' }, tabs.map(([k, label]) => h('a', { href: `#/partner/${k}`, class: tab === k ? 'active' : '' }, label))),
-    body);
+  const titles = { overview: L2('Overview', 'सारांश'), properties: sub ? (sub === 'new' ? L2('Add homestay', 'होमस्टे जोड़ें') : L2('Edit homestay', 'होमस्टे बदलें')) : L2('My properties', 'मेरी प्रॉपर्टी'),
+    calendar: L2('Rate calendar', 'रेट कैलेंडर'), bookings: L2('Bookings', 'बुकिंग'), earnings: L2('Earnings & payouts', 'कमाई और पेआउट'), kyc: L2('KYC & bank details', 'KYC और बैंक'), support: L2('Support', 'सपोर्ट'),
+    requests: L2('Requests', 'रिक्वेस्ट'), rides: L2('Cab rides', 'कैब राइड'), profile: t('profile') };
+  const { dashShell } = await import('../shell.js');
+  return dashShell({
+    title: titles[tab] || partner.business_name, eyebrow: partner.business_name,
+    subtitle: partner.status !== 'approved' ? (partner.status === 'pending' ? t('partner_pending') : L2('Your partner account is not approved.', 'आपका पार्टनर अकाउंट मंज़ूर नहीं है।')) + (partner.admin_note ? ` · Admin: ${partner.admin_note}` : '') : null,
+    avatar: h('span', { class: 'avatar', 'aria-hidden': 'true' }, partner.business_name.split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()),
+    groups: groups.filter((g) => g.items.length), active: tab, body, brand: L2('Partner portal', 'पार्टनर पोर्टल'),
+    actions: badge(partner.status),
+  });
 }
 
 function overview(partner) {

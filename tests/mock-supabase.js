@@ -60,6 +60,9 @@ const db = {
     { id: 'cb3', ride_id: 'r4', user_id: 'u-traveler', seats: 3, passenger_name: 'Asha Negi', phone: '9876543210', note: '', status: 'completed', booking_code: 'THH-15112026-0001', booking_ref: 'THH-15112026-0001', seat_numbers: [1, 2, 3], created_at: now() },
   ],
   booking_requests: [
+    { id: 'hb1', kind: 'homestay', homestay_id: 'h1', partner_id: 'p1', user_id: 'u-other', room_id: 'hr1', rooms_booked: 1, guest_name: 'Rohit Mehra', guest_phone: '9811100001', start_date: inDays(-40).slice(0, 10), end_date: inDays(-37).slice(0, 10), guests: 3, message: '', status: 'completed', booking_code: 'THH-H-01102026-0001', total_amount: 6600, commission_rate: 12, platform_commission: 792, partner_payout_amount: 5808, payout_status: 'paid', created_at: now() },
+    { id: 'hb2', kind: 'homestay', homestay_id: 'h1', partner_id: 'p1', user_id: 'u-other', room_id: 'hr2', rooms_booked: 1, guest_name: 'Sara Thomas', guest_phone: '9811100002', start_date: inDays(-9).slice(0, 10), end_date: inDays(-7).slice(0, 10), guests: 2, message: '', status: 'completed', booking_code: 'THH-H-12112026-0004', total_amount: 3600, commission_rate: 12, platform_commission: 432, partner_payout_amount: 3168, payout_status: 'unpaid', created_at: now() },
+    { id: 'hb3', kind: 'homestay', homestay_id: 'h1', partner_id: 'p1', user_id: 'u-other', room_id: 'hr1', rooms_booked: 1, guest_name: 'Vikram Joshi', guest_phone: '9811100003', start_date: inDays(0).slice(0, 10), end_date: inDays(2).slice(0, 10), guests: 4, message: 'Arriving by 3 pm', status: 'confirmed', booking_code: 'THH-H-20112026-0006', total_amount: 4400, commission_rate: 12, platform_commission: 528, partner_payout_amount: 3872, payout_status: 'unpaid', created_at: now() },
     { id: 'b1', kind: 'homestay', homestay_id: 'h1', village_tour_id: null, workspace_id: null, partner_id: 'p1', user_id: 'u-traveler', guest_name: 'Asha Negi', guest_phone: '9876543210', start_date: inDays(10).slice(0, 10), end_date: inDays(12).slice(0, 10), guests: 2, message: 'Vegetarian food please', status: 'requested', partner_note: '', created_at: now() },
   ],
   trips: [
@@ -71,6 +74,11 @@ const db = {
   ],
   admin_emails: [],
   trip_destinations: [], trip_expenses: [], saved_destinations: [],
+  homestay_rooms: [
+    { id: 'hr1', homestay_id: 'h1', room_type: 'Family room', base_price: 2200, weekend_price: 2600, max_guests: 4, total_inventory: 2, is_active: true, sort: 0 },
+    { id: 'hr2', homestay_id: 'h1', room_type: 'Double room', base_price: 1800, weekend_price: null, max_guests: 2, total_inventory: 1, is_active: true, sort: 1 }],
+  room_rates: [],
+  partner_kyc: [], payout_requests: [], support_tickets: [], ticket_messages: [],
   destination_reviews: [{ id: 'dr1', user_id: 'u-traveler', location_id: loc('mukteshwar'), rating: 5, body: 'Quiet orchards and a great sunrise view.', status: 'pending', created_at: now() }],
 };
 
@@ -107,7 +115,7 @@ class Query {
   maybeSingle() { this._single = 'maybe'; return this; }
   single() { this._single = 'one'; return this; }
   insert(v) { this.op = 'insert'; this.payload = v; return this; }
-  upsert(v) { this.op = 'upsert'; this.payload = v; return this; }
+  upsert(v, o = {}) { this.op = 'upsert'; this.payload = v; this.conflict = o.onConflict ? o.onConflict.split(',') : null; return this; }
   update(v) { this.op = 'update'; this.payload = v; return this; }
   delete() { this.op = 'delete'; return this; }
   then(res, rej) { return Promise.resolve().then(() => this.run()).then(res, rej); }
@@ -120,7 +128,8 @@ class Query {
         if (localStorage.getItem('mock_v1') && list.some((r) => 'end_date' in r)) return { data: null, error: { code: 'PGRST204', message: "Could not find the 'end_date' column of 'trips' in the schema cache" } };
         if (list.some((r) => r.client_request_id && rows.some((x) => x.client_request_id === r.client_request_id))) return { data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint' } };
       }
-      if (this.op === 'upsert') list.forEach((r) => { const i = rows.findIndex((x) => (x.key && x.key === r.key) || x.id === r.id); if (i >= 0) rows[i] = { ...rows[i], ...r }; else rows.push(r); });
+      if (this.table === 'booking_requests') list.forEach((r) => { r.status = 'requested'; r.booking_code = 'THH-H-22112026-0009'; r.partner_id = r.partner_id || db.homestays.find((x) => x.id === r.homestay_id)?.partner_id; r.user_id = r.user_id || session?.user.id; if (r.room_id) { const room = db.homestay_rooms.find((x) => x.id === r.room_id); r.total_amount = room.base_price * Math.round((new Date(r.end_date) - new Date(r.start_date)) / 864e5) * (r.rooms_booked || 1); r.payout_status = 'unpaid'; } });
+      if (this.op === 'upsert') list.forEach((r) => { const i = rows.findIndex((x) => (this.conflict ? this.conflict.every((c) => x[c] === r[c]) : (x.key && x.key === r.key) || x.id === r.id)); if (i >= 0) { const { id, created_at, ...rest } = r; rows[i] = { ...rows[i], ...(this.conflict ? rest : r) }; } else rows.push(r); });
       else rows.push(...list);
       return { data: this._single ? list[0] : list, error: null };
     }
@@ -176,13 +185,59 @@ export function createClient() {
         return { data: rich ? { verified: d.is_verified, member_since: '2025-03-01', completed_rides: 42, passengers_served: 118, cancelled_rides: 1, cancellation_rate: 0.023, reviews: 37, avg_rating: 4.8, category_avg: { safety: 4.9, punctuality: 4.6 }, score: 96, level: 'excellent', enough_history: true }
           : { verified: d.is_verified, member_since: '2026-10-02', completed_rides: 2, passengers_served: 5, cancelled_rides: 0, cancellation_rate: 0, reviews: 2, avg_rating: 5, category_avg: {}, score: null, level: 'new', enough_history: false }, error: null };
       }
+      if (name === 'quote_homestay') {
+        const r = db.homestay_rooms.find((x) => x.id === args.p_room); if (!r) return { data: null, error: { message: 'Room not found' } };
+        let total = 0; for (let d = new Date(`${args.p_start}T00:00:00Z`); d < new Date(`${args.p_end}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + 1)) {
+          const iso = d.toISOString().slice(0, 10); const rr = db.room_rates.find((x) => x.room_id === r.id && x.date === iso);
+          total += rr?.custom_price ?? ([5, 6].includes(d.getUTCDay()) && r.weekend_price ? r.weekend_price : r.base_price);
+        }
+        const n = Math.round((new Date(args.p_end) - new Date(args.p_start)) / 864e5);
+        return { data: { nights: n, rooms: args.p_rooms || 1, total: total * (args.p_rooms || 1), available: true }, error: null };
+      }
+      if (name === 'request_payout') {
+        const k = db.partner_kyc.find((x) => x.partner_id === args.p_partner);
+        if (!k || k.status !== 'verified') return { data: null, error: { message: 'Complete KYC and bank / UPI details first. Payouts open after verification.' } };
+        const due = db.booking_requests.filter((b) => b.partner_id === args.p_partner && b.status === 'completed' && b.payout_status === 'unpaid');
+        const p = { id: uid(), partner_id: args.p_partner, amount: due.reduce((s, b) => s + b.partner_payout_amount, 0), bookings_count: due.length, status: 'pending', transaction_ref: '', admin_note: '', requested_at: now() };
+        db.payout_requests.push(p); due.forEach((b) => { b.payout_status = 'processing'; b.payout_id = p.id; }); return { data: p, error: null };
+      }
+      if (name === 'admin_process_payout') {
+        const p = db.payout_requests.find((x) => x.id === args.p_id);
+        if (args.p_approve && String(args.p_ref || '').trim().length < 3) return { data: null, error: { message: 'Enter the transaction reference (UTR / UPI ref)' } };
+        Object.assign(p, { status: args.p_approve ? 'approved' : 'rejected', transaction_ref: args.p_ref || '', admin_note: args.p_note || '', processed_at: now() });
+        db.booking_requests.filter((b) => b.payout_id === p.id).forEach((b) => { b.payout_status = args.p_approve ? 'paid' : 'unpaid'; }); return { data: p, error: null };
+      }
+      if (name === 'open_ticket') {
+        const t = { id: uid(), created_by: session.user.id, partner_id: args.p_partner, subject: args.p_subject, category: args.p_category, status: 'open', last_message_at: now(), created_at: now() };
+        db.support_tickets.push(t); db.ticket_messages.push({ id: uid(), ticket_id: t.id, author_id: session.user.id, is_admin: false, body: args.p_body, created_at: now() }); return { data: t, error: null };
+      }
+      if (name === 'post_ticket_message') {
+        const t = db.support_tickets.find((x) => x.id === args.p_ticket); const adm = role === 'admin';
+        const m = { id: uid(), ticket_id: t.id, author_id: session.user.id, is_admin: adm, body: args.p_body, created_at: now() };
+        db.ticket_messages.push(m); t.status = args.p_close ? 'closed' : adm ? 'answered' : 'open'; t.last_message_at = now(); return { data: m, error: null };
+      }
+      if (name === 'admin_homestay_stats') {
+        const live = db.booking_requests.filter((b) => b.kind === 'homestay' && ['confirmed', 'checked_in', 'completed'].includes(b.status));
+        return { data: { gmv: live.reduce((s, b) => s + (b.total_amount || 0), 0), commission: live.reduce((s, b) => s + (b.platform_commission || 0), 0), paid_out: 5808,
+          active_partners: db.partners.filter((p) => p.status === 'approved').length, live_homestays: db.homestays.filter((x) => x.status === 'approved').length,
+          pending_properties: db.homestays.filter((x) => x.status === 'pending').length, pending_kyc: db.partner_kyc.filter((x) => x.status === 'pending').length,
+          pending_partners: db.partners.filter((p) => p.status === 'pending').length, pending_payouts: db.payout_requests.filter((x) => x.status === 'pending').length,
+          open_tickets: db.support_tickets.filter((x) => x.status === 'open').length,
+          by_month: [...new Set(live.map((b) => b.start_date.slice(0, 7)))].map((m) => ({ m, gmv: live.filter((b) => b.start_date.startsWith(m)).reduce((s, b) => s + b.total_amount, 0), commission: live.filter((b) => b.start_date.startsWith(m)).reduce((s, b) => s + b.platform_commission, 0) })) }, error: null };
+      }
       if (name === 'match_cab_rides') {
         return { data: db.cab_rides.filter((r) => r.driver_id && ['open'].includes(r.status) && r.departure_at > now() && new Date(new Date(r.departure_at).getTime() + 5.5 * 3600e3).toISOString().slice(0, 10) === args.p_date && r.seats_total - r.seats_booked >= args.p_seats)
           .map((r) => ({ ride_id: r.id, ride_ref: r.ride_ref, departure_at: r.departure_at, seats_left: r.seats_total - r.seats_booked, price_per_seat: r.price_per_seat, pickup_km: 12.4, drop_km: 0.8, detour_km: 26.4, route_km: r.distance_km || null, minutes_off: null })), error: null };
       }
       if (name === 'start_cab_ride') { const r = db.cab_rides.find((x) => x.id === args.p_ride); r.status = 'started'; r.started_at = now(); db.cab_bookings.filter((b) => b.ride_id === r.id && b.status === 'pending').forEach((b) => { b.status = 'expired'; }); return { data: r, error: null }; }
       if (name === 'complete_cab_ride') { const r = db.cab_rides.find((x) => x.id === args.p_ride); r.status = 'completed'; r.completed_at = now(); db.cab_bookings.filter((b) => b.ride_id === r.id && b.status === 'confirmed').forEach((b) => { b.status = 'completed'; }); return { data: r, error: null }; }
-      if (name === 'set_booking_status') { const b = db.booking_requests.find((x) => x.id === args.p_id); b.status = args.p_status; return { data: b, error: null }; }
+      if (name === 'set_booking_status') {
+        const b = db.booking_requests.find((x) => x.id === args.p_id); const today = new Date(Date.now() + 5.5 * 3600e3).toISOString().slice(0, 10);
+        if (['checked_in', 'completed'].includes(args.p_status) && b.start_date > today) return { data: null, error: { message: 'Guests can be checked in from the check-in date' } };
+        if (args.p_status === 'confirmed' && b.room_id) { const rate = db.homestays.find((x) => x.id === b.homestay_id)?.commission_rate ?? 12; b.commission_rate = rate; b.platform_commission = Math.round(b.total_amount * rate / 100); b.partner_payout_amount = b.total_amount - b.platform_commission; }
+        b.status = args.p_status; if (args.p_status === 'checked_in') b.checked_in_at = now(); if (args.p_status === 'completed') { b.completed_at = now(); b.payout_status = b.payout_status || 'unpaid'; }
+        return { data: b, error: null };
+      }
       if (name === 'set_cab_booking_status') { const b = db.cab_bookings.find((x) => x.id === args.p_booking); b.status = args.p_status; return { data: b, error: null }; }
       if (name === 'set_trip_share') { const t = db.trips.find((x) => x.id === args.p_trip); if (!t) return { data: null, error: { message: 'Trip not found' } }; t.share_token = args.p_on ? (t.share_token || 'tok' + uid().replace(/-/g, '').slice(0, 20)) : null; return { data: t.share_token, error: null }; }
       if (name === 'get_shared_trip') { const t = db.trips.find((x) => x.share_token && x.share_token === args.p_token); return { data: t ? { ...t, user_id: undefined, destinations: db.trip_destinations.filter((x) => x.trip_id === t.id) } : null, error: null }; }
@@ -213,6 +268,6 @@ export function createClient() {
       return ch;
     },
     removeChannel(ch) { window.__rtChannels = (window.__rtChannels || []).filter((c) => c !== ch); },
-    storage: { from: () => ({ createSignedUrl: async (p) => ({ data: { signedUrl: 'https://example.com/signed/' + p }, error: null }), upload: async () => ({ error: null }), getPublicUrl: (p) => ({ data: { publicUrl: 'https://example.com/' + p } }) }) },
+    storage: { from: () => ({ createSignedUrl: async (p) => ({ data: { signedUrl: 'https://example.com/signed/' + p }, error: null }), upload: async () => ({ error: null }), getPublicUrl: (p) => ({ data: { publicUrl: 'img/home/hero.jpg?u=' + encodeURIComponent(p) } }) }) },
   };
 }

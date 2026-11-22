@@ -107,6 +107,11 @@ function requestForm(kind, x) {
       h('a', { class: 'btn btn-block', href: `#/login?next=${encodeURIComponent(location.hash.slice(2))}` }, t('signin')));
   }
   const isTour = kind === 'village_tour';
+  const isStay = kind === 'homestay';
+  // Homestays with room types: choose a room, see the price for the dates (calculated by the database).
+  const roomBox = h('div', { class: 'stack' });
+  const quoteOut = h('p', { class: 'quote small', 'aria-live': 'polite' });
+  const roomSt = { rooms: [], id: null, n: 1 };
   const start = input({ type: 'date', name: 'start_date', required: true, min: todayISO(), value: todayISO(7) });
   const end = input({ type: 'date', name: 'end_date', required: true, min: todayISO(), value: todayISO(isTour ? 7 : 9) });
   if (isTour) start.addEventListener('change', () => { end.value = start.value; });
@@ -118,13 +123,16 @@ function requestForm(kind, x) {
       start_date: fd.start_date, end_date: isTour ? fd.start_date : fd.end_date,
       guests: Number(fd.guests || 1), message: fd.message || '',
       [`${kind}_id`]: x.id,
+      ...(isStay && roomSt.id ? { room_id: roomSt.id, rooms_booked: roomSt.n } : {}),
     };
+    if (isStay && roomSt.rooms.length && !roomSt.id) { toast(getLang() === 'hi' ? 'कमरा चुनें' : 'Choose a room', 'err'); return; }
+    if (isStay && row.end_date <= row.start_date) { toast(getLang() === 'hi' ? 'चेक-आउट चेक-इन के बाद होना चाहिए' : 'Check-out must be after check-in', 'err'); return; }
     if (row.end_date < row.start_date) { toast(getLang() === 'hi' ? 'आख़िरी तारीख़ शुरुआत से पहले नहीं हो सकती' : 'End date is before start date', 'err'); return; }
     await busy(form.querySelector('button[type=submit]'), async () => {
       await q(sb.from('booking_requests').insert(row));
       toast(t('request_sent'));
       form.reset();
-      location.hash = '#/account';
+      location.hash = '#/account/bookings';
     });
   } },
     field(t('name'), input({ name: 'guest_name', required: true, minlength: 2, value: state.profile?.full_name || '' })),
@@ -132,9 +140,44 @@ function requestForm(kind, x) {
     h('div', { class: 'row2' },
       field(isTour ? t('date') : (kind === 'homestay' ? t('check_in') : t('start')), start),
       isTour ? null : field(kind === 'homestay' ? t('check_out') : t('end'), end)),
+    isStay ? roomBox : null,
     field(t('guests'), input({ name: 'guests', type: 'number', min: 1, max: 50, value: 2, required: true })),
+    isStay ? quoteOut : null,
     field(t('message'), textarea({ name: 'message', rows: 3, maxlength: 1000 })),
     h('button', { class: 'btn btn-block', type: 'submit' }, t('request_booking')),
     h('small', { class: 'muted' }, getLang() === 'hi' ? 'अभी कोई पेमेंट नहीं। होस्ट कन्फर्म करेंगे।' : 'No payment now. The host will confirm.'));
+  if (isStay) {
+    const hiL = getLang() === 'hi';
+    let timer = null;
+    const quote = () => {
+      clearTimeout(timer);
+      if (!roomSt.id || !start.value || !end.value) { quoteOut.textContent = ''; return; }
+      if (end.value <= start.value) { quoteOut.textContent = hiL ? 'चेक-आउट चेक-इन के बाद चुनें।' : 'Choose a check-out after check-in.'; return; }
+      quoteOut.textContent = hiL ? 'किराया देख रहे हैं…' : 'Checking price…';
+      timer = setTimeout(async () => {
+        try {
+          const r = await q(sb.rpc('quote_homestay', { p_room: roomSt.id, p_start: start.value, p_end: end.value, p_rooms: roomSt.n }));
+          quoteOut.replaceChildren(h('strong', {}, inr(r.total)), ` · ${r.nights} ${hiL ? 'रात' : r.nights === 1 ? 'night' : 'nights'} · ${r.rooms} ${hiL ? 'कमरा' : r.rooms === 1 ? 'room' : 'rooms'} `,
+            r.available ? h('span', { class: 'ok-t' }, hiL ? '· उपलब्ध' : '· available') : h('span', { class: 'bad-t' }, hiL ? '· इन तारीख़ों पर कमरे खाली नहीं' : '· not enough rooms free on these dates'));
+        } catch (e) { quoteOut.textContent = e.message; }
+      }, 300);
+    };
+    [start, end].forEach((el) => el.addEventListener('change', quote));
+    q(sb.from('homestay_rooms').select('*').eq('homestay_id', x.id).eq('is_active', true).order('sort')).then((rooms) => {
+      roomSt.rooms = rooms || [];
+      if (!roomSt.rooms.length) return;
+      const nI = input({ type: 'number', min: 1, max: 1, value: 1, 'aria-label': hiL ? 'कमरे' : 'Rooms' });
+      const paint = () => {
+        roomBox.replaceChildren(h('span', { class: 'field-label' }, hiL ? 'कमरा चुनें' : 'Choose a room'),
+          ...roomSt.rooms.map((r) => h('button', { type: 'button', class: `room-opt${roomSt.id === r.id ? ' on' : ''}`, 'aria-pressed': String(roomSt.id === r.id),
+            onclick: () => { roomSt.id = r.id; roomSt.n = Math.min(roomSt.n, r.total_inventory); nI.max = r.total_inventory; nI.value = roomSt.n; paint(); quote(); } },
+            h('strong', {}, r.room_type), h('span', { class: 'small muted' }, `${inr(r.base_price)}${hiL ? '/रात' : '/night'}${r.weekend_price ? ` · ${hiL ? 'वीकेंड' : 'weekend'} ${inr(r.weekend_price)}` : ''} · ${hiL ? 'प्रति कमरा' : 'up to'} ${r.max_guests} ${hiL ? 'मेहमान' : 'guests'}`))),
+          roomSt.id ? field(hiL ? 'कितने कमरे' : 'Rooms', nI) : null);
+      };
+      nI.addEventListener('change', () => { roomSt.n = Math.max(1, Math.min(Number(nI.value) || 1, Number(nI.max))); nI.value = roomSt.n; quote(); });
+      roomSt.id = roomSt.rooms[0].id; nI.max = roomSt.rooms[0].total_inventory;
+      paint(); quote();
+    }).catch(() => {});
+  }
   return form;
 }
