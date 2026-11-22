@@ -39,7 +39,7 @@ jobs:
           exit $fail
       - name: Account pages send visitors to login
         run: |
-          for p in /account /account/cab /account/profile /trips/00000000-0000-0000-0000-000000000000; do
+          for p in /account /account/cab /account/profile /trips/00000000-0000-0000-0000-000000000000 /partner /partner/join /partner/calendar; do
             loc=$(curl -s -o /dev/null -w "%{redirect_url}" "http://localhost:3000$p")
             echo "$p -> $loc"; echo "$loc" | grep -q "/login?next=" || exit 1
           done

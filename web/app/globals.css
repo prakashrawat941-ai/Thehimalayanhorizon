@@ -1565,3 +1565,29 @@ html, body { overflow-x: hidden; }
 .stars-input button { border: 0; background: none; font-size: 2rem; color: #d8d2c4; cursor: pointer; min-width: 44px; min-height: 44px; }
 .stars-input button.on { color: var(--gold); }
 @media print { .steps-bar, .route-map { break-inside: avoid; } .trip-report .ds-stats { grid-template-columns: repeat(4, 1fr); } }
+
+/* Part 5: partner portal */
+.bars { display: flex; align-items: flex-end; gap: 10px; height: 160px; padding-top: 10px; }
+.bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; height: 100%; }
+.bar { width: 100%; max-width: 42px; background: var(--green-2); border-radius: 8px 8px 0 0; min-height: 2px; }
+.bar-col small { color: var(--muted); font-size: .75rem; }
+.thumb { width: 72px; height: 54px; border-radius: 10px; object-fit: cover; flex: none; }
+.photo-tile { display: flex; flex-direction: column; gap: 6px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.cal-dow { text-align: center; font-size: .75rem; color: var(--muted); padding: 4px 0; }
+.cal-day { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-height: 64px; padding: 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); cursor: pointer; font: inherit; text-align: left; overflow: hidden; }
+.cal-day:disabled { opacity: .4; cursor: default; }
+.cal-day.on { outline: 2px solid var(--green); background: #eef5ef; }
+.cal-day.custom .cal-p { color: #7a5310; font-weight: 700; }
+.cal-day.blocked { background: #fbefe9; }
+.cal-n { font-weight: 700; font-size: .85rem; }
+.cal-p { font-size: .72rem; color: var(--ink-2); }
+.cal-b { font-size: .66rem; color: #8f2617; }
+@media (max-width: 420px) { .cal-day { min-height: 52px; padding: 4px; } .cal-p { font-size: .62rem; } }
+.thread { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+.msg { background: #f6f2ea; border-radius: 12px; padding: 10px 12px; max-width: 92%; }
+.msg.admin { background: #eaf2ec; align-self: flex-end; }
+.msg p { margin: 4px 0 0; white-space: pre-wrap; }
+.room-opt { display: flex; flex-direction: column; align-items: flex-start; width: 100%; text-align: left; border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; background: var(--card); cursor: pointer; font: inherit; margin-bottom: 6px; min-height: 44px; }
+.room-opt.on { border-color: var(--green); background: #f1f7f2; }
+.ok-t { color: #1e6a3f; }

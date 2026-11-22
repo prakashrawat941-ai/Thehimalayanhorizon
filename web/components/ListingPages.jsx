@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation';
 import { getT } from '@/lib/i18n/server';
 import { getListing, getListings, getLocations, getRooms, KINDS } from '@/lib/data';
 import { idFromSlug, inr, listingSlug } from '@/lib/format';
-import { LEGACY_APP } from '@/lib/config';
+import { getSession } from '@/lib/auth';
+import { BookingForm } from './booking/BookingForm';
 import { Chips, Empty, Grid, ListingCard, PageHead, Section } from './Blocks';
 import { Cover } from './Cover';
 import { imgUrl } from '@/lib/img';
@@ -75,6 +76,7 @@ export async function ListingDetail({ kind, slug }) {
     const tr = await getT();
     const { t, L, pick, district } = tr;
     const k = KINDS[kind];
+    const session = await getSession();
     const [locs, rooms, more] = await Promise.all([
         getLocations(), kind === 'homestay' ? getRooms(x.id) : Promise.resolve([]),
         x.location_id ? getListings(kind, { locationId: x.location_id, limit: 4 }) : Promise.resolve([]),
@@ -130,8 +132,7 @@ export async function ListingDetail({ kind, slug }) {
                 {(x.languages || []).length ? <div className="kv"><span>{t('languages')}</span><strong>{x.languages.join(', ')}</strong></div> : null}
                 {x.best_season ? <div className="kv"><span>{t('best_season')}</span><strong>{x.best_season}</strong></div> : null}
               </>) : null}
-            <a className="btn btn-block" href={`${LEGACY_APP}${LEGACY_DETAIL[kind]}/${x.id}`}>{t('request_booking')}</a>
-            <p className="small muted" style={{ marginTop: 8 }}>{L('Booking opens in the current app for now (same login). No online payment; the host confirms your request.', 'अभी बुकिंग मौजूदा ऐप में खुलेगी (वही लॉगिन)। कोई ऑनलाइन पेमेंट नहीं; होस्ट आपकी रिक्वेस्ट कन्फर्म करेंगे।')}</p>
+            <BookingForm kind={kind} listing={{ id: x.id }} rooms={rooms} lang={tr.lang} profile={session.profile}/>
           </div>
         </aside>
       </div>

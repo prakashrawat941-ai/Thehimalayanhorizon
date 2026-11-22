@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { SUPABASE_KEY, SUPABASE_URL } from '@/lib/config';
 // Pages that need a signed-in user. Others are public.
-const PROTECTED = ['/account', '/trips', '/partner/dashboard', '/admin'];
+const PROTECTED = ['/account', '/trips', '/partner', '/admin', '/drive'];
 export async function middleware(request) {
     let response = NextResponse.next({ request });
     const supabase = createServerClient(SUPABASE_URL, SUPABASE_KEY, {
