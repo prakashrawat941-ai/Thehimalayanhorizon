@@ -8,6 +8,7 @@ import { Chips, Grid, ItineraryCard, ListingCard, PlaceCard, Section, regionLabe
 import { Cover } from '@/components/Cover';
 import { imgUrl } from '@/lib/img';
 import { Icon } from '@/components/Icon';
+import { PlaceActions } from '@/components/trip/PlaceActions';
 export async function generateMetadata({ params }) {
     const { slug } = await params;
     const l = await getLocation(slug);
@@ -58,6 +59,7 @@ export default async function Destination({ params }) {
       </div>
       <div className="detail-layout">
         <div className="detail-main">
+          <PlaceActions locationId={l.id} lang={lang}/>
           <p className="lead">{pick(l, 'summary')}</p>
           {l.description ? <div className="prose">{String(l.description).split(/\n{2,}/).map((p, i) => <p key={i}>{p}</p>)}</div> : null}
           <Chips items={(l.theme_slugs || []).map((s) => { const th = themes.find((x) => x.slug === s); return th ? `${th.icon} ${pick(th, 'name')}` : null; })}/>

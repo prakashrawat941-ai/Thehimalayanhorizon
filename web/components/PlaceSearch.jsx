@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { browserDb } from '@/lib/supabase/client';
 import { editDistance, km } from '@/lib/format';
 import { Icon } from './Icon';
@@ -20,12 +20,17 @@ async function loadPlaces() {
     // Destinations that are not in the places list yet.
     const have = new Set(list.map((x) => x.slug).filter(Boolean));
     locs.filter((x) => !have.has(x.slug) && x.lat != null && x.lng != null)
-        .forEach((x) => list.push({ id: x.id, name: x.name, name_hi: x.name_hi, district: x.district, kind: x.kind, lat: x.lat, lng: x.lng, aliases: [], slug: x.slug }));
+        .forEach((x) => list.push({ id: x.id, name: x.name, name_hi: x.name_hi, district: x.district, kind: x.kind, lat: x.lat, lng: x.lng, aliases: [], slug: x.slug, location_id: x.id }));
     placesCache = list;
     return list;
 }
-export function PlaceSearch({ lang, labels, autoFocus = false }) {
-    const [q, setQ] = useState('');
+export function PlaceSearch({ lang, labels, autoFocus = false, onPick = null, placeholder = null, initial = '' }) {
+    const listId = useId();
+    // Picker mode (Trip Planner): items are buttons that hand the place back instead of links.
+    const Item = ({ href, place, children, ...rest }) => (onPick
+        ? <button type="button" className="psearch-item" onClick={() => { onPick(place); setQ(place.name); setOpen(false); }} {...rest}>{children}</button>
+        : <Link className="psearch-item" href={href} {...rest}>{children}</Link>);
+    const [q, setQ] = useState(initial);
     const [places, setPlaces] = useState([]);
     const [osm, setOsm] = useState([]);
     const [open, setOpen] = useState(false);
@@ -128,27 +133,27 @@ export function PlaceSearch({ lang, labels, autoFocus = false }) {
     return (<div className="psearch" ref={boxRef}>
       <div className="psearch-box">
         <Icon name="search" size={20}/>
-        <input type="search" value={q} placeholder={labels.search_places} aria-label={labels.search_places} autoFocus={autoFocus} enterKeyHint="search" autoComplete="off" role="combobox" aria-expanded={!!showList} aria-controls="psearch-list" onChange={(e) => { setQ(e.target.value); setOpen(true); setNote(''); setNear(null); }} onFocus={() => setOpen(true)} onKeyDown={(e) => { if (e.key === 'Escape')
+        <input type="search" value={q} placeholder={placeholder || labels.search_places} aria-label={placeholder || labels.search_places} autoFocus={autoFocus} enterKeyHint="search" autoComplete="off" role="combobox" aria-expanded={!!showList} aria-controls={listId} onChange={(e) => { setQ(e.target.value); setOpen(true); setNote(''); setNear(null); }} onFocus={() => setOpen(true)} onKeyDown={(e) => { if (e.key === 'Escape')
         setOpen(false); }}/>
         <button type="button" className="psearch-loc" onClick={locateMe}><Icon name="locate" size={18}/><span>{labels.use_location}</span></button>
       </div>
-      {showList ? (<div className="psearch-list" id="psearch-list" role="listbox">
+      {showList ? (<div className="psearch-list" id={listId} role="listbox">
           {note ? <p className="psearch-note">{note}</p> : null}
           {near ? (<>
               <h4>{labels.nearest_place}</h4>
-              <Link className="psearch-item" href={ourHref(near.p)}><Icon name="pin" size={18}/>
-                <span>{label(near.p)}<small>{near.d.toFixed(0)} {labels.km_away}{near.p.district ? ` · ${near.p.district}` : ''}</small></span></Link>
+              <Item href={ourHref(near.p)} place={near.p}><Icon name="pin" size={18}/>
+                <span>{label(near.p)}<small>{near.d.toFixed(0)} {labels.km_away}{near.p.district ? ` · ${near.p.district}` : ''}</small></span></Item>
             </>) : null}
           {matches.length ? <h4>{labels.our_places}</h4> : null}
-          {matches.map((p) => (<Link key={p.id} className="psearch-item" href={ourHref(p)} role="option" aria-selected={false}>
+          {matches.map((p) => (<Item key={p.id} href={ourHref(p)} place={p} role="option" aria-selected={false}>
               <Icon name={p.slug ? 'mountain' : 'pin'} size={18}/>
               <span>{label(p)}<small>{[p.district, p.slug ? null : labels.no_page_yet].filter(Boolean).join(' · ')}</small></span>
-            </Link>))}
+            </Item>))}
           {!matches.length && suggestion ? (<p className="psearch-dym">{labels.did_you_mean} <button type="button" onClick={() => setQ(suggestion.name)}>{label(suggestion)}</button>?</p>) : null}
           {osmFiltered.length ? <h4>{labels.more_places}</h4> : null}
-          {osmFiltered.map((o) => (<Link key={o.key} className="psearch-item" href={`/plan?to=${encodeURIComponent(o.name)}&lat=${o.lat}&lng=${o.lng}`} role="option" aria-selected={false}>
+          {osmFiltered.map((o) => (<Item key={o.key} href={`/plan?to=${encodeURIComponent(o.name)}&lat=${o.lat}&lng=${o.lng}`} place={{ name: o.name, lat: o.lat, lng: o.lng, district: o.sub, ext: true }} role="option" aria-selected={false}>
               <Icon name="pin" size={18}/><span>{o.name}<small>{[o.sub, labels.no_page_yet].filter(Boolean).join(' · ')}</small></span>
-            </Link>))}
+            </Item>))}
           {q.trim().length >= 2 && !matches.length && !suggestion && !osmFiltered.length && !note ? <p className="psearch-note">{labels.nothing_here}</p> : null}
         </div>) : null}
     </div>);

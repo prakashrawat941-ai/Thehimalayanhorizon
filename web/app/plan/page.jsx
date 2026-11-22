@@ -1,57 +1,59 @@
-import Link from 'next/link';
 import { getT } from '@/lib/i18n/server';
 import { getSession } from '@/lib/auth';
+import { getItinerary, getListings, getLocation, getLocations, getPlaces, getSettings } from '@/lib/data';
 import { createClient } from '@/lib/supabase/server';
-import { getItineraries } from '@/lib/data';
-import { fmtDate } from '@/lib/format';
-import { Grid, ItineraryCard, PageHead } from '@/components/Blocks';
-import { Icon } from '@/components/Icon';
-import { DraftResume } from '@/components/trip/DraftResume';
+import { draftFromRow } from '@/lib/trip/common';
+import { searchLabels } from '@/lib/searchLabels';
+import { Planner } from './Planner';
 
 export async function generateMetadata() {
   const { t, L } = await getT();
-  return { title: t('nav_planner'), description: L('Plan an Uttarakhand road trip: real road route, weather, day-wise plan and budget.', 'उत्तराखंड यात्रा प्लान करें: असली सड़क रास्ता, मौसम, दिन-वार प्लान और बजट।'), alternates: { canonical: '/plan' } };
+  return { title: t('nav_planner'), alternates: { canonical: '/plan' },
+    description: L('Plan an Uttarakhand road trip: real road route, weather, day-wise plan and budget. Free.', 'उत्तराखंड रोड ट्रिप प्लान करें: असली सड़क रास्ता, मौसम, दिन-वार प्लान और बजट। मुफ़्त।') };
 }
 
-export default async function PlanHome() {
+export default async function PlanPage({ searchParams }) {
+  const sp = await searchParams;
   const tr = await getT();
-  const { t, L, lang } = tr;
-  const session = await getSession();
-  let trips = [];
-  if (session.user) {
+  const [session, places, locations, listings, settings] = await Promise.all([getSession(), getPlaces(), getLocations(), getListings('homestay'), getSettings()]);
+  let initial = null;
+
+  // Open a saved trip for editing (?trip=<id>, owner only — database rules check it).
+  if (sp.trip && session.user) {
     const db = await createClient();
-    const { data } = await db.from('trips').select('id,title,start_date,days_count,status').eq('user_id', session.user.id).neq('status', 'cancelled').order('updated_at', { ascending: false }).limit(6);
-    trips = data || [];
+    const { data: t } = await db.from('trips').select('*').eq('id', sp.trip).maybeSingle();
+    if (t?.start_place && t?.end_date) {
+      const { data: dests } = await db.from('trip_destinations').select('position, place').eq('trip_id', t.id);
+      initial = { draft: draftFromRow(t, dests || []) };
+    }
   }
-  const its = (await getItineraries()).slice(0, 3);
+  // Prefill a destination from a place page or search (?place=slug or ?to=name&lat&lng).
+  if (!initial && sp.place) {
+    const l = await getLocation(sp.place);
+    if (l?.lat != null) initial = { dest: { id: null, name: l.name, name_hi: l.name_hi, district: l.district, lat: l.lat, lng: l.lng, location_id: l.id } };
+  }
+  if (!initial && sp.to && sp.lat && sp.lng && Number.isFinite(+sp.lat) && Number.isFinite(+sp.lng)) {
+    initial = { dest: { name: String(sp.to).slice(0, 120), lat: +sp.lat, lng: +sp.lng, ext: true } };
+  }
+  // Start from a ready-made itinerary (?from=slug): its places become destinations.
+  if (!initial && sp.from) {
+    const it = await getItinerary(sp.from);
+    const slugs = [...new Set((Array.isArray(it?.days) ? it.days : []).map((x) => x.location).filter(Boolean))];
+    const dests = slugs.map((s) => locations.find((l) => l.slug === s)).filter((l) => l?.lat != null)
+      .map((l) => ({ id: null, name: l.name, name_hi: l.name_hi, district: l.district, lat: l.lat, lng: l.lng, location_id: l.id }));
+    if (dests.length) initial = { draft: null, fromItinerary: { title: it.title, dests } };
+  }
+  if (initial?.fromItinerary) {
+    const { blank } = await import('@/lib/trip/common');
+    initial = { draft: { ...blank(), title: initial.fromItinerary.title, dests: initial.fromItinerary.dests }, fresh: true };
+  }
+
+  const slimLocs = locations.map((l) => ({ id: l.id, slug: l.slug, name: l.name, name_hi: l.name_hi, kind: l.kind, lat: l.lat, lng: l.lng, theme_slugs: l.theme_slugs, best_season: l.best_season, district: l.district }));
+  const slimStays = listings.map((s) => ({ id: s.id, name: s.name, location_id: s.location_id, price_per_night: s.price_per_night, lat: s.lat ?? null, lng: s.lng ?? null }));
   return (
     <div className="page">
-      <PageHead eyebrow={t('nav_planner')} title={L('Plan your Uttarakhand trip', 'अपनी उत्तराखंड यात्रा प्लान करें')}
-        lead={L('Real road route, weather for your dates, a day-wise plan and a budget — free, in a few minutes.', 'असली सड़क रास्ता, आपकी तारीख़ों का मौसम, दिन-वार प्लान और बजट — मुफ़्त, कुछ ही मिनट में।')} />
-      <div className="row-actions">
-        <Link className="btn btn-lg" href="/plan/new"><Icon name="plus" size={18} /> {t('new_trip')}</Link>
-        <DraftResume label={L('Continue your unsaved plan', 'अपना अधूरा प्लान जारी रखें')} />
-      </div>
-      {trips.length ? (
-        <section className="section">
-          <div className="section-head"><h2>{t('my_trips')}</h2><Link className="link-more" href="/account/trips">{t('view_all')}</Link></div>
-          <div className="ds-rows ds-panel">
-            {trips.map((x) => (
-              <Link key={x.id} className="ds-row" href={`/trip/${x.id}`}>
-                <span className="ds-row-ico"><Icon name="map" /></span>
-                <span className="grow"><strong>{x.title}</strong><span>{x.start_date ? fmtDate(x.start_date, lang) : ''}{x.days_count ? ` · ${x.days_count} ${t('days')}` : ''}</span></span>
-                <Icon name="arrow" size={16} />
-              </Link>
-            ))}
-          </div>
-        </section>
-      ) : null}
-      {its.length ? (
-        <section className="section">
-          <div className="section-head"><h2>{L('Start from a ready-made plan', 'तैयार प्लान से शुरू करें')}</h2><Link className="link-more" href="/itineraries">{t('view_all')}</Link></div>
-          <Grid>{its.map((it) => <ItineraryCard key={it.id} it={it} tr={tr} />)}</Grid>
-        </section>
-      ) : null}
+      <Planner lang={tr.lang} places={places} locations={slimLocs} listings={slimStays} defaults={settings.trip_defaults || {}}
+        searchLabels={searchLabels(tr)} signedIn={!!session.user} initial={initial} />
     </div>
   );
 }

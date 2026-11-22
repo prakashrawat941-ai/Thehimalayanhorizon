@@ -63,7 +63,7 @@ export async function fetchLeg(a, b) {
     const routes = data.routes.map((r) => ({ km: r.distance / 1000, secs: r.duration, coords: thin(r.geometry.coordinates.map(([x, y]) => [+y.toFixed(5), +x.toFixed(5)])) }));
     return { ...routes[0], alts: routes.slice(1), chosen: 0 };
   } catch (e) {
-    return { error: typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'failed' };
+    return { error: navigator.onLine === false ? 'offline' : 'failed' };
   }
 }
 

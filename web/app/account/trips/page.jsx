@@ -21,7 +21,7 @@ export default async function Trips() {
   return (
     <>
       <div className="ds-head"><div className="grow"><h1>{t('my_trips')}</h1>
-        <p className="muted">{L('Trips you planned with the Trip Planner. Open a trip to see its report, share it or edit it.', 'ट्रिप प्लानर से बनाई आपकी यात्राएँ। ट्रिप खोलकर रिपोर्ट देखें, शेयर करें या बदलें।')}</p></div>
+        <p className="muted">{L('Trips you planned with the Trip Planner.', 'ट्रिप प्लानर से बनाई आपकी यात्राएँ।')}</p></div>
         <div className="ds-actions"><Link className="btn" href="/plan"><Icon name="plus" size={16} /> {t('new_trip')}</Link></div>
       </div>
       {list.length ? (
