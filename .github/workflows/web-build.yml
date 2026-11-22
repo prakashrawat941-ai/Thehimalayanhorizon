@@ -1,0 +1,22 @@
+# Checks the Next.js app (web/) on every pull request: type-check and production build.
+name: Web build check
+on:
+  pull_request:
+    paths: ['web/**', '.github/workflows/web-build.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: node scripts/gen-sw.mjs && npx tsc --noEmit
+      - run: npm run build
