@@ -8,7 +8,7 @@ Built from `claude/THH-Project-Requirements.md` (PRD). Uses the **same Supabase 
 | 2. Public website + CMS content | ✅ this branch |
 | 3–8. Customer portal, Trip Planner, Partner/Homestay, Admin, Instant Cab, testing | ⏳ open in current app via "Open in current app" |
 
-- Stack: Next.js (App Router, TypeScript), `@supabase/ssr`, plain CSS with the approved design tokens (`app/globals.css`).
+- Stack: Next.js (App Router, JavaScript + JSX), `@supabase/ssr`, plain CSS with the approved design tokens (`app/globals.css`).
 - Language: cookie `thh_lang` (default Hindi), switch in header/footer; saved to profile when signed in.
 - Login: `/login` (email/password, Google), `/auth/callback`, `/auth/reset`. Returns to the page you came from (`?next=`).
 - Roles: `lib/auth.ts` → customer / partner (has partner record) / driver (has driver profile) / admin (`profiles.role = 'admin'`, set only by the owner).

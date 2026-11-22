@@ -1,4 +1,4 @@
-# Checks the Next.js app (web/) on every pull request: type-check and production build.
+# Checks the Next.js app (web/) on every pull request: production build.
 name: Web build check
 on:
   pull_request:
@@ -18,5 +18,4 @@ jobs:
         with:
           node-version: 22
       - run: npm install --no-audit --no-fund
-      - run: node scripts/gen-sw.mjs && npx tsc --noEmit
       - run: npm run build
