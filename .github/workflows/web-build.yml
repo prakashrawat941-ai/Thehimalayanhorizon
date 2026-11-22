@@ -24,7 +24,7 @@ jobs:
           npx next start -p 3000 &
           for i in $(seq 1 30); do curl -s -o /dev/null http://localhost:3000/ && break; sleep 1; done
           fail=0
-          for p in / /destinations /villages /experiences /itineraries /homestays /village-tours /workspaces /contact /faq /about /our-story /blog /gallery /search /login /plan /cab /offline /sitemap.xml /robots.txt /manifest.webmanifest /sw.js /no-such-page; do
+          for p in / /destinations /villages /experiences /itineraries /homestays /village-tours /workspaces /contact /faq /about /our-story /blog /gallery /search /login /plan /cab /offline /sitemap.xml /robots.txt /manifest.webmanifest /sw.js /no-such-page /account /account/bookings /account/cab /account/trips /account/saved /account/reviews /account/notifications /account/profile; do
             code=$(curl -s -o /tmp/out.html -w "%{http_code}" "http://localhost:3000$p")
             echo "$code $p $(wc -c < /tmp/out.html) bytes"
             if [ "$code" -ge 500 ]; then fail=1; tail -c 2000 /tmp/out.html; fi
@@ -37,3 +37,9 @@ jobs:
           curl -s http://localhost:3000/ | grep -o '<h1[^>]*>[^<]*' | head -2
           curl -s http://localhost:3000/destinations | grep -o 'class="card"' | wc -l
           exit $fail
+      - name: Account pages send visitors to login
+        run: |
+          for p in /account /account/cab /account/profile; do
+            loc=$(curl -s -o /dev/null -w "%{redirect_url}" "http://localhost:3000$p")
+            echo "$p -> $loc"; echo "$loc" | grep -q "/login?next=" || exit 1
+          done

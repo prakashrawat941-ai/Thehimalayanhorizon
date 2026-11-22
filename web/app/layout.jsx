@@ -30,7 +30,7 @@ export default async function RootLayout({ children }) {
     const [tr, session, settings] = await Promise.all([getT(), getSession(), getSettings()]);
     const { t, L, lang } = tr;
     const brand = settings.brand || {};
-    const labels = Object.fromEntries(['home', 'nav_cab', 'nav_planner', 'nav_villages', 'search', 'admin', 'partner', 'account', 'signin', 'plan_your_trip', 'villages', 'plan', 'cabs']
+    const labels = Object.fromEntries(['home', 'nav_cab', 'nav_planner', 'nav_villages', 'search', 'admin', 'partner', 'account', 'signin', 'plan_your_trip', 'villages', 'plan', 'cabs', 'notifications']
         .map((k) => [k, t(k)]));
     return (<html lang={lang}>
       <head>

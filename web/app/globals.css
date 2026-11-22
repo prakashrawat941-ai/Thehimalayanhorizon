@@ -1455,3 +1455,16 @@ a.ds-stat:hover { border-color: var(--green); }
 .gallery-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
 .gallery-grid img, .gallery-grid .art { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 12px; }
 html, body { overflow-x: hidden; }
+
+/* Part 3: customer portal */
+.bell { position: relative; }
+.bell-dot { position: absolute; top: 2px; right: 0; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: #c2410c; color: #fff; font: 700 .68rem/18px var(--font); text-align: center; }
+.seg-tabs a { min-height: 44px; display: inline-flex; align-items: center; }
+.ds-panel .kv-row { display: grid; grid-template-columns: minmax(96px, 34%) minmax(0, 1fr); gap: 10px; }
+.ds-panel .kv-row dt { color: var(--muted); font-size: .9rem; }
+.ds-panel .kv-row dd { margin: 0; overflow-wrap: anywhere; }
+.rpc-btn { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.voucher { max-width: 720px; }
+.vc-head { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.vc-code { margin-left: auto; text-align: right; }
+@media print { .ds-main { padding: 0 !important; } }

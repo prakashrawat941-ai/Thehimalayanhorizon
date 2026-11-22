@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Icon } from './Icon';
 import { LangToggle } from './LangToggle';
+import { NotificationBell } from './NotificationBell';
 const isActive = (path, href) => (href === '/' ? path === '/' : path === href || path.startsWith(href + '/'));
 export function Header({ lang, labels, roles, brandName, brandSub }) {
     const path = usePathname() || '/';
@@ -26,6 +27,7 @@ export function Header({ lang, labels, roles, brandName, brandSub }) {
       <div className="topbar-actions">
         <Link className="icon-link" href="/search" aria-label={labels.search}><Icon name="search" size={20}/></Link>
         <LangToggle lang={lang} signedIn={!!roles}/>
+        {roles ? <NotificationBell label={labels.notifications}/> : null}
         {roles?.admin ? <Link className="text-link hide-sm" href="/admin">{labels.admin}</Link> : null}
         {roles?.partner ? <Link className="text-link hide-sm" href="/partner">{labels.partner}</Link> : null}
         {roles ? <Link className="text-link hide-sm" href="/account">{labels.account}</Link>
