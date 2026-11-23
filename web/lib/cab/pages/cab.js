@@ -187,30 +187,6 @@ const driverBadge = (c) => c.is_verified
   ? h('span', { class: 'badge-verified' }, '✓ ', L('Verified driver', 'वेरिफ़ाइड ड्राइवर'))
   : h('span', { class: 'badge-new' }, L('New driver', 'नए ड्राइवर'));
 
-// ---------- 1. Entry: Customer or Driver ----------
-export async function entry() {
-  const choice = (href, ic, title, sub, points) => h('a', { class: 'choice-card', href },
-    h('span', { class: 'choice-ico' }, icon(ic, 30)),
-    h('span', { class: 'choice-text' }, h('strong', {}, title), h('span', { class: 'muted' }, sub),
-      h('ul', {}, points.map((p) => h('li', {}, p)))),
-    h('span', { class: 'arrow-c' }, icon('arrow', 14)));
-  return h('div', { class: 'cab-entry' },
-    h('section', { class: 'cab-entry-hero' },
-      h('img', { src: '/img/home/q-cab.jpg', alt: '' }),
-      h('div', { class: 'wrap' },
-        h('p', { class: 'eyebrow' }, L('Instant Book Cab', 'इंस्टेंट बुक कैब')),
-        h('h1', {}, L('Share a ride in the hills', 'पहाड़ों में राइड शेयर करें')),
-        h('p', {}, L('Drivers publish journeys they are already making. Travellers book a seat and share the cost.',
-          'ड्राइवर वो यात्राएँ डालते हैं जो वे पहले से कर रहे हैं। यात्री सीट बुक करके ख़र्च बाँटते हैं।')))),
-    h('div', { class: 'wrap choice-grid' },
-      choice(user() ? '/cab/me' : '/login?next=/cab/me', 'user', L('I am a traveller', 'मैं यात्री हूँ'), L('Find a ride', 'राइड खोजें'),
-        [L('Search available journeys', 'उपलब्ध यात्राएँ खोजें'), L('Choose your seat', 'अपनी सीट चुनें'), L('Request to join a ride', 'राइड में जुड़ने की रिक्वेस्ट भेजें')]),
-      choice(user() ? '/drive' : '/login?next=/drive', 'car', L('I am a driver', 'मैं ड्राइवर हूँ'), L('Publish a ride', 'राइड पब्लिश करें'),
-        [L('Add a journey you already plan', 'पहले से तय यात्रा जोड़ें'), L('Accept or decline requests', 'रिक्वेस्ट मंज़ूर या मना करें'), L('Manage your journeys', 'अपनी यात्राएँ सँभालें')])),
-    h('div', { class: 'wrap cab-entry-note' },
-      h('a', { class: 'link-more', href: '/cab/find' }, L('Just looking? Search rides without signing in', 'सिर्फ़ देखना है? बिना लॉगिन राइड खोजें'), icon('arrow', 14))));
-}
-
 // ---------- Search form (used on dashboard and results) ----------
 export function searchForm({ from = null, to = null, date = todayISO(), n = 1, onSearch } = {}) {
   const fromI = placeInput({ id: 'cab-from', external: true, label: L('From', 'कहाँ से'), placeholder: L('Pickup: any town or village', 'पिकअप: कोई भी शहर या गाँव'), value: from });

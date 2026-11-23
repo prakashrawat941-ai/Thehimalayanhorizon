@@ -2,6 +2,8 @@
 import { useEffect, useRef, useState } from 'react';
 
 const modules = {
+  operations: () => import('@/lib/operations/admin'),
+  partner: () => import('@/lib/operations/partner'),
   cab: () => import('@/lib/cab/pages/cab'),
   drive: () => import('@/lib/cab/pages/drive'),
   admin: () => import('@/lib/cab/pages/admin-cab'),

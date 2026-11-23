@@ -21,6 +21,7 @@ export default async function AdminLayout({ children }) {
   ]);
   const items = [
     { href: '/admin', icon: 'home', label: L('Overview', 'ओवरव्यू') },
+    { href: '/admin/partners', icon: 'people', label: L('Manage listings & partners','लिस्टिंग और पार्टनर') },
     { href: '/admin/approvals', icon: 'check', label: L('Approvals', 'मंज़ूरी'), count: partners + homes + tours + works + kyc },
     { href: '/admin/homestays', icon: 'house', label: L('Homestay business', 'होमस्टे बिज़नेस') },
     { href: '/admin/payouts', icon: 'layers', label: L('Payouts', 'पेआउट'), count: payouts },

@@ -21,6 +21,8 @@ export default async function PartnerLayout({ children }) {
     { href: '/partner/bookings', icon: 'doc', label: L('Bookings', 'बुकिंग'), count: pending || 0 },
     { href: '/partner/earnings', icon: 'layers', label: L('Earnings & payouts', 'कमाई और पेआउट') },
     { href: '/partner/kyc', icon: 'shield', label: L('KYC & bank', 'KYC और बैंक') },
+    ...(p.categories?.includes('cab') ? [{href:'/partner/rides',icon:'car',label:L('Cab rides','कैब राइड')}] : []),
+    {href:'/partner/requests',icon:'doc',label:L('Booking requests','बुकिंग रिक्वेस्ट')},
     { href: '/partner/services', icon: 'people', label: L('Tours & workspaces', 'टूर और वर्कस्पेस') },
     { href: '/partner/support', icon: 'support', label: L('Support', 'सहायता'), count: tickets || 0 },
     { href: '/partner/profile', icon: 'user', label: L('Business profile', 'बिज़नेस प्रोफ़ाइल') },

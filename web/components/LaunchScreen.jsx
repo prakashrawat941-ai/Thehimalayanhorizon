@@ -21,6 +21,21 @@ export default function LaunchScreen() {
           location.replace('/admin/cab?' + params);
           return;
         }
+        const tabs = {
+          'admin/home':'home_sections', 'admin/locations':'locations',
+          'admin/itineraries':'itineraries', 'admin/themes':'themes'
+        };
+        if (Object.hasOwn(tabs,target)) {
+          location.replace('/admin/cms?t=' + tabs[target]);
+          return;
+        }
+        const renamed = {
+          'partner/overview':'partner', 'account/overview':'account', 'admin/overview':'admin',
+          'partner/homestay':'partner/properties', 'partner/village_tour':'partner/services',
+          'partner/workspace':'partner/services', 'admin/business':'admin/homestays',
+          'admin/queue':'admin/approvals', 'admin/hs-bookings':'admin/homestays'
+        };
+        target = renamed[target] || target;
         location.replace('/' + target + (query.length ? '?' + query.join('?') : ''));
         return;
       }
