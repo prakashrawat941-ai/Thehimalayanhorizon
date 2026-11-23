@@ -1,0 +1,5 @@
+import { ListingList, listingMeta } from '@/components/ListingPages';
+export const generateMetadata = () => listingMeta('homestay');
+export default async function Page({ searchParams }) {
+    return <ListingList kind="homestay" sp={await searchParams}/>;
+}
