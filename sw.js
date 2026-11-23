@@ -2,9 +2,9 @@
 // Own files: network first (so updates show at once), cached copy when offline.
 // Fonts and the Supabase library from CDNs: cache first.
 // Supabase API calls are never cached.
-const VERSION = 'hh-v17';
+const VERSION = 'hh-v18-launch';
 const SHELL = [
-  './', 'index.html', 'css/app.css', 'manifest.webmanifest', 'icons/icon-192.png', 'img/brand/mark.png',
+  './', 'index.html', 'css/app.css', 'manifest.webmanifest', 'icons/signature-apple-touch-icon.png', 'icons/signature-favicon-32.png', 'icons/signature-favicon-48.png', 'icons/signature-icon-192.png', 'icons/signature-icon-512.png', 'icons/signature-maskable-512.png', 'icons/signature-hill.png', 'icons/signature-ridge.png', 'img/brand/mark.png',
   'js/app.js', 'js/ui.js', 'js/i18n.js', 'js/store.js', 'js/sb.js', 'js/config.js', 'js/forms.js', 'js/schemas.js',
   'js/pages/public.js', 'js/pages/listings.js', 'js/pages/cab.js', 'js/pages/drive.js', 'js/places.js', 'js/pages/planner.js', 'js/pages/tripplan.js', 'js/trip/common.js', 'js/trip/engine.js', 'js/trip/steps.js', 'js/trip/summary.js', 'js/trip/save.js', 'js/trip/trips.js', 'js/pages/account.js', 'js/google.js', 'js/shell.js', 'js/pages/admin.js', 'js/pages/admin-cab.js', 'js/pages/admin-homestay.js', 'js/pages/host.js', 'js/live.js', 'js/cab/vehicles.js',
   'img/home/hero.jpg', 'img/home/q-cab.jpg', 'img/home/q-plan.jpg', 'img/home/q-village.jpg',
