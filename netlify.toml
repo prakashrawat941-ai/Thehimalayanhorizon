@@ -1,5 +1,3 @@
-# Next.js rebuild (Part 1 + 2). The app lives in /web.
-# Only Deploy Previews of this branch use it until the owner approves the switch.
 [build]
   base = "web"
   command = "npm run build"

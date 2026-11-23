@@ -1,8 +1,8 @@
 {
   "name": "the-himalayan-horizon-web",
-  "version": "18.0.0",
+  "version": "19.0.0",
   "private": true,
-  "description": "The Himalayan Horizon — Next.js rebuild (Part 1 + Part 2)",
+  "description": "The Himalayan Horizon travel website and installable PWA",
   "scripts": {
     "prebuild": "node scripts/gen-sw.mjs",
     "predev": "node scripts/gen-sw.mjs",

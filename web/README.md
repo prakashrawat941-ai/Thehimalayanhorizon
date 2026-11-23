@@ -1,14 +1,14 @@
-# The Himalayan Horizon — Next.js rebuild
+# The Himalayan Horizon — Next.js application
 
 Built from `claude/THH-Project-Requirements.md` (PRD). Uses the **same Supabase database** as the current app.
 
 | Part | Status |
 |---|---|
-| 1. Design system, layout, auth (email + Google), roles, PWA, Hindi/English | ✅ this branch |
-| 2. Public website + CMS content | ✅ this branch |
-| 3–6. Customer portal, Trip Planner, Partner/Homestay, Admin | Implemented on this preview branch |
+| 1. Design system, layout, auth (email + Google), roles, PWA, Hindi/English | ✅ implemented |
+| 2. Public website + CMS content | ✅ implemented |
+| 3–6. Customer portal, Trip Planner, Partner/Homestay, Admin | Implemented on the application |
 | 7. Instant Cab, Driver and cab administration | Next.js routes with client-side booking and driver workflows |
-| 8. Release validation | Verify signed-in journeys and installed Android updates before production |
+| 8. Release validation | Verify signed-in journeys and installed Android updates on the target deployment |
 
 - Stack: Next.js (App Router, JavaScript + JSX), `@supabase/ssr`, plain CSS with the approved design tokens (`app/globals.css`).
 - Language: cookie `thh_lang` (default Hindi), switch in header/footer; saved to profile when signed in.

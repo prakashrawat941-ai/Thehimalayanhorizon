@@ -1,6 +1,0 @@
-User-agent: *
-Allow: /
-Disallow: /tests/
-Disallow: /supabase/
-
-Sitemap: https://thehimalayanhorizon.netlify.app/sitemap.xml
