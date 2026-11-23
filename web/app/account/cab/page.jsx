@@ -3,7 +3,6 @@ import { getT } from '@/lib/i18n/server';
 import { requireUser, rows, rideRoute } from '@/lib/account';
 import { getLocations, getPlaces } from '@/lib/data';
 import { inr } from '@/lib/format';
-import { LEGACY_APP } from '@/lib/config';
 import { Empty } from '@/components/Blocks';
 import { Icon } from '@/components/Icon';
 import { RpcButton } from '@/components/account/RpcButton';
@@ -89,7 +88,7 @@ export default async function CabBookings({ searchParams }) {
                   ) : null}
                 </dl>
                 <div className="row-actions">
-                  <a className="btn btn-ghost btn-sm" href={`${LEGACY_APP}cab/booking/${b.id}`}>{L('Ride details', 'राइड की जानकारी')}</a>
+                  <a className="btn btn-ghost btn-sm" href={`/cab/booking/${b.id}`}>{L('Ride details', 'राइड की जानकारी')}</a>
                   {['pending', 'confirmed'].includes(b.status) && !past ? (
                     <RpcButton fn="cancel_cab_booking" args={{ p_booking: b.id }} label={t('cancel')} confirmText={L('Cancel these seats?', 'ये सीटें रद्द करें?')} />
                   ) : null}

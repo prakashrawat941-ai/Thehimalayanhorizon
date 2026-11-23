@@ -3,7 +3,6 @@ import { getT } from '@/lib/i18n/server';
 import { requireUser, rows, todayIST, rideRoute } from '@/lib/account';
 import { getLocations, getPlaces } from '@/lib/data';
 import { fmtDate, inr } from '@/lib/format';
-import { LEGACY_APP } from '@/lib/config';
 import { Icon } from '@/components/Icon';
 import { Cover } from '@/components/Cover';
 
@@ -55,7 +54,7 @@ export default async function AccountOverview() {
       {feedback.length ? (
         <div className="ds-alert soft-note warn" role="status">
           <strong>{L('Feedback pending', 'फ़ीडबैक बाकी')}</strong> — {L(`Please rate your ride${feedback.length > 1 ? 's' : ''} with ${feedback.map((f) => f.other_name).filter(Boolean).join(', ')}.`, `कृपया ${feedback.map((f) => f.other_name).filter(Boolean).join(', ')} के साथ अपनी राइड को रेटिंग दें।`)}{' '}
-          <a href={`${LEGACY_APP}cab/bookings`}>{L('Give feedback', 'फ़ीडबैक दें')}</a>
+          <a href={`/cab/bookings`}>{L('Give feedback', 'फ़ीडबैक दें')}</a>
         </div>
       ) : null}
 

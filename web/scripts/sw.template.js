@@ -3,7 +3,7 @@
 // Supabase and other APIs are never cached.
 const VERSION = '__VERSION__';
 const OFFLINE_URL = '/offline';
-const PRECACHE = [OFFLINE_URL, '/manifest.webmanifest', '/icons/icon-192.png', '/img/brand/mark.png'];
+const PRECACHE = [OFFLINE_URL, '/manifest.webmanifest', '/icons/signature-icon-192.png', '/img/brand/mark.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(PRECACHE)).then(() => self.skipWaiting()));
@@ -44,7 +44,7 @@ self.addEventListener('fetch', (e) => {
   // Pages: network first so updates show at once; saved copy when offline.
   if (req.mode === 'navigate') {
     e.respondWith(fetch(req).then((res) => {
-      if (res.ok && !url.pathname.startsWith('/account')) { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(req, copy)); }
+      if (res.ok && !/^\/(account|cab|drive|admin|partner|trips|login|t)(\/|$)/.test(url.pathname)) { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(req, copy)); }
       return res;
     }).catch(() => caches.match(req).then((hit) => hit || caches.match(OFFLINE_URL))));
   }
