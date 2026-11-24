@@ -34,7 +34,11 @@ export function MonitorRefresh({ label, loadingLabel, watchIncidents }) {
 }
 
 export function MonitorAction({ action, label, pendingLabel, noteLabel, note, confirm, danger }) {
+  const router = useRouter();
   const [state, submit, pending] = useActionState(action, {});
+  useEffect(() => {
+    if (state.saved) router.refresh();
+  }, [router, state.saved]);
   return <form action={submit} className="stack" onSubmit={confirm
     ? (event) => { if (!window.confirm(confirm)) event.preventDefault(); }
     : undefined}>
