@@ -133,24 +133,3 @@ export async function vehiclesAdmin() {
       search, table),
     allImgs.some((i) => i.status === 'approved') ? h('section', { class: 'stack' }, h('h2', {}, L('Approved photos', 'मंज़ूर फ़ोटो')), h('div', { class: 'img-grid' }, allImgs.filter((i) => i.status === 'approved').map(imgCard))) : null);
 }
-
-import { badge, inr } from '../ui';
-import { t, pick } from '../i18n';
-import { locations, locationById } from '../store';
-export async function rides() {
-  await locations();
-  const rows = await q(sb.from('cab_rides').select('*, partners(business_name, phone), cab_bookings(id,status,seats,passenger_name,phone)').order('departure_at', { ascending: false }).limit(200));
-  if (!rows.length) return empty();
-  return h('div', { class: 'table-wrap' }, h('table', { class: 'table' },
-    h('tbody', {}, rows.map((r) => {
-      const f = locationById(r.from_location_id); const to = locationById(r.to_location_id);
-      return h('tr', {},
-        h('td', {}, h('strong', {}, `${f ? pick(f, 'name') : '?'} → ${to ? pick(to, 'name') : '?'}`), h('div', { class: 'muted small' }, fmtDate(r.departure_at, true))),
-        h('td', {}, r.partners?.business_name, h('div', { class: 'muted small' }, r.vehicle_model)),
-        h('td', {}, `${r.seats_booked}/${r.seats_total}`, h('div', { class: 'muted small' }, `${inr(r.price_per_seat)} ${t('per_seat')}`)),
-        h('td', {}, badge(r.status)),
-        h('td', { class: 'right' }, r.status === 'open' || r.status === 'full'
-          ? h('button', { class: 'btn btn-ghost btn-sm', onclick: (e) => busy(e.currentTarget, async () => { await q(sb.from('cab_rides').update({ status: 'cancelled' }).eq('id', r.id)); location.reload(); }) }, t('cancel')) : null));
-    }))));
-}
-

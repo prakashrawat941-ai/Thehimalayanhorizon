@@ -214,6 +214,8 @@ select pg_temp.ok((public.raise_sos(pg_temp.id('r1'), 28.72, 77.53)) ->> 'repeat
 select pg_temp.err($q$ select public.admin_update_sos((select (j ->> 'id')::uuid from pg_temp.sos), 'resolved') $q$, 'Admins only', '49 passenger cannot close an SOS as admin');
 reset role;
 select pg_temp.login('00000000-0000-4000-8000-0000000000a1');
+select pg_temp.err($q$ select public.admin_update_sos((select (j ->> 'id')::uuid from pg_temp.sos), 'resolved') $q$,
+  'status has changed', 'Monitor: open incident must be acknowledged before resolution');
 select (public.admin_update_sos((select (j ->> 'id')::uuid from sos), 'acknowledged', 'Called the passenger')).status;
 reset role;
 select pg_temp.ok((select status = 'acknowledged' and handled_by = '00000000-0000-4000-8000-0000000000a1' from public.sos_incidents where id = (select (j ->> 'id')::uuid from sos)),
@@ -271,6 +273,25 @@ update public.driver_documents set status = 'approved' where user_id = '00000000
 reset role;
 select pg_temp.ok((select status = 'approved' and reviewed_by = '00000000-0000-4000-8000-0000000000a1' from public.driver_documents where user_id = '00000000-0000-4000-8000-0000000000d1'),
                   '66 admin approves a document (reviewer recorded)');
+
+-- ── Admin Cab Monitor ──
+select pg_temp.login('00000000-0000-4000-8000-0000000000ee');
+select pg_temp.ok(not exists (select 1 from public.sos_incidents where id = (select (j ->> 'id')::uuid from sos)), 'Monitor: unrelated user cannot see the incident');
+reset role;
+select pg_temp.login('00000000-0000-4000-8000-0000000000a1');
+select pg_temp.err($q$ select public.admin_update_sos((select (j ->> 'id')::uuid from pg_temp.sos), 'acknowledged') $q$,
+  'status has changed', 'Monitor: repeat acknowledgement is rejected');
+select pg_temp.ok((public.admin_update_sos((select (j ->> 'id')::uuid from sos), 'resolved', 'Passenger confirmed safe')).status = 'resolved',
+  'Monitor: admin resolves an acknowledged incident');
+select pg_temp.err($q$ select public.admin_update_sos((select (j ->> 'id')::uuid from pg_temp.sos), 'resolved') $q$,
+  'status has changed', 'Monitor: repeat resolution is rejected');
+reset role;
+select pg_temp.ok((select count(*) = 2 from public.notifications
+  where user_id = '00000000-0000-4000-8000-000000000001'
+    and title in ('THH support has seen your SOS', 'Your SOS has been closed by THH support')
+    and link = '/cab/bookings'), 'Monitor: exactly one notification per transition');
+select pg_temp.ok(exists (select 1 from pg_publication_tables
+  where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'sos_incidents'), 'Monitor: SOS incidents are published to Realtime');
 
 -- ── Catalog and settings ──
 select pg_temp.login('00000000-0000-4000-8000-0000000000d1');
