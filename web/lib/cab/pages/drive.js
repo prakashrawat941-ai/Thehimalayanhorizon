@@ -198,8 +198,8 @@ export async function publish({ params }) {
   let seats = r ? r.seats_total : veh().seats;
   const seatsOut = h('output', { class: 'stepper-n', id: 'pr-seats' }, String(seats));
   const stepSeats = (d) => { seats = Math.min(veh().seats, Math.max(r ? Math.max(1, r.seats_booked) : 1, seats + d)); seatsOut.textContent = String(seats); };
-  const vehPic = h('div', { class: 'pr-vehpic' }, vehicleVisual(veh().model, { variantId: veh().variant_id }));
-  vehS.addEventListener('change', () => { seats = Math.min(seats, veh().seats); seatsOut.textContent = String(seats); clear(vehPic).append(vehicleVisual(veh().model, { variantId: veh().variant_id })); });
+  const vehPic = h('div', { class: 'pr-vehpic' }, vehicleVisual(veh().model, { variantId: veh().variant_id, vehicleId: veh().id }));
+  vehS.addEventListener('change', () => { seats = Math.min(seats, veh().seats); seatsOut.textContent = String(seats); clear(vehPic).append(vehicleVisual(veh().model, { variantId: veh().variant_id, vehicleId: veh().id })); });
   const priceI = h('input', { class: 'input', id: 'pr-price', type: 'number', min: 0, max: 100000, step: 10, value: r ? r.price_per_seat : '', placeholder: '500' });
   const pickI = h('input', { class: 'input', id: 'pr-pick', maxlength: 200, value: r?.pickup_point || '', placeholder: L('e.g. Rishikesh bus stand', 'जैसे ऋषिकेश बस स्टैंड') });
   const dropI = h('input', { class: 'input', id: 'pr-drop', maxlength: 200, value: r?.drop_point || '', placeholder: L('e.g. Mussoorie library chowk', 'जैसे मसूरी लाइब्रेरी चौक') });
@@ -514,7 +514,7 @@ export async function profile() {
       save),
     h('section', { class: 'panel stack' }, h('h2', {}, L('My vehicles', 'मेरी गाड़ियाँ')),
       allVeh.length ? allVeh.map((v) => h('div', { class: 'veh-row' },
-        vehicleVisual(v.model, { size: 'sm', variantId: v.variant_id }), h('div', { class: 'grow' }, h('strong', {}, v.model), h('div', { class: 'small muted' }, `${v.registration_no} · ${v.seats} ${L('passenger seats', 'यात्री सीटें')}${v.has_ac ? ' · AC' : ''}${v.variant_id ? '' : ` · ${L('not from the list', 'सूची से नहीं')}`}`)),
+        vehicleVisual(v.model, { size: 'sm', variantId: v.variant_id, vehicleId: v.id }), h('div', { class: 'grow' }, h('strong', {}, v.model), h('div', { class: 'small muted' }, `${v.registration_no} · ${v.seats} ${L('passenger seats', 'यात्री सीटें')}${v.has_ac ? ' · AC' : ''}${v.variant_id ? '' : ` · ${L('not from the list', 'सूची से नहीं')}`}`)),
         h('button', { class: 'btn btn-ghost btn-sm', type: 'button', onclick: async (e) => {
           await busy(e.currentTarget, async () => { await q(sb.from('vehicles').update({ is_active: !v.is_active }).eq('id', v.id)); location.reload(); });
         } }, v.is_active ? L('Hide', 'छिपाएँ') : L('Use again', 'फिर से इस्तेमाल करें')))) : h('p', { class: 'muted' }, L('No vehicle yet.', 'अभी कोई गाड़ी नहीं।'))),

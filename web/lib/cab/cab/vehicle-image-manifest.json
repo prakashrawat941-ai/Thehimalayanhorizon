@@ -1,0 +1,20 @@
+{
+  "source": "OpenAI Image Generation",
+  "imageType": "AI-generated representative illustration",
+  "usage": "Generated for The Himalayan Horizon product previews",
+  "approvalStatus": "approved_as_representative",
+  "verificationStatus": "model likeness checked; generation, trim and physical cab unverified",
+  "format": "transparent WebP, 240x150 and 480x300",
+  "missingImagePolicy": "Models without an approved database image or a listed illustration use their category placeholder.",
+  "models": [
+    { "make": "Toyota", "model": "Innova Crysta", "generation": null, "variant": null, "angles": { "front_34": "innova-crysta-front", "side": "innova-crysta-side" } },
+    { "make": "Toyota", "model": "Innova Hycross", "generation": null, "variant": null, "angles": { "front_34": "innova-hycross-front" } },
+    { "make": "Maruti Suzuki", "model": "Ertiga", "generation": null, "variant": null, "angles": { "front_34": "ertiga-front" } },
+    { "make": "Maruti Suzuki", "model": "Wagon R", "generation": null, "variant": null, "angles": { "front_34": "wagon-r-front" } },
+    { "make": "Maruti Suzuki", "model": "Swift", "generation": null, "variant": null, "angles": { "front_34": "swift-front" } },
+    { "make": "Maruti Suzuki", "model": "Eeco", "generation": null, "variant": null, "angles": { "front_34": "eeco-front" } },
+    { "make": "Mahindra", "model": "Bolero", "generation": null, "variant": null, "angles": { "front_34": "bolero-front" } },
+    { "make": "Force Motors", "model": "Urbania", "generation": null, "variant": null, "angles": { "front_34": "urbania-front", "side": "urbania-side" } },
+    { "make": "Force Motors", "model": "Traveller", "generation": null, "variant": null, "angles": { "front_34": "traveller-front", "side": "traveller-side" } }
+  ]
+}

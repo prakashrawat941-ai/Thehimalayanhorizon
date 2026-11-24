@@ -1250,14 +1250,21 @@ a.ds-stat:hover { border-color: var(--green); }
 .veh-vis { margin: 0; position: relative; background: linear-gradient(160deg, #f1eee6, #e7ecE4); border-radius: var(--radius-sm); overflow: hidden; display: grid; place-items: center; }
 .veh-vis.veh-lg { aspect-ratio: 16 / 9; margin: 14px 0; border: 1px solid var(--line); }
 .veh-vis.veh-sm { width: 64px; height: 42px; flex: none; border-radius: 8px; }
-.veh-vis img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.veh-vis.veh-lg img { object-fit: contain; background: #fff; }
+.veh-image-stage { width: 100%; height: 100%; min-height: 0; display: grid; place-items: center; }
+.veh-vis img { width: 100%; height: 100%; min-height: 0; object-fit: contain; display: block; }
+.veh-vis.veh-lg img { position: absolute; inset: 0; padding: 6px 12px 31px; }
 .veh-draw { width: 72%; max-width: 320px; display: grid; place-items: center; }
 .veh-sm .veh-draw { width: 82%; }
 .veh-draw svg { width: 100%; height: auto; }
 .veh-draw path { fill: #c9d6cd; stroke: var(--green); stroke-width: 1.6; stroke-linejoin: round; }
 .veh-draw circle { fill: #fff; stroke: var(--green); stroke-width: 3; }
 .veh-vis figcaption { position: absolute; left: 8px; right: 8px; bottom: 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: space-between; font-size: .76rem; }
+.veh-vis figcaption:empty { display: none; }
+.veh-vis .veh-caption-small { inset: auto 1px 1px; font-size: .55rem; }
+.veh-caption-small .veh-tag { padding: 0 3px; }
+.veh-angles { position: absolute; top: 6px; right: 6px; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
+.veh-angles button { color: var(--ink); background: var(--card, #fff); min-height: 36px; padding: 3px 8px; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: .75rem; cursor: pointer; }
+.veh-angles button[aria-pressed='true'] { background: var(--green); color: #fff; border-color: var(--green); }
 .veh-tag { background: rgba(255, 253, 249, .94); color: var(--ink-2); padding: 3px 9px; border-radius: 999px; font-weight: 600; border: 1px solid var(--line); }
 .veh-tag.soft { color: var(--muted); font-weight: 500; }
 .veh-tag.sm { position: absolute; bottom: 2px; left: 2px; font-size: .58rem; padding: 0 4px; }
