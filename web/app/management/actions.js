@@ -18,6 +18,7 @@ export async function saveWork(form) {
         })
       : await db.rpc('management_submit', {
           p_kind: form.get('kind'),
+          p_icon: form.get('iconStyle') || null,
           p_subject: form.get('subject'),
           p_amount: form.get('amount') || null,
           p_assignee: form.get('assignee') || null,

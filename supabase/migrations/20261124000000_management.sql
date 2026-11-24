@@ -6,7 +6,7 @@ create table public.management_members (
 create table public.management_work (
  id uuid primary key default gen_random_uuid(), owner_id uuid not null references auth.users(id),
  office text not null, kind text not null, subject text not null check(length(trim(subject)) between 1 and 240),
- request_key uuid, unique(owner_id,request_key), partner_id uuid references public.partners(id), booking_code text, email_to text, due_date date,
+ icon_style text check(icon_style in ('signature','classic')), request_key uuid, unique(owner_id,request_key), partner_id uuid references public.partners(id), booking_code text, email_to text, due_date date,
  amount numeric(12,2), assignee uuid references public.management_members(user_id),
  status text not null default 'open' check(status in ('open','completed','approved','returned')),
  created_at timestamptz not null default now(), work_day date not null default (now() at time zone 'Asia/Kolkata')::date
@@ -38,7 +38,7 @@ create policy management_inbox on public.management_work for select to authentic
 create policy management_history on public.management_events for select to authenticated using
 (exists(select 1 from public.management_work w where w.id=work_id));
 
-create function public.management_submit(p_kind text,p_subject text,p_amount numeric default null,p_assignee uuid default null,p_partner uuid default null,p_booking text default null,p_email text default null,p_due date default null,p_request uuid default null)
+create function public.management_submit(p_kind text,p_subject text,p_amount numeric default null,p_assignee uuid default null,p_partner uuid default null,p_booking text default null,p_email text default null,p_due date default null,p_request uuid default null,p_icon text default null)
 returns uuid language plpgsql security definer set search_path='' as $$
 declare member public.management_members; work uuid; target_office text;
 begin
@@ -58,9 +58,10 @@ begin
  (select from public.partners where id=p_partner and status='pending' and owner_id is distinct from auth.uid())) then raise exception 'Invalid partner'; end if;
  if p_booking is not null and (p_kind <> 'booking' or not exists(select from public.booking_requests where booking_code=p_booking)
  and not exists(select from public.cab_bookings where booking_code=p_booking)) then raise exception 'Unknown booking'; end if;
+ if p_icon is not null and p_kind<>'release' then raise exception 'Icon change requires a release'; end if;
  if (p_kind='email') <> (p_email is not null) or length(p_email)>254 or p_email !~ '^[^[:space:]@]+@[^[:space:]@]+[.][^[:space:]@]+$' then raise exception 'Invalid email'; end if;
- insert into public.management_work(owner_id,office,kind,subject,amount,assignee,partner_id,booking_code,email_to,due_date,request_key,status)
- values(auth.uid(),coalesce(target_office,member.office),p_kind,trim(p_subject),p_amount,p_assignee,p_partner,p_booking,p_email,p_due,p_request,
+ insert into public.management_work(owner_id,office,kind,subject,amount,assignee,partner_id,booking_code,email_to,due_date,request_key,icon_style,status)
+ values(auth.uid(),coalesce(target_office,member.office),p_kind,trim(p_subject),p_amount,p_assignee,p_partner,p_booking,p_email,p_due,p_request,p_icon,
  case when p_kind in ('attendance','report') then 'completed' else 'open' end) returning id into work;
  insert into public.management_events(work_id,actor,action) values(work,auth.uid(),'submitted');
  return work;
@@ -83,6 +84,10 @@ begin
  ((r='founder' and w.kind in ('critical','finance','expense')) or (r='ceo' and w.kind in ('partner','cms','release'))) then null;
  else raise exception 'Not permitted' using errcode='42501'; end if;
  if coalesce(length(trim(p_note)),0) not between 1 and 500 then raise exception 'Decision note required'; end if;
+ if w.kind='release' and p_action='approved' and w.icon_style is not null then
+ insert into public.site_settings(key,value) values('pwa_icon',to_jsonb(w.icon_style))
+ on conflict(key) do update set value=excluded.value,updated_at=now();
+ end if;
  update public.management_work set status=p_action where id=p_id;
  insert into public.management_events(work_id,actor,action,note) values(p_id,auth.uid(),p_action,trim(p_note));
 end $$;
@@ -93,8 +98,8 @@ begin
  return query select coalesce(sum(total_amount),0)::bigint,coalesce(sum(platform_commission),0)::bigint from public.booking_requests
  where kind='homestay' and status in ('confirmed','checked_in','completed');
 end $$;
-revoke all on function public.management_submit(text,text,numeric,uuid,uuid,text,text,date,uuid),public.management_decide(uuid,text,text),public.management_finance() from public,anon;
-grant execute on function public.management_submit(text,text,numeric,uuid,uuid,text,text,date,uuid),public.management_decide(uuid,text,text),public.management_finance() to authenticated;
+revoke all on function public.management_submit(text,text,numeric,uuid,uuid,text,text,date,uuid,text),public.management_decide(uuid,text,text),public.management_finance() from public,anon;
+grant execute on function public.management_submit(text,text,numeric,uuid,uuid,text,text,date,uuid,text),public.management_decide(uuid,text,text),public.management_finance() to authenticated;
 -- Record direct CMS edits in the same immutable history as submissions.
 create function private.management_cms_event() returns trigger language plpgsql security definer set search_path='' as $$
 declare work uuid;

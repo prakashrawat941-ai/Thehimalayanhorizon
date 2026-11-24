@@ -239,6 +239,14 @@ export async function Workspace({ expected, searchParams }) {
               <p>
                 {title(w.status)} {w.amount && ' · ₹' + w.amount}
               </p>
+              {w.icon_style && (
+                <p>
+                  {L('Requested icon', 'प्रस्तावित आइकन')} ·{' '}
+                  {w.icon_style === 'classic'
+                    ? L('Classic mountain', 'क्लासिक पर्वत')
+                    : L('Himalayan Signature', 'हिमालयन सिग्नेचर')}
+                </p>
+              )}
               {w.booking_code && <p>{w.booking_code}</p>}
               {w.due_date && (
                 <p>

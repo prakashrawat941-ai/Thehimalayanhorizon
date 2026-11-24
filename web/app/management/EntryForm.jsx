@@ -78,6 +78,22 @@ export default function EntryForm({
           </label>
         </>
       )}
+      {kind === 'release' && (
+        <label>
+          {L('Installed app icon', 'इंस्टॉल किए गए ऐप का आइकन')}
+          <select name="iconStyle">
+            <option value="">
+              {L('Keep current icon', 'वर्तमान आइकन रखें')}
+            </option>
+            <option value="signature">
+              {L('Himalayan Signature', 'हिमालयन सिग्नेचर')}
+            </option>
+            <option value="classic">
+              {L('Classic mountain', 'क्लासिक पर्वत')}
+            </option>
+          </select>
+        </label>
+      )}
       {kind === 'partner' && (
         <label>
           {L('Pending partner for review', 'समीक्षा के लिए पार्टनर')}

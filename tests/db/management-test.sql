@@ -34,8 +34,11 @@ select public.management_submit('task','Confirm office booking',null,'10000000-0
 select pg_temp.login(6);
 select public.management_decide(:'task_id','completed','Called guest');
 select pg_temp.login(3);
+select public.management_submit('release','App icon',p_icon=>'classic') as release_id \gset
 select public.management_submit('partner','Check documents',p_partner=>:'partner_id') as review_id \gset
 select pg_temp.login(2);
+select public.management_decide(:'release_id','approved','Brand reviewed');
+select pg_temp.check_true((select value='"classic"'::jsonb from public.site_settings where key='pwa_icon'),'Approved icon not applied');
 select public.management_decide(:'review_id','approved','Checked');
 reset role;
 select pg_temp.check_true((select status='approved' from public.partners where id=:'partner_id'),'Partner approval did not apply');
