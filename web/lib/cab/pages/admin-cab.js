@@ -50,7 +50,7 @@ export async function driversAdmin(query = {}) {
         d.status === 'suspended' ? h('span', { class: 'pill pill-bad' }, L('Suspended', 'निलंबित'))
           : d.is_verified ? h('span', { class: 'pill pill-ok' }, '✓ ', L('Verified', 'वेरिफ़ाइड')) : h('span', { class: 'pill pill-warn' }, L('Waiting', 'बाकी'))),
       d.about ? h('p', { class: 'small' }, d.about) : null,
-      h('div', { class: 'drv-veh' }, vs.length ? vs.map((v) => h('div', { class: 'veh-row' }, vehicleVisual(v.model, { size: 'sm', variantId: v.variant_id }),
+      h('div', { class: 'drv-veh' }, vs.length ? vs.map((v) => h('div', { class: 'veh-row' }, vehicleVisual(v.model, { size: 'sm', variantId: v.variant_id, vehicleId: v.id }),
         h('div', { class: 'grow' }, h('strong', {}, v.model), h('div', { class: 'small muted' }, `${v.registration_no} · ${v.seats} ${L('passenger seats', 'यात्री सीटें')}${v.variant_id ? '' : ` · ${L('not from the list: check seats', 'सूची से नहीं: सीटें जाँचें')}`}`))))
         : h('p', { class: 'small muted' }, L('No vehicle added yet.', 'अभी कोई गाड़ी नहीं।'))),
       h('div', {}, h('h3', { class: 'small-h' }, L('Documents', 'दस्तावेज़')),

@@ -1,10 +1,11 @@
 // Vehicle catalog (makes → models → variants), vehicle pictures with honest labels,
 // and the searchable vehicle picker used by drivers.
-// Pictures: only admin-approved images (Wikimedia Commons with credit, or owner photos).
-// No exact match → same model, labelled "Representative image" → clean category drawing.
+// Approved cab photos and sourced catalogue images take priority over bundled illustrations.
 import { h, clear, icon } from '../ui.js';
 import { getLang } from '../i18n.js';
 import { sb, q } from '../sb.js';
+import imageManifest from './vehicle-image-manifest.json';
+import { selectVehicleImages } from './vehicle-image-lookup.mjs';
 
 const L = (en, hi) => (getLang() === 'hi' ? hi : en);
 let cat = null;
@@ -15,7 +16,7 @@ export async function catalog() {
     q(sb.from('vehicle_makes').select('id,name').eq('is_active', true).order('name')).catch(() => []),
     q(sb.from('vehicle_models').select('id,make_id,name,category,aliases,market_status,is_electric').eq('is_active', true).order('name')).catch(() => []),
     q(sb.from('vehicle_variants').select('id,model_id,model_year,variant,seats_total,passenger_seats,is_verified,generation,seating_source_url').eq('is_active', true)).catch(() => []),
-    q(sb.from('vehicle_images').select('id,model_id,variant_id,model_year,angle,url,source_url,author,licence,is_generic,sort').eq('status', 'approved').order('sort')).catch(() => []),
+    q(sb.from('vehicle_images').select('id,model_id,variant_id,vehicle_id,angle,url,source_url,author,licence,is_generic,sort,status').eq('status', 'approved').order('sort')).catch(() => []),
   ]);
   const makeById = Object.fromEntries((makes || []).map((m) => [m.id, m]));
   const full = (models || []).map((m) => ({ ...m, make: makeById[m.make_id]?.name || '', label: `${makeById[m.make_id]?.name || ''} ${m.name}`.trim() }));
@@ -43,15 +44,10 @@ export function modelFor(name, c = cat) {
   return best.size === 1 ? [...best][0] : null;
 }
 
-// Best picture: exact variant/year → same model (labelled) → none (drawing).
-export function pictureFor(model, { variantId = null, angle = 'front_34' } = {}, c = cat) {
-  if (!c || !model) return null;
-  const imgs = c.images.filter((i) => i.model_id === model.id);
-  const pickAngle = (list) => list.find((i) => i.angle === angle) || list[0] || null;
-  const exact = variantId ? pickAngle(imgs.filter((i) => i.variant_id === variantId && !i.is_generic)) : null;
-  if (exact) return { ...exact, exact: true };
-  const any = pickAngle(imgs);
-  return any ? { ...any, exact: false } : null;
+export async function rideVehicleVariants(rides) {
+  if (!rides.length) return {};
+  const rows = await q(sb.rpc('cab_ride_vehicle_variants', { p_ride_ids: rides.map((ride) => ride.id) })).catch(() => []);
+  return Object.fromEntries((rows || []).map((row) => [row.ride_id, row.variant_id]));
 }
 
 const SHAPES = {
@@ -72,26 +68,48 @@ function drawing(category = 'other') {
 }
 
 // Picture block with honest caption. size: 'lg' (picker, ride page) or 'sm' (cards).
-export function vehicleVisual(name, { variantId = null, size = 'lg', model = null } = {}) {
+export function vehicleVisual(name, { variantId = null, vehicleId = null, size = 'lg', model = null } = {}) {
   const box = h('figure', { class: `veh-vis veh-${size}` });
   const paint = () => {
-    const m = model || modelFor(name);
-    const pic = pictureFor(m, { variantId });
+    const variant = cat?.variants.find((item) => item.id === variantId);
+    const m = model || cat?.models.find((item) => item.id === variant?.model_id) || modelFor(name);
+    const images = selectVehicleImages(m, { variantId, vehicleId }, cat, imageManifest);
     clear(box);
-    if (pic) {
-      const img = h('img', { src: pic.url, alt: m ? m.label : name || '', loading: 'lazy', decoding: 'async', width: 480, height: 300, referrerpolicy: 'no-referrer' });
-      img.addEventListener('error', () => { img.replaceWith(drawing(m?.category)); });
-      box.append(img);
-      if (size === 'lg') {
-        box.append(h('figcaption', {},
-          pic.exact ? null : h('span', { class: 'veh-tag' }, L('Representative image', 'प्रतिनिधि तस्वीर')),
-          h('span', { class: 'veh-credit' }, [pic.author && `${L('Photo', 'फ़ोटो')}: ${pic.author}`, pic.licence].filter(Boolean).join(' · '),
-            pic.source_url ? [' · ', h('a', { href: pic.source_url, target: '_blank', rel: 'noopener' }, L('source', 'स्रोत'))] : null)));
-      } else if (!pic.exact) box.append(h('span', { class: 'veh-tag sm' }, L('Representative', 'प्रतिनिधि')));
-    } else {
-      box.append(drawing(m?.category));
-      if (size === 'lg') box.append(h('figcaption', {}, h('span', { class: 'veh-tag soft' }, `${m ? CAT_LABEL[m.category] || '' : ''}${m ? ' · ' : ''}${L('Photo coming soon', 'फ़ोटो जल्द')}`)));
+    const stage = h('div', { class: 'veh-image-stage' });
+    const caption = h('figcaption', { class: size === 'sm' ? 'veh-caption-small' : null });
+    box.append(stage, caption);
+    const placeholder = () => {
+      clear(stage).append(drawing(m?.category));
+      clear(caption);
+      if (size === 'lg') caption.append(h('span', { class: 'veh-tag soft' }, L('Photo coming soon', 'फ़ोटो जल्द')));
+    };
+    if (!images.length) { placeholder(); return; }
+
+    const angleLabels = { front_34: L('Front', 'सामने'), side: L('Side', 'बगल'), rear: L('Rear', 'पीछे'),
+      interior: L('Interior', 'अंदर'), dashboard: L('Dashboard', 'डैशबोर्ड'), other: L('Other view', 'दूसरा दृश्य') };
+    const controls = [];
+    const show = (pic) => {
+      const label = pic.kind === 'actual' ? L('Actual cab photo', 'बुकिंग वाली गाड़ी की फ़ोटो')
+        : pic.generated ? L('AI model preview', 'एआई मॉडल पूर्वावलोकन') : L('Representative image', 'प्रतिनिधि तस्वीर');
+      clear(caption).append(h('span', { class: 'veh-tag', title: label }, size === 'sm' && pic.kind !== 'actual'
+        ? L('Preview', 'पूर्वावलोकन') : label));
+      const credits = [pic.author, pic.licence].filter(Boolean).join(' · ');
+      const source = pic.source_url?.startsWith('https://') ? h('a', { href: pic.source_url, target: '_blank', rel: 'noopener noreferrer' }, L('Source', 'स्रोत')) : null;
+      if (size === 'lg' && (credits || source)) caption.append(h('span', { class: 'veh-credit' }, credits, credits && source ? ' · ' : '', source));
+      const img = h('img', { src: size === 'sm' && pic.thumbnail ? pic.thumbnail : pic.url,
+        srcset: pic.thumbnail ? `${pic.thumbnail} 240w, ${pic.url} 480w` : null,
+        sizes: pic.thumbnail ? (size === 'sm' ? '64px' : '(max-width: 540px) 92vw, 480px') : null,
+        alt: `${m?.label || name || ''} · ${angleLabels[pic.angle]} · ${label}`, loading: 'lazy', decoding: 'async',
+        width: 480, height: 300, referrerpolicy: 'no-referrer' });
+      clear(stage).append(img);
+      img.addEventListener('error', () => { if (img.parentNode === stage) placeholder(); }, { once: true });
+      controls.forEach((button, index) => button.setAttribute('aria-pressed', String(images[index] === pic)));
+    };
+    if (size === 'lg' && images.length > 1) {
+      images.forEach((pic) => controls.push(h('button', { type: 'button', onclick: () => show(pic) }, angleLabels[pic.angle])));
+      box.append(h('div', { class: 'veh-angles', role: 'group', 'aria-label': L('Vehicle photo angles', 'गाड़ी की फ़ोटो के दृश्य') }, controls));
     }
+    show(images[0]);
   };
   if (cat) paint(); else { box.append(drawing()); catalog().then(paint).catch(() => {}); }
   return box;
@@ -154,7 +172,7 @@ export function vehiclePicker(v = {}, { regInput, acInput } = {}) {
     st.model = m; st.manual = false; manualBox.hidden = true; search.value = '';
     const vs = cat.variants.filter((x) => x.model_id === m.id).sort((a, b) => a.seats_total - b.seats_total);
     st.variant = vs.find((x) => x.id === variantId) || (vs.length === 1 ? vs[0] : null);
-    clear(chosen).append(vehicleVisual(m.label, { model: m, variantId: st.variant?.id }),
+    clear(chosen).append(vehicleVisual(m.label, { model: m, variantId: st.variant?.id, vehicleId: v.id }),
       h('div', { class: 'vh-chosen-txt' }, h('strong', {}, m.label), h('span', { class: 'small muted' }, modelDescription(m)),
         h('button', { type: 'button', class: 'link-btn small', onclick: () => { st.model = null; st.variant = null; st.manual = false; manualBox.hidden = true; clear(chosen); clear(variants); seatsNote.textContent = ''; list(); search.focus(); } }, L('Change', 'बदलें'))));
     clear(variants);

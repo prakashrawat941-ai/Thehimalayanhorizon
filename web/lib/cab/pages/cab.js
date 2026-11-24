@@ -6,7 +6,7 @@ import { getLang } from '../i18n.js';
 import { sb, q } from '../sb.js';
 import { state, user, loadProfile, settings } from '../store.js';
 import { allPlaces, placeInput, placeName, placeById, placesCached } from '../places.js';
-import { vehicleVisual, catalog } from '../cab/vehicles.js';
+import { vehicleVisual, catalog, rideVehicleVariants } from '../cab/vehicles.js';
 
 // Places in links: listed places by id (?from=…), any other village by position (?fromg=lat,lng|name).
 const placeKey = (p) => p?.id || (p ? `${(+p.lat).toFixed(4)},${(+p.lng).toFixed(4)}` : '');
@@ -257,8 +257,7 @@ export async function find({ query }) {
   const onPath = (r) => { const path = ridePath(r, places); const a = from.id ? path.indexOf(from.id) : -1; const b = to.id ? path.indexOf(to.id) : -1; return a >= 0 && b > a; };
   const matches = rides.filter((r) => meta[r.id] || onPath(r))
     .sort((a, b) => (meta[a.id]?.rank ?? 999) - (meta[b.id]?.rank ?? 999) || new Date(a.departure_at) - new Date(b.departure_at));
-  await catalog().catch(() => {});
-  const card = await driverCards(matches);
+  const [card, variants] = await Promise.all([driverCards(matches), rideVehicleVariants(matches), catalog()]);
   const list = h('div', { class: 'ride-cards' });
   if (!matches.length) {
     const shift = (d) => { const x = new Date(`${date}T12:00:00+05:30`); x.setDate(x.getDate() + d); return x.toISOString().slice(0, 10); };
@@ -273,7 +272,7 @@ export async function find({ query }) {
       h('p', { class: 'small muted' }, L('Driving this route? ', 'इस रूट पर जा रहे हैं? '), h('a', { href: user() ? '/drive/publish' : '/login?next=/drive/publish' }, L('Publish your ride', 'अपनी राइड डालें')))));
   }
   const pills = {};
-  matches.forEach((r) => { const el = rideCard(r, card(r), n, places, meta[r.id], from); pills[r.id] = el; list.append(el); });
+  matches.forEach((r) => { const el = rideCard(r, card(r), n, places, meta[r.id], from, variants[r.id]); pills[r.id] = el; list.append(el); });
   watchRides(matches.map((r) => r.id), (row) => {
     const el = pills[row.id]; if (!el) return;
     const left = row.seats_total - row.seats_booked;
@@ -289,7 +288,7 @@ export async function find({ query }) {
   return page;
 }
 
-function rideCard(r, d, n, places, mt = null, from = null) {
+function rideCard(r, d, n, places, mt = null, from = null, variantId = null) {
   const left = r.seats_total - r.seats_booked;
   const enough = left >= n && r.status === 'open';
   const v = VEHICLES[r.vehicle_type];
@@ -310,7 +309,7 @@ function rideCard(r, d, n, places, mt = null, from = null) {
         : `${L('Pickup about', 'पिकअप लगभग')} ${Math.round(mt.pickup_km)} km ${L('from the route', 'रूट से')}`,
       mt.drop_km > 2 ? h('span', { class: 'muted' }, ` · ${L('drop', 'ड्रॉप')} ${Math.round(mt.drop_km)} km`) : null,
       r.distance_km ? h('span', { class: 'muted' }, ` · ${L('ride', 'राइड')} ${Math.round(r.distance_km)} km`) : null) : null,
-    h('div', { class: 'rc-meta' }, vehicleVisual(r.vehicle_model, { size: 'sm' }), h('span', {}, r.vehicle_model), v ? h('span', { class: 'muted' }, `· ${v.label}`) : null),
+    h('div', { class: 'rc-meta' }, vehicleVisual(r.vehicle_model, { size: 'sm', variantId, vehicleId: r.vehicle_id }), h('span', {}, r.vehicle_model), v ? h('span', { class: 'muted' }, `· ${v.label}`) : null),
     h('div', { class: 'rc-foot' },
       h('div', {}, h('span', { class: 'price' }, inr(r.price_per_seat)), h('span', { class: 'muted small' }, ` / ${L('seat', 'सीट')}`),
         n > 1 ? h('div', { class: 'small muted' }, `${inr(r.price_per_seat * n)} ${L('for', 'कुल')} ${n}`) : null),
@@ -323,7 +322,7 @@ export async function ride({ params, query }) {
   const places = await allPlaces();
   const r = await q(sb.from('cab_rides').select('*').eq('id', params.id).maybeSingle());
   if (!r) return h('div', { class: 'app-page' }, h('div', { class: 'app-head' }, back('/cab/find'), h('h1', {}, L('Ride not found', 'राइड नहीं मिली'))), empty());
-  const [cards, rel] = await Promise.all([driverCards([r]), reliability(r.driver_id)]);
+  const [cards, rel, variants] = await Promise.all([driverCards([r]), reliability(r.driver_id), rideVehicleVariants([r])]);
   const d = cards(r);
   const path = ridePath(r, places);
   const n = Math.max(1, Number(query.n) || 1);
@@ -366,7 +365,7 @@ export async function ride({ params, query }) {
         h('div', { class: 'driver-head' }, avatar(d.photo_url, d.full_name, 'av av-lg'),
           h('div', {}, h('h1', {}, d.full_name), driverBadge(d))),
         trustPanel(rel),
-        vehicleVisual(r.vehicle_model),
+        vehicleVisual(r.vehicle_model, { variantId: variants[r.id], vehicleId: r.vehicle_id }),
         h('div', { class: 'feature-row' },
           h('div', {}, icon('car', 22), h('span', {}, r.vehicle_model, regionOf(r) ? h('small', { class: 'muted' }, ` · ${L('Registered', 'रजिस्टर्ड')} ${regionOf(r)}`) : null)),
           h('div', { class: 'seats-live' }, icon('people', 22), seatsLive),
