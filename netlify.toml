@@ -1,6 +1,16 @@
 [build]
   base = "web"
-  command = "npm run build"
+  command = '''
+if [ "$BRANCH" = "cab-upgrade-staging" ] || [ "$HEAD" = "cab-upgrade-staging" ]; then
+  if [ "$CONTEXT" != "deploy-preview" ] && [ "$CONTEXT" != "branch-deploy" ]; then
+    echo "Cab staging requires a non-production deploy context."
+    exit 1
+  fi
+  export NEXT_PUBLIC_SUPABASE_URL="https://gboxcnxgdkcewstkxogt.supabase.co"
+  export NEXT_PUBLIC_SUPABASE_ANON_KEY="sb_publishable_7yvsb933SSqzntiJ0npq5Q_hHnsnFCo"
+fi
+npm run build
+'''
   publish = ".next"
 
 [build.environment]
