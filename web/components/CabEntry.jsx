@@ -1,25 +1,23 @@
 import Link from 'next/link';
 import { Icon } from './Icon';
-import { getSession } from '@/lib/auth';
 import { getT } from '@/lib/i18n/server';
+import CabScreen from './CabScreen';
 
 export default async function CabEntry() {
-  const [{user}, {L}] = await Promise.all([getSession(), getT()]);
-  const choices = [
-    ['/cab/me', 'user', L('I am a traveller', 'मैं यात्री हूँ'), L('Find a ride and choose your seats.', 'राइड खोजें और अपनी सीटें चुनें।')],
-    ['/drive', 'car', L('I am a driver', 'मैं ड्राइवर हूँ'), L('Publish a ride and manage your journeys.', 'राइड पब्लिश करें और अपनी यात्राएँ सँभालें।')],
-  ];
-  return <div className="cab-entry">
-    <section className="cab-entry-hero">
-      <img src="/img/home/q-cab.jpg" alt=""/>
-      <div className="wrap"><h1>{L('Share a ride in the hills','पहाड़ों में राइड शेयर करें')}</h1>
-        <p>{L('Find a seat on a local journey or publish your own ride.', 'स्थानीय यात्रा में सीट खोजें या अपनी राइड पब्लिश करें।')}</p></div>
+  const { L, lang } = await getT();
+  return <div className="cab-discovery cab-home">
+    <section className="cab-discovery-hero">
+      <img src="/img/cab/road-hero-1200.webp" srcSet="/img/cab/road-hero-640.webp 640w, /img/cab/road-hero-1200.webp 1200w" sizes="100vw"
+        width={1200} height={800} alt="" fetchPriority="high"/>
+      <div className="cab-discovery-width"><h1>{L('Book a shared cab', 'शेयर्ड कैब बुक करें')}</h1>
+        <p>{L('Find a seat on a local journey through Uttarakhand.', 'उत्तराखंड की स्थानीय यात्रा में अपनी सीट खोजें।')}</p></div>
     </section>
-    <div className="wrap choice-grid">{choices.map(([path,icon,title,summary]) =>
-      <Link className="choice-card" key={path} href={user ? path : '/login?next=' + encodeURIComponent(path)}>
-        <span className="choice-ico"><Icon name={icon} size={30}/></span>
-        <span className="choice-text"><strong>{title}</strong><span>{summary}</span></span>
-      </Link>)}</div>
-    <div className="wrap cab-entry-note"><Link href="/cab/find">{L('Browse rides without signing in','बिना लॉगिन राइड खोजें')}</Link></div>
+    <div className="cab-discovery-width cab-home-search">
+      <CabScreen area="cab" screen="search" lang={lang}/>
+      <nav className="cab-shortcuts" aria-label={L('Cab services', 'कैब सेवाएँ')}>
+        <Link href="/account/cab"><Icon name="calendar" size={19}/>{L('My bookings', 'मेरी बुकिंग')}</Link>
+        <Link href="/drive"><Icon name="car" size={19}/>{L('Driver dashboard', 'ड्राइवर डैशबोर्ड')}</Link>
+      </nav>
+    </div>
   </div>;
 }

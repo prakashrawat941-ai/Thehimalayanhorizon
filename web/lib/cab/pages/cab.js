@@ -33,6 +33,8 @@ export function avatar(url, name, cls = 'av') {
 export const timeOf = (d) => new Date(d).toLocaleTimeString(getLang() === 'hi' ? 'hi-IN' : 'en-IN', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' });
 export const dateOf = (d) => new Date(d).toLocaleDateString(getLang() === 'hi' ? 'hi-IN' : 'en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
 const istDayRange = (ymd) => { const s = new Date(`${ymd}T00:00:00+05:30`); return [s.toISOString(), new Date(s.getTime() + 864e5).toISOString()]; };
+const travellerCount = (value) => Math.min(10, Math.max(1, Math.trunc(Number(value) || 1)));
+const searchDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value)) && Number.isFinite(Date.parse(value)) && value >= todayISO() ? value : todayISO();
 
 export const VEHICLES = {
   swift: { label: 'Swift', model: 'Maruti Swift', seats: 4 },
@@ -189,10 +191,10 @@ const driverBadge = (c) => c.is_verified
 
 // ---------- Search form (used on dashboard and results) ----------
 export function searchForm({ from = null, to = null, date = todayISO(), n = 1, onSearch } = {}) {
-  const fromI = placeInput({ id: 'cab-from', external: true, label: L('From', 'कहाँ से'), placeholder: L('Pickup: any town or village', 'पिकअप: कोई भी शहर या गाँव'), value: from });
-  const toI = placeInput({ id: 'cab-to', external: true, label: L('To', 'कहाँ तक'), placeholder: L('Destination', 'मंज़िल'), value: to });
+  const fromI = placeInput({ id: 'cab-from', external: true, label: L('From', 'कहाँ से'), placeholder: L('Pickup location', 'पिकअप की जगह'), value: from });
+  const toI = placeInput({ id: 'cab-to', external: true, label: L('To', 'कहाँ तक'), placeholder: L('Drop-off location', 'मंज़िल'), value: to });
   const dateI = h('input', { class: 'input', type: 'date', id: 'cab-date', min: todayISO(), value: date, required: true });
-  let count = Math.max(1, Number(n) || 1);
+  let count = travellerCount(n);
   const countEl = h('output', { class: 'stepper-n', id: 'cab-n', 'aria-live': 'polite' }, String(count));
   const step = (d) => { count = Math.min(10, Math.max(1, count + d)); countEl.textContent = String(count); };
   const err = h('p', { class: 'form-err', role: 'alert' });
@@ -207,10 +209,9 @@ export function searchForm({ from = null, to = null, date = todayISO(), n = 1, o
     putPlace(qs, 'from', fromI.get()); putPlace(qs, 'to', toI.get());
     if (onSearch) onSearch(qs); else location.href = `/cab/find?${qs}`;
   } },
-    h('div', { class: 'cab-tabs', role: 'tablist' }, h('span', { class: 'cab-tab on', role: 'tab', 'aria-selected': 'true' }, icon('car', 17), L('Shared cab', 'शेयर कैब'))),
-    fromI.el,
-    h('button', { type: 'button', class: 'swap-btn', 'aria-label': L('Swap from and to', 'कहाँ से / कहाँ तक बदलें'), onclick: () => { const a = fromI.get(); const b = toI.get(); fromI.set(b); toI.set(a); } }, '⇅'),
-    toI.el,
+    h('div', { class: 'cab-search-route' }, fromI.el,
+      h('button', { type: 'button', class: 'swap-btn', 'aria-label': L('Swap from and to', 'कहाँ से / कहाँ तक बदलें'), onclick: () => { const a = fromI.get(); const b = toI.get(); fromI.set(b); toI.set(a); } }, '⇅'),
+      toI.el),
     h('div', { class: 'row2' },
       h('label', { class: 'field', for: 'cab-date' }, h('span', { class: 'field-label' }, L('Journey date', 'यात्रा की तारीख़')), dateI),
       h('div', { class: 'field' }, h('span', { class: 'field-label', id: 'cab-n-label' }, L('Travellers', 'यात्री')),
@@ -218,8 +219,18 @@ export function searchForm({ from = null, to = null, date = todayISO(), n = 1, o
           h('button', { type: 'button', 'aria-label': L('Fewer travellers', 'कम यात्री'), onclick: () => step(-1) }, '−'), countEl,
           h('button', { type: 'button', 'aria-label': L('More travellers', 'ज़्यादा यात्री'), onclick: () => step(1) }, '+')))),
     err,
-    h('button', { class: 'btn btn-block btn-lg', type: 'submit' }, L('Search rides', 'राइड खोजें'), icon('arrow', 16)));
+    h('button', { class: 'btn btn-block btn-lg', type: 'submit' }, L('Search cabs', 'कैब खोजें'), icon('arrow', 16)));
   return form;
+}
+
+export function search() {
+  return searchForm();
+}
+
+async function discoveryRatings(rides) {
+  if (!rides.length) return {};
+  const rows = await q(sb.rpc('cab_discovery_driver_ratings', { p_ride_ids: rides.map((ride) => ride.id) })).catch(() => []);
+  return Object.fromEntries((rows || []).map((row) => [row.driver_id, row]));
 }
 
 // ---------- 2. Results ----------
@@ -227,94 +238,135 @@ export async function find({ query }) {
   const places = await allPlaces();
   const from = readPlace(query, 'from', places);
   const to = readPlace(query, 'to', places);
-  const date = query.date && query.date >= todayISO() ? query.date : todayISO();
-  const n = Math.max(1, Number(query.n) || 1);
-  const page = h('div', { class: 'app-page' });
+  const date = searchDate(query.date);
+  const n = travellerCount(query.n);
+  const page = h('div', { class: 'app-page cab-discovery cab-discovery-results' });
 
   if (!from || !to) {
     page.append(h('div', { class: 'app-head' }, back('/cab'), h('h1', {}, L('Find a ride', 'राइड खोजें'))), searchForm({ from, to, date, n }));
     return page;
   }
 
-  const editBox = h('div', { class: 'collapse', hidden: true }, searchForm({ from, to, date, n }));
+  const searchHref = (day = date) => {
+    const qs = new URLSearchParams({ date: day, n: String(n) });
+    putPlace(qs, 'from', from); putPlace(qs, 'to', to);
+    return `/cab/find?${qs}`;
+  };
+  const editBox = h('div', { class: 'collapse', id: 'cab-edit-search', hidden: true }, searchForm({ from, to, date, n }));
+  const editButton = h('button', { class: 'icon-btn', type: 'button', 'aria-label': L('Edit search', 'खोज बदलें'),
+    'aria-expanded': 'false', 'aria-controls': 'cab-edit-search', onclick: () => {
+      editBox.hidden = !editBox.hidden;
+      editButton.setAttribute('aria-expanded', String(!editBox.hidden));
+      if (!editBox.hidden) editBox.querySelector('input:not([hidden])')?.focus();
+    } }, icon('settings', 20));
   page.append(
-    h('div', { class: 'app-head' }, back('/cab'),
+    h('div', { class: 'app-head cab-results-head' }, back('/cab'),
       h('div', { class: 'grow' }, h('h1', {}, L('Available cabs', 'उपलब्ध कैब')),
-        h('p', { class: 'muted' }, `${placeName(from) || from.name} → ${placeName(to) || to.name} · ${dateOf(`${date}T12:00:00+05:30`)} · ${n} ${L(n > 1 ? 'travellers' : 'traveller', 'यात्री')}`)),
-      h('button', { class: 'icon-btn', type: 'button', 'aria-label': L('Change search', 'खोज बदलें'), onclick: () => { editBox.hidden = !editBox.hidden; } }, icon('search', 20))),
+        h('strong', { class: 'cab-results-route' }, `${placeName(from) || from.name} → ${placeName(to) || to.name}`),
+        h('p', { class: 'muted' }, `${dateOf(`${date}T12:00:00+05:30`)} · ${n} ${L(n > 1 ? 'travellers' : 'traveller', 'यात्री')}`)),
+      editButton),
     editBox);
 
   const [startIso, endIso] = istDayRange(date);
-  const rides = await q(sb.from('cab_rides').select('*').in('status', ['open', 'full'])
-    .gte('departure_at', startIso).lt('departure_at', endIso).gt('departure_at', new Date().toISOString()).order('departure_at').limit(200));
   // 1) Road-route matching in the database: pickup and drop within the corridor (50 km) of the route, in the right direction.
-  const meta = {};
-  if (from.lat != null && to.lat != null) {
-    const m = await q(sb.rpc('match_cab_rides', { p_pick_lat: +from.lat, p_pick_lng: +from.lng, p_drop_lat: +to.lat, p_drop_lng: +to.lng, p_date: date, p_seats: n })).catch(() => []);
-    (m || []).forEach((x, i) => { meta[x.ride_id] = { ...x, rank: i }; });
-  }
+  const [rides, matchedRoutes] = await Promise.all([
+    q(sb.from('cab_rides').select('*').in('status', ['open', 'full'])
+      .gte('departure_at', startIso).lt('departure_at', endIso).gt('departure_at', new Date().toISOString()).order('departure_at').limit(200)),
+    from.lat != null && to.lat != null ? q(sb.rpc('match_cab_rides', { p_pick_lat: +from.lat, p_pick_lng: +from.lng, p_drop_lat: +to.lat, p_drop_lng: +to.lng, p_date: date, p_seats: n })).catch(() => []) : [],
+  ]);
+  const meta = Object.fromEntries((matchedRoutes || []).map((route, rank) => [route.ride_id, { ...route, rank }]));
   // 2) Rides that list both places on their way (older rides and full rides still shown).
   const onPath = (r) => { const path = ridePath(r, places); const a = from.id ? path.indexOf(from.id) : -1; const b = to.id ? path.indexOf(to.id) : -1; return a >= 0 && b > a; };
   const matches = rides.filter((r) => meta[r.id] || onPath(r))
     .sort((a, b) => (meta[a.id]?.rank ?? 999) - (meta[b.id]?.rank ?? 999) || new Date(a.departure_at) - new Date(b.departure_at));
-  const [card, variants] = await Promise.all([driverCards(matches), rideVehicleVariants(matches), catalog()]);
-  const list = h('div', { class: 'ride-cards' });
+  const list = h('div', { class: 'ride-cards cab-discovery-card-grid' });
   if (!matches.length) {
     const shift = (d) => { const x = new Date(`${date}T12:00:00+05:30`); x.setDate(x.getDate() + d); return x.toISOString().slice(0, 10); };
-    const link = (d) => { const qs = new URLSearchParams({ date: d, n: String(n) }); putPlace(qs, 'from', from); putPlace(qs, 'to', to); return `/cab/find?${qs}`; };
     list.append(h('div', { class: 'empty-state' },
       h('span', { class: 'empty-ico' }, icon('car', 34)),
       h('h2', {}, L('No rides on this route yet', 'इस रूट पर अभी कोई राइड नहीं')),
       h('p', { class: 'muted' }, L('Drivers add new journeys every day. Try another date, or check back later.', 'ड्राइवर रोज़ नई यात्राएँ जोड़ते हैं। दूसरी तारीख़ देखें या बाद में फिर देखें।')),
       h('div', { class: 'row-actions' },
-        shift(-1) >= todayISO() ? h('a', { class: 'btn btn-ghost btn-sm', href: link(shift(-1)) }, L('Previous day', 'पिछला दिन')) : null,
-        h('a', { class: 'btn btn-ghost btn-sm', href: link(shift(1)) }, L('Next day', 'अगला दिन'))),
+        shift(-1) >= todayISO() ? h('a', { class: 'btn btn-ghost btn-sm', href: searchHref(shift(-1)) }, L('Previous day', 'पिछला दिन')) : null,
+        h('a', { class: 'btn btn-ghost btn-sm', href: searchHref(shift(1)) }, L('Next day', 'अगला दिन'))),
       h('p', { class: 'small muted' }, L('Driving this route? ', 'इस रूट पर जा रहे हैं? '), h('a', { href: user() ? '/drive/publish' : '/login?next=/drive/publish' }, L('Publish your ride', 'अपनी राइड डालें')))));
+  } else {
+    const [card, variants, ratings] = await Promise.all([driverCards(matches), rideVehicleVariants(matches), discoveryRatings(matches), catalog()]);
+    const cards = new Map();
+    matches.forEach((ride) => {
+      const view = rideCard(ride, card(ride), { n, match: meta[ride.id], pickup: from, variantId: variants[ride.id],
+        rating: ratings[ride.driver_id], returnTo: searchHref() });
+      cards.set(ride.id, view); list.append(view.el);
+    });
+    for (let offset = 0; offset < matches.length; offset += 100) {
+      watchRides(matches.slice(offset, offset + 100).map((ride) => ride.id), (row) => cards.get(row.id)?.update(row));
+    }
   }
-  const pills = {};
-  matches.forEach((r) => { const el = rideCard(r, card(r), n, places, meta[r.id], from, variants[r.id]); pills[r.id] = el; list.append(el); });
-  watchRides(matches.map((r) => r.id), (row) => {
-    const el = pills[row.id]; if (!el) return;
-    const left = row.seats_total - row.seats_booked;
-    const pill = el.querySelector('.seat-pill');
-    pill.textContent = seatsLeftText(left); pill.classList.toggle('low', left <= 2); pill.classList.add('flash');
-    setTimeout(() => pill.classList.remove('flash'), 1200);
-    const enough = left >= n && row.status === 'open';
-    el.classList.toggle('is-off', !enough);
-    const cta = el.querySelector('.rc-foot .btn');
-    if (cta && !enough) cta.replaceWith(h('span', { class: 'muted small' }, L('Not enough seats', 'सीटें कम हैं')));
-  });
   page.append(list);
   return page;
 }
 
-function rideCard(r, d, n, places, mt = null, from = null, variantId = null) {
-  const left = r.seats_total - r.seats_booked;
-  const enough = left >= n && r.status === 'open';
-  const v = VEHICLES[r.vehicle_type];
-  return h('article', { class: `ride-card${enough ? '' : ' is-off'}` },
-    h('div', { class: 'rc-top' },
-      avatar(d.photo_url, d.full_name),
-      h('div', { class: 'grow' },
-        h('strong', { class: 'rc-name' }, d.full_name),
-        h('div', { class: 'rc-sub' }, driverBadge(d), d.trips ? h('span', { class: 'muted' }, ` · ${d.trips} ${L('trips', 'ट्रिप')}`) : null)),
-      h('span', { class: `seat-pill${left <= 2 ? ' low' : ''}`, 'aria-live': 'polite' }, seatsLeftText(left))),
-    h('div', { class: 'rc-route' },
-      h('div', { class: 'tl' },
-        h('div', { class: 'tl-row' }, h('span', { class: 'tl-dot' }), h('strong', {}, timeOf(r.departure_at)), h('span', {}, endName(r, 'from'))),
-        (r.stops || []).length ? h('div', { class: 'tl-row tl-via' }, h('span', { class: 'tl-dot small' }), h('span', { class: 'muted' }, L('via ', 'होकर ') + r.stops.map((s) => placeName(placeById(s.place_id)) || s.name).join(', '))) : null,
-        h('div', { class: 'tl-row' }, h('span', { class: 'tl-dot end' }), h('span', {}, endName(r, 'to'))))),
-    mt ? h('div', { class: 'rc-near small' }, icon('pin', 15),
-      mt.pickup_km <= 2 ? L('Your pickup is on this route', 'आपका पिकअप इसी रूट पर है')
-        : `${L('Pickup about', 'पिकअप लगभग')} ${Math.round(mt.pickup_km)} km ${L('from the route', 'रूट से')}`,
-      mt.drop_km > 2 ? h('span', { class: 'muted' }, ` · ${L('drop', 'ड्रॉप')} ${Math.round(mt.drop_km)} km`) : null,
-      r.distance_km ? h('span', { class: 'muted' }, ` · ${L('ride', 'राइड')} ${Math.round(r.distance_km)} km`) : null) : null,
-    h('div', { class: 'rc-meta' }, vehicleVisual(r.vehicle_model, { size: 'sm', variantId, vehicleId: r.vehicle_id }), h('span', {}, r.vehicle_model), v ? h('span', { class: 'muted' }, `· ${v.label}`) : null),
+function discoveryMap(ride) {
+  const coords = Array.isArray(ride.route_line) ? ride.route_line : [];
+  if (coords.length < 2 || coords.some((point) => !Array.isArray(point) || point.length !== 2 || !point.every(Number.isFinite))) return null;
+  const point = ([lat, lng], which) => ({ lat, lng, name: endName(ride, which) });
+  const container = h('div', { class: 'cab-detail-map' });
+  const button = h('button', { class: 'btn btn-ghost btn-sm', type: 'button', onclick: async () => {
+    button.disabled = true;
+    try {
+      const { routeMap } = await import('../map');
+      const map = routeMap({ start: point(coords[0], 'from'), dests: [point(coords.at(-1), 'to')],
+        roundTrip: false, route: { legs: [{ coords, alts: [] }] } }, { height: '240px' });
+      clear(container).append(map.el);
+    } catch {
+      button.disabled = false;
+      notice.textContent = L('Map could not load. Try again.', 'मैप लोड नहीं हुआ। फिर कोशिश करें।');
+    }
+  } }, icon('map', 17), L('Show route map', 'रूट का मैप देखें'));
+  const notice = h('p', { class: 'small muted', role: 'status' });
+  container.append(button, notice);
+  return container;
+}
+
+function rideCard(ride, driver, { n, match, pickup, variantId, rating, returnTo }) {
+  const seatCount = h('span', { class: 'seat-pill', 'aria-live': 'polite' });
+  const availability = h('p', { class: 'cab-card-availability muted small', 'aria-live': 'polite' });
+  const params = new URLSearchParams({ n: String(n), back: returnTo });
+  if (match && pickup && match.pickup_km > 2) params.set('pn', (placeName(pickup) || pickup.name).slice(0, 80));
+
+  const article = h('article', { class: 'ride-card cab-trip-card' },
+    h('div', { class: 'rc-top' }, avatar(driver.photo_url, driver.full_name),
+      h('div', { class: 'grow' }, h('strong', { class: 'rc-name' }, driver.full_name),
+        h('div', { class: 'rc-sub' }, driver.is_verified ? driverBadge(driver) : null,
+          rating?.reviews > 0 ? h('span', { class: 'cab-driver-rating' }, icon('star', 14), Number(rating.avg_rating).toFixed(1)) : null,
+          rating?.completed_rides > 0 ? h('span', { class: 'muted' }, `${rating.completed_rides} ${L('completed trips', 'पूरी राइड')}`) : null)),
+      seatCount),
+    h('div', { class: 'cab-trip-body' },
+      h('div', {}, h('h2', {}, ride.vehicle_model || L('Shared cab', 'शेयर्ड कैब')),
+        h('div', { class: 'cab-trip-meta' }, icon('route', 16), routeLabel(ride)),
+        h('div', { class: 'cab-trip-meta' }, icon('clock', 16), timeOf(ride.departure_at)),
+        h('p', { class: 'cab-trip-mode' }, ride.auto_confirm ? L('Instant Book', 'तुरंत बुकिंग') : L('Request to book', 'बुकिंग रिक्वेस्ट')),
+        match && match.pickup_km > 2
+          ? h('p', { class: 'rc-near small' }, `${L('Pickup about', 'पिकअप लगभग')} ${Math.round(match.pickup_km)} km ${L('from the route', 'रूट से')}`) : null,
+        match && match.drop_km > 2
+          ? h('p', { class: 'rc-near small' }, `${L('Drop about', 'ड्रॉप लगभग')} ${Math.round(match.drop_km)} km ${L('from the route', 'रूट से')}`) : null,
+        availability),
+      vehicleVisual(ride.vehicle_model, { size: 'card', gallery: false, variantId, vehicleId: ride.vehicle_id })),
     h('div', { class: 'rc-foot' },
-      h('div', {}, h('span', { class: 'price' }, inr(r.price_per_seat)), h('span', { class: 'muted small' }, ` / ${L('seat', 'सीट')}`),
-        n > 1 ? h('div', { class: 'small muted' }, `${inr(r.price_per_seat * n)} ${L('for', 'कुल')} ${n}`) : null),
-      enough ? h('a', { class: 'btn', href: `/cab/ride/${r.id}?${new URLSearchParams({ n: String(n), ...(mt && from && mt.pickup_km > 2 ? { pn: (placeName(from) || from.name).slice(0, 80) } : {}) })}` }, L('Book now', 'बुक करें'))
-        : h('span', { class: 'muted small' }, L('Not enough seats', 'सीटें कम हैं'))));
+      h('div', {}, h('strong', { class: 'price' }, inr(ride.price_per_seat)),
+        h('span', { class: 'muted small' }, ` / ${L('seat', 'सीट')}`),
+        n > 1 ? h('p', { class: 'small muted' }, `${inr(ride.price_per_seat * n)} ${L('for', 'कुल')} ${n}`) : null),
+      h('a', { class: 'btn', href: `/cab/ride/${ride.id}?${params}` }, L('View ride', 'राइड देखें'), icon('arrow', 16))));
+
+  function update(row) {
+    const left = Math.max(0, row.seats_total - row.seats_booked);
+    const open = row.status === 'open' || row.status === 'full';
+    seatCount.textContent = open ? seatsLeftText(left) : L('Ride closed', 'राइड बंद');
+    seatCount.classList.toggle('low', !open || left <= 2);
+    availability.textContent = open && left < n ? L('Fewer seats than requested', 'यात्रियों से कम सीटें उपलब्ध हैं') : '';
+  }
+  update(ride);
+  return { el: article, update };
 }
 
 // ---------- 3–7. Ride details → seats → confirm ----------
@@ -324,12 +376,14 @@ export async function ride({ params, query }) {
   if (!r) return h('div', { class: 'app-page' }, h('div', { class: 'app-head' }, back('/cab/find'), h('h1', {}, L('Ride not found', 'राइड नहीं मिली'))), empty());
   const [cards, rel, variants] = await Promise.all([driverCards([r]), reliability(r.driver_id), rideVehicleVariants([r])]);
   const d = cards(r);
-  const path = ridePath(r, places);
-  const n = Math.max(1, Number(query.n) || 1);
-  const seatsLive = h('span', { 'aria-live': 'polite' }, seatsLeftText(r.seats_total - r.seats_booked));
+  const n = travellerCount(query.n);
+  const returnTo = typeof query.back === 'string' && query.back.startsWith('/cab/find?') ? query.back : '/cab/find';
+  const seatsLive = h('span', { 'aria-live': 'polite' }, seatsLeftText(Math.max(0, r.seats_total - r.seats_booked)));
+  let updateDetailsAction;
   watchRides([r.id], (row) => {
     Object.assign(r, row);
-    seatsLive.textContent = seatsLeftText(r.seats_total - r.seats_booked);
+    seatsLive.textContent = seatsLeftText(Math.max(0, r.seats_total - r.seats_booked));
+    updateDetailsAction?.();
     seatsLive.parentElement?.classList.add('flash'); setTimeout(() => seatsLive.parentElement?.classList.remove('flash'), 1200);
     if (st.step === 'seats') loadTaken().then(paint);
   });
@@ -337,7 +391,7 @@ export async function ride({ params, query }) {
   const st = { step: query.step === 'confirm' && saved?.length ? 'confirm' : (query.step === 'seats' ? 'seats' : 'details'), seats: saved || [], taken: [] };
   const root = h('div', { class: 'app-page ride-page' });
   const isOwn = user() && r.driver_id === user().id;
-  const closed = r.status !== 'open' || new Date(r.departure_at) <= new Date();
+  const canSelect = () => r.status === 'open' && new Date(r.departure_at) > new Date() && r.seats_total - r.seats_booked >= n;
 
   async function loadTaken() { st.taken = await q(sb.rpc('cab_ride_taken_seats', { p_ride: r.id })).catch(() => []); st.seats = st.seats.filter((s) => !st.taken.includes(s)); }
   await loadTaken();
@@ -350,37 +404,52 @@ export async function ride({ params, query }) {
     window.scrollTo({ top: 0 });
   };
 
-  const v = VEHICLES[r.vehicle_type];
   const timeline = () => h('div', { class: 'tl tl-lg' },
     h('div', { class: 'tl-row' }, h('span', { class: 'tl-dot' }), h('strong', {}, endName(r, 'from')), h('span', { class: 'tl-time' }, timeOf(r.departure_at))),
     r.pickup_point ? h('div', { class: 'tl-note' }, L('Pickup: ', 'पिकअप: ') + r.pickup_point) : null,
     ...(r.stops || []).map((s) => h('div', { class: 'tl-row tl-via' }, h('span', { class: 'tl-dot small' }), h('span', {}, placeName(placeById(s.place_id)) || s.name))),
-    h('div', { class: 'tl-row' }, h('span', { class: 'tl-dot end' }), h('strong', {}, endName(r, 'to'))),
+    h('div', { class: 'tl-row' }, h('span', { class: 'tl-dot end' }), h('strong', {}, endName(r, 'to')),
+      r.duration_min > 0 ? h('span', { class: 'tl-time' }, `~ ${timeOf(new Date(r.departure_at).getTime() + r.duration_min * 60000)}`) : null),
     r.drop_point ? h('div', { class: 'tl-note' }, L('Drop: ', 'ड्रॉप: ') + r.drop_point) : null);
 
   function details() {
-    return h('div', {},
-      h('div', { class: 'ride-hero' }, h('img', { src: '/img/home/hero.jpg', alt: '' }), back(`/cab/find`)),
-      h('div', { class: 'ride-sheet' },
-        h('div', { class: 'driver-head' }, avatar(d.photo_url, d.full_name, 'av av-lg'),
-          h('div', {}, h('h1', {}, d.full_name), driverBadge(d))),
-        trustPanel(rel),
-        vehicleVisual(r.vehicle_model, { variantId: variants[r.id], vehicleId: r.vehicle_id }),
-        h('div', { class: 'feature-row' },
-          h('div', {}, icon('car', 22), h('span', {}, r.vehicle_model, regionOf(r) ? h('small', { class: 'muted' }, ` · ${L('Registered', 'रजिस्टर्ड')} ${regionOf(r)}`) : null)),
-          h('div', { class: 'seats-live' }, icon('people', 22), seatsLive),
-          h('div', {}, icon('shield', 22), h('span', {}, r.auto_confirm ? L('Instant book', 'तुरंत बुकिंग') : L('Driver confirms', 'ड्राइवर मंज़ूर करेगा'))),
-          v ? h('div', {}, icon('mountain', 22), h('span', {}, v.label)) : null),
-        d.about ? h('section', {}, h('h2', {}, L('About driver', 'ड्राइवर के बारे में')), h('p', {}, d.about)) : null,
-        h('section', {}, h('h2', {}, L('Route & timing', 'रूट और समय')), h('p', { class: 'muted small' }, dateOf(r.departure_at),
-          r.distance_km ? ` · ${Math.round(r.distance_km)} km` : '', r.duration_min ? ` · ${L('about', 'लगभग')} ${Math.floor(r.duration_min / 60)} h ${r.duration_min % 60} min ${L('driving (estimate)', 'ड्राइविंग (अनुमान)')}` : ''), timeline()),
-        r.ride_ref ? h('p', { class: 'small muted' }, L('Ride ID ', 'राइड आईडी '), h('span', { class: 'mono' }, r.ride_ref)) : null,
-        r.notes ? h('section', {}, h('h2', {}, L('Notes from the driver', 'ड्राइवर की बात')), h('p', {}, r.notes)) : null,
-        h('div', { class: 'sticky-cta' },
-          h('div', {}, h('span', { class: 'price' }, inr(r.price_per_seat * n)), h('div', { class: 'small muted' }, `${inr(r.price_per_seat)} × ${n} ${L('seat(s)', 'सीट')}`)),
-          isOwn ? h('a', { class: 'btn', href: `/drive/trip/${r.id}` }, L('This is your ride', 'यह आपकी राइड है'))
-            : closed ? h('span', { class: 'muted' }, L('This ride is closed', 'यह राइड बंद है'))
-            : h('button', { class: 'btn', type: 'button', onclick: () => { st.step = 'seats'; paint(); } }, L('Select seats', 'सीट चुनें')))));
+    const select = h('button', { class: 'btn', type: 'button', onclick: () => { if (canSelect()) { st.step = 'seats'; paint(); } } });
+    updateDetailsAction = () => {
+      select.disabled = !canSelect();
+      select.textContent = canSelect() ? L('Select seats', 'सीट चुनें')
+        : r.status === 'full' || r.status === 'open' && new Date(r.departure_at) > new Date()
+          ? L('Not enough seats', 'सीटें कम हैं') : L('Ride closed', 'राइड बंद');
+    };
+    updateDetailsAction();
+    return h('div', { class: 'cab-discovery cab-trip-detail' },
+      h('div', { class: 'cab-discovery-hero cab-detail-hero' },
+        h('img', { src: '/img/cab/road-hero-640.webp', srcset: '/img/cab/road-hero-640.webp 640w, /img/cab/road-hero-1200.webp 1200w',
+          sizes: '(max-width: 640px) 100vw, 900px', width: 1200, height: 800, alt: '' }),
+        back(returnTo)),
+      h('div', { class: 'ride-sheet cab-detail-sheet' },
+        h('section', { class: 'cab-detail-driver' },
+          h('div', { class: 'driver-head' }, avatar(d.photo_url, d.full_name, 'av av-lg'),
+            h('div', {}, h('h1', {}, d.full_name), d.is_verified ? driverBadge(d) : null)),
+          trustPanel(rel),
+          d.about ? h('section', { class: 'cab-detail-about' }, h('h2', {}, L('About driver', 'ड्राइवर के बारे में')), h('p', {}, d.about)) : null),
+        h('section', { class: 'cab-detail-vehicle' },
+          h('h2', {}, r.vehicle_model || L('Shared cab', 'शेयर्ड कैब')),
+          vehicleVisual(r.vehicle_model, { variantId: variants[r.id], vehicleId: r.vehicle_id }),
+          h('div', { class: 'cab-detail-meta' },
+            h('span', { class: 'seats-live' }, icon('people', 18), seatsLive),
+            h('span', {}, icon('shield', 18), r.auto_confirm ? L('Instant Book', 'तुरंत बुकिंग') : L('Driver confirmation', 'ड्राइवर की मंज़ूरी')),
+            regionOf(r) ? h('span', {}, icon('car', 18), `${L('Registered', 'रजिस्टर्ड')} ${regionOf(r)}`) : null)),
+        h('section', { class: 'cab-detail-route' }, h('h2', {}, L('Route & timing', 'रूट और समय')),
+          h('p', { class: 'muted small' }, dateOf(r.departure_at),
+            r.distance_km ? ` · ${Math.round(r.distance_km)} km` : '',
+            r.duration_min ? ` · ${L('Estimated arrival', 'पहुँचने का अनुमान')}` : ''),
+          timeline(), discoveryMap(r),
+          r.ride_ref ? h('p', { class: 'small muted' }, L('Ride ID ', 'राइड आईडी '), h('span', { class: 'mono' }, r.ride_ref)) : null,
+          r.notes ? h('div', { class: 'cab-detail-about' }, h('h3', {}, L('Notes from the driver', 'ड्राइवर की बात')), h('p', {}, r.notes)) : null),
+        h('div', { class: 'sticky-cta cab-detail-action' },
+          h('div', {}, h('strong', { class: 'price' }, inr(r.price_per_seat * n)),
+            h('div', { class: 'small muted' }, `${inr(r.price_per_seat)} × ${n} ${L('seat(s)', 'सीट')}`)),
+          isOwn ? h('a', { class: 'btn', href: `/drive/trip/${r.id}` }, L('This is your ride', 'यह आपकी राइड है')) : select)));
   }
 
   function seatsStep() {

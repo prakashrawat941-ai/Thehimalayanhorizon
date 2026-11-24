@@ -68,7 +68,7 @@ function drawing(category = 'other') {
 }
 
 // Picture block with honest caption. size: 'lg' (picker, ride page) or 'sm' (cards).
-export function vehicleVisual(name, { variantId = null, vehicleId = null, size = 'lg', model = null } = {}) {
+export function vehicleVisual(name, { variantId = null, vehicleId = null, size = 'lg', model = null, gallery = true } = {}) {
   const box = h('figure', { class: `veh-vis veh-${size}` });
   const paint = () => {
     const variant = cat?.variants.find((item) => item.id === variantId);
@@ -98,16 +98,27 @@ export function vehicleVisual(name, { variantId = null, vehicleId = null, size =
       if (size === 'lg' && (credits || source)) caption.append(h('span', { class: 'veh-credit' }, credits, credits && source ? ' · ' : '', source));
       const img = h('img', { src: size === 'sm' && pic.thumbnail ? pic.thumbnail : pic.url,
         srcset: pic.thumbnail ? `${pic.thumbnail} 240w, ${pic.url} 480w` : null,
-        sizes: pic.thumbnail ? (size === 'sm' ? '64px' : '(max-width: 540px) 92vw, 480px') : null,
+        sizes: pic.thumbnail ? (size === 'sm' ? '64px' : size === 'card' ? '180px' : '(max-width: 540px) 92vw, 480px') : null,
         alt: `${m?.label || name || ''} · ${angleLabels[pic.angle]} · ${label}`, loading: 'lazy', decoding: 'async',
         width: 480, height: 300, referrerpolicy: 'no-referrer' });
       clear(stage).append(img);
       img.addEventListener('error', () => { if (img.parentNode === stage) placeholder(); }, { once: true });
       controls.forEach((button, index) => button.setAttribute('aria-pressed', String(images[index] === pic)));
     };
-    if (size === 'lg' && images.length > 1) {
+    if (size !== 'sm' && gallery && images.length > 1) {
       images.forEach((pic) => controls.push(h('button', { type: 'button', onclick: () => show(pic) }, angleLabels[pic.angle])));
       box.append(h('div', { class: 'veh-angles', role: 'group', 'aria-label': L('Vehicle photo angles', 'गाड़ी की फ़ोटो के दृश्य') }, controls));
+      let touchX = null;
+      stage.addEventListener('touchstart', (event) => { touchX = event.touches.length === 1 ? event.touches[0].clientX : null; }, { passive: true });
+      stage.addEventListener('touchend', (event) => {
+        if (touchX === null || !event.changedTouches.length) return;
+        const travel = event.changedTouches[0].clientX - touchX;
+        touchX = null;
+        if (Math.abs(travel) < 48) return;
+        const index = controls.findIndex((button) => button.getAttribute('aria-pressed') === 'true');
+        show(images[(index + (travel < 0 ? 1 : -1) + images.length) % images.length]);
+      }, { passive: true });
+      stage.addEventListener('touchcancel', () => { touchX = null; }, { passive: true });
     }
     show(images[0]);
   };
