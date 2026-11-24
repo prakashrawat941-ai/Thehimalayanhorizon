@@ -412,7 +412,7 @@ export async function ride({ params, query }) {
   function setStep(step) {
     st.step = step;
     clear(root).append(step === 'details' ? details() : step === 'seats' ? seatsStep() : confirmStep());
-    window.scrollTo({ top: 0 });
+    window.scrollTo({ top: 0, behavior: 'instant' });
   }
 
   async function loadTaken() {
