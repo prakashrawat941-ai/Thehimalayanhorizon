@@ -1,0 +1,29 @@
+name: Management browser checks
+on:
+  pull_request:
+    paths: ['web/**', 'tests/web/**', '.github/workflows/management-ui.yml']
+permissions:
+  contents: read
+jobs:
+  chromium:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build against isolated fixtures
+        working-directory: web
+        run: npm install --no-audit --no-fund && npm run build
+      - name: Exercise four workspaces at phone and desktop widths
+        run: |
+          npm install --prefix "$RUNNER_TEMP/thh-ui" playwright@1.56.1 --no-audit --no-fund
+          "$RUNNER_TEMP/thh-ui/node_modules/.bin/playwright" install --with-deps chromium
+          (cd web && exec ./node_modules/.bin/next start -H 127.0.0.1 -p 3199) &
+          server=$!
+          trap 'kill "$server" || true' EXIT
+          for attempt in $(seq 1 30); do curl -s -o /dev/null http://127.0.0.1:3199/login && break; sleep 1; done
+          NODE_PATH="$RUNNER_TEMP/thh-ui/node_modules" node tests/web/management-ui.cjs
