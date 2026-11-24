@@ -72,9 +72,10 @@ export function ridePath(r, places) {
 }
 // Start / end name: listed place, or (rides from any village) the saved name.
 export function endName(r, which) {
-  const path = ridePath(r, placesCached());
-  const id = which === 'from' ? path[0] : path[path.length - 1];
-  return placeName(placeById(id)) || r[`${which}_geo`]?.name || (which === 'from' ? r.pickup_point : r.drop_point) || '?';
+  const id = r[`${which}_place_id`];
+  const location = r[`${which}_location_id`];
+  const savedPlace = id ? placeById(id) : location ? placesCached().find((p) => p.location_id === location) : null;
+  return placeName(savedPlace) || r[`${which}_geo`]?.name || (which === 'from' ? r.pickup_point : r.drop_point) || '?';
 }
 export const routeLabel = (r) => `${endName(r, 'from')} → ${endName(r, 'to')}`;
 
@@ -371,10 +372,9 @@ function rideCard(ride, driver, { n, match, pickup, variantId, rating, returnTo 
 
 // ---------- 3–7. Ride details → seats → confirm ----------
 export async function ride({ params, query }) {
-  const places = await allPlaces();
-  const r = await q(sb.from('cab_rides').select('*').eq('id', params.id).maybeSingle());
+  const [r] = await Promise.all([q(sb.from('cab_rides').select('*').eq('id', params.id).maybeSingle()), allPlaces()]);
   if (!r) return h('div', { class: 'app-page' }, h('div', { class: 'app-head' }, back('/cab/find'), h('h1', {}, L('Ride not found', 'राइड नहीं मिली'))), empty());
-  const [cards, rel, variants] = await Promise.all([driverCards([r]), reliability(r.driver_id), rideVehicleVariants([r])]);
+  const [cards, rel, variants] = await Promise.all([driverCards([r]), reliability(r.driver_id), rideVehicleVariants([r]), catalog()]);
   const d = cards(r);
   const n = travellerCount(query.n);
   const returnTo = typeof query.back === 'string' && query.back.startsWith('/cab/find?') ? query.back : '/cab/find';
