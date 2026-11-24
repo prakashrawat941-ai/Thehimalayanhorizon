@@ -14,7 +14,7 @@ export default async function AccountOverview() {
   const [trips, stays, cabs, saved, unread, feedback, locations, places] = await Promise.all([
     rows(db.from('trips').select('id,title,start_date,days_count,status').eq('user_id', user.id).neq('status', 'cancelled').gte('start_date', today).order('start_date').limit(1)),
     rows(db.from('booking_requests').select('id,kind,status,start_date,end_date,booking_code,total_amount,homestays(name),village_tours(title),workspaces(name)').eq('user_id', user.id).order('created_at', { ascending: false }).limit(3)),
-    rows(db.from('cab_bookings').select('id,status,seats,booking_ref,booking_code,from_place_id,to_place_id,cab_rides(departure_at,from_location_id,to_location_id,from_place_id,to_place_id)').eq('user_id', user.id).order('created_at', { ascending: false }).limit(3)),
+    rows(db.from('cab_bookings').select('id,status,seats,booking_ref,booking_code,from_place_id,to_place_id,pickup_geo,drop_geo,cab_rides(departure_at,from_location_id,to_location_id,from_place_id,to_place_id,from_geo,to_geo,pickup_point,drop_point)').eq('user_id', user.id).order('created_at', { ascending: false }).limit(3)),
     rows(db.from('saved_destinations').select('location_id').eq('user_id', user.id)),
     db.from('notifications').select('id', { count: 'exact', head: true }).eq('user_id', user.id).is('read_at', null),
     db.rpc('my_pending_feedback').then((r) => (r.error ? [] : r.data || [])),

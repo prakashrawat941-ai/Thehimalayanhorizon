@@ -7,6 +7,7 @@ import { sb, q } from '../sb.js';
 import { state, user, loadProfile, settings } from '../store.js';
 import { allPlaces, placeInput, placeName, placeById, placesCached } from '../places.js';
 import { vehicleVisual, catalog, rideVehicleVariants } from '../cab/vehicles.js';
+import { seatLayoutFor } from '../cab/seat-layouts.js';
 
 // Places in links: listed places by id (?from=…), any other village by position (?fromg=lat,lng|name).
 const placeKey = (p) => p?.id || (p ? `${(+p.lat).toFixed(4)},${(+p.lng).toFixed(4)}` : '');
@@ -147,7 +148,7 @@ export function holdTimer(until, prefix) {
 }
 
 // Success popup (booking and ride published). Rows are [label, value].
-export function celebrate({ title, message, rows = [], actions = [], wait = false }) {
+export function celebrate({ title, message, rows = [], actions = [], wait = false, cabBooking = false }) {
   const mark = h('div', { class: `cele-mark${wait ? ' wait' : ''}`, 'aria-hidden': 'true' });
   mark.innerHTML = wait
     ? '<svg viewBox="0 0 52 52"><circle class="c" cx="26" cy="26" r="24"/><path class="k" d="M26 14v13l8 5"/></svg>'
@@ -159,6 +160,8 @@ export function celebrate({ title, message, rows = [], actions = [], wait = fals
     h('div', { class: 'cele-actions' }, actions.filter(Boolean)));
   const dlg = modal('', body);
   dlg.el.classList.add('modal-cele');
+  if (cabBooking) dlg.el.classList.add('cab-booking-success');
+  dlg.el.setAttribute('aria-label', title);
   // Leaving the page (back button, bottom menu, a link in the popup) closes the popup too.
   const onNav = () => { window.removeEventListener('cabviewleave', onNav); if (dlg.el.isConnected) dlg.close(); };
   window.addEventListener('cabviewleave', onNav);
@@ -374,35 +377,71 @@ function rideCard(ride, driver, { n, match, pickup, variantId, rating, returnTo 
 export async function ride({ params, query }) {
   const [r] = await Promise.all([q(sb.from('cab_rides').select('*').eq('id', params.id).maybeSingle()), allPlaces()]);
   if (!r) return h('div', { class: 'app-page' }, h('div', { class: 'app-head' }, back('/cab/find'), h('h1', {}, L('Ride not found', 'राइड नहीं मिली'))), empty());
-  const [cards, rel, variants] = await Promise.all([driverCards([r]), reliability(r.driver_id), rideVehicleVariants([r]), catalog()]);
+  const [cards, rel, variants, catalogue] = await Promise.all([driverCards([r]), reliability(r.driver_id), rideVehicleVariants([r]), catalog()]);
   const d = cards(r);
   const n = travellerCount(query.n);
   const returnTo = typeof query.back === 'string' && query.back.startsWith('/cab/find?') ? query.back : '/cab/find';
+  const selectionKey = `hh_seats_${r.id}`;
+  const attemptKey = `hh_cab_attempt_${r.id}`;
+  const readSession = (key) => {
+    try { return JSON.parse(sessionStorage.getItem(key) || 'null'); } catch { return null; }
+  };
+  const writeSession = (key, value) => {
+    try { if (value) sessionStorage.setItem(key, JSON.stringify(value)); else sessionStorage.removeItem(key); } catch { /* optional storage */ }
+  };
+  const sortedSeats = (seats) => [...seats].sort((a, b) => a - b);
+  const saved = readSession(selectionKey);
+  const savedSeats = Array.isArray(saved) ? [...new Set(saved)].filter((seat) => Number.isInteger(seat) && seat > 0 && seat <= r.seats_total).slice(0, n) : [];
+  const savedAttempt = readSession(attemptKey);
+  const attempt = savedAttempt?.user === user()?.id && savedAttempt?.seats === sortedSeats(savedSeats).join(',') ? savedAttempt : null;
+  const st = {
+    step: (query.step === 'confirm' || attempt) && savedSeats.length === n ? 'confirm' : query.step === 'confirm' || query.step === 'seats' ? 'seats' : 'details',
+    seats: savedSeats, taken: [], ready: false, notice: '', attempt, submitting: false,
+  };
+  const root = h('div', { class: 'app-page ride-page' });
+  const isOwn = user() && r.driver_id === user().id;
   const seatsLive = h('span', { 'aria-live': 'polite' }, seatsLeftText(Math.max(0, r.seats_total - r.seats_booked)));
+  const isOpen = () => (r.status === 'open' || r.status === 'full') && new Date(r.departure_at) > new Date();
+  const canSelect = () => r.status === 'open' && isOpen() && r.seats_total - r.seats_booked >= n;
   let updateDetailsAction;
+  let updateSeatStep;
+  let availabilityVersion = 0;
+  const lostSeat = L('A selected seat is no longer available. Choose another seat.', 'चुनी हुई एक सीट अब उपलब्ध नहीं है। दूसरी सीट चुनें।');
+  const availabilityError = L('Live availability could not load. Try again.', 'लाइव सीटें लोड नहीं हुईं। फिर कोशिश करें।');
+
+  function setStep(step) {
+    st.step = step;
+    clear(root).append(step === 'details' ? details() : step === 'seats' ? seatsStep() : confirmStep());
+    window.scrollTo({ top: 0 });
+  }
+
+  async function loadTaken() {
+    const version = ++availabilityVersion;
+    try {
+      const taken = await q(sb.rpc('cab_ride_taken_seats', { p_ride: r.id }));
+      if (version !== availabilityVersion) return;
+      st.taken = taken || [];
+      st.ready = true;
+      if (st.notice === availabilityError) st.notice = '';
+      if (!st.attempt && !st.submitting && st.seats.some((seat) => st.taken.includes(seat) || seat > r.seats_total)) {
+        st.seats = st.seats.filter((seat) => !st.taken.includes(seat) && seat <= r.seats_total);
+        st.notice = lostSeat;
+        if (st.step === 'confirm' && root.isConnected) { setStep('seats'); return; }
+      }
+    } catch {
+      if (version !== availabilityVersion) return;
+      st.ready = false;
+      st.notice = availabilityError;
+    }
+    if (st.step === 'seats') updateSeatStep?.();
+  }
+
   watchRides([r.id], (row) => {
     Object.assign(r, row);
     seatsLive.textContent = seatsLeftText(Math.max(0, r.seats_total - r.seats_booked));
     updateDetailsAction?.();
-    seatsLive.parentElement?.classList.add('flash'); setTimeout(() => seatsLive.parentElement?.classList.remove('flash'), 1200);
-    if (st.step === 'seats') loadTaken().then(paint);
+    if (st.step !== 'details') void loadTaken();
   });
-  const saved = (() => { try { return JSON.parse(sessionStorage.getItem(`hh_seats_${r.id}`) || 'null'); } catch { return null; } })();
-  const st = { step: query.step === 'confirm' && saved?.length ? 'confirm' : (query.step === 'seats' ? 'seats' : 'details'), seats: saved || [], taken: [] };
-  const root = h('div', { class: 'app-page ride-page' });
-  const isOwn = user() && r.driver_id === user().id;
-  const canSelect = () => r.status === 'open' && new Date(r.departure_at) > new Date() && r.seats_total - r.seats_booked >= n;
-
-  async function loadTaken() { st.taken = await q(sb.rpc('cab_ride_taken_seats', { p_ride: r.id })).catch(() => []); st.seats = st.seats.filter((s) => !st.taken.includes(s)); }
-  await loadTaken();
-
-  const paint = () => {
-    clear(root);
-    if (st.step === 'details') root.append(details());
-    if (st.step === 'seats') root.append(seatsStep());
-    if (st.step === 'confirm') root.append(confirmStep());
-    window.scrollTo({ top: 0 });
-  };
 
   const timeline = () => h('div', { class: 'tl tl-lg' },
     h('div', { class: 'tl-row' }, h('span', { class: 'tl-dot' }), h('strong', {}, endName(r, 'from')), h('span', { class: 'tl-time' }, timeOf(r.departure_at))),
@@ -413,7 +452,7 @@ export async function ride({ params, query }) {
     r.drop_point ? h('div', { class: 'tl-note' }, L('Drop: ', 'ड्रॉप: ') + r.drop_point) : null);
 
   function details() {
-    const select = h('button', { class: 'btn', type: 'button', onclick: () => { if (canSelect()) { st.step = 'seats'; paint(); } } });
+    const select = h('button', { class: 'btn', type: 'button', onclick: () => { if (canSelect()) { setStep('seats'); void loadTaken(); } } });
     updateDetailsAction = () => {
       select.disabled = !canSelect();
       select.textContent = canSelect() ? L('Select seats', 'सीट चुनें')
@@ -453,54 +492,84 @@ export async function ride({ params, query }) {
   }
 
   function seatsStep() {
-    const max = n;
+    const layout = seatLayoutFor(catalogue, variants[r.id], r.seats_total);
+    const buttons = new Map();
     const total = h('strong', { class: 'price' });
-    const chosenEl = h('span', {});
-    const cont = h('button', { class: 'btn', type: 'button' }, L('Continue', 'आगे बढ़ें'), icon('arrow', 16));
-    const upd = () => {
-      chosenEl.textContent = st.seats.length ? st.seats.sort((a, b) => a - b).join(', ') : '—';
-      total.textContent = inr(r.price_per_seat * Math.max(st.seats.length, 0));
-      cont.disabled = st.seats.length !== max;
+    const chosen = h('span', {});
+    const notice = h('p', { class: 'cab-seat-notice', role: 'status' });
+    const retry = h('button', { class: 'btn btn-ghost btn-sm', type: 'button', onclick: () => void loadTaken() }, L('Retry', 'फिर कोशिश करें'));
+    const cont = h('button', { class: 'btn', type: 'button', onclick: () => {
+      if (!st.ready || st.seats.length !== n || !canSelect()) return;
+      writeSession(selectionKey, st.seats);
+      if (!user()) {
+        const next = new URLSearchParams({ n: String(n), step: 'confirm', back: returnTo });
+        if (query.pn) next.set('pn', String(query.pn).slice(0, 80));
+        location.href = `/login?next=${encodeURIComponent(`/cab/ride/${r.id}?${next}`)}`;
+        return;
+      }
+      setStep('confirm');
+    } }, L('Continue', 'आगे बढ़ें'), icon('arrow', 16));
+
+    function seatButton(no) {
+      const button = h('button', { type: 'button', class: 'cab-seat', onclick: () => {
+        if (st.seats.includes(no)) st.seats = st.seats.filter((seat) => seat !== no);
+        else if (st.seats.length < n) st.seats.push(no);
+        else {
+          st.notice = L(`Deselect a seat to choose another. You need ${n}.`, `दूसरी सीट चुनने से पहले एक सीट हटाएँ। आपको ${n} सीटें चाहिए।`);
+          updateSeatStep();
+          return;
+        }
+        st.notice = '';
+        updateSeatStep();
+      } }, String(no));
+      buttons.set(no, button);
+      return button;
+    }
+    const cabin = layout
+      ? h('div', { class: 'cab-seat-cabin', style: { gridTemplateColumns: `repeat(${layout.rows[0].length}, minmax(44px, 1fr))` }, role: 'group', 'aria-label': L('Vehicle seat map', 'गाड़ी का सीट मैप') },
+          layout.rows.map((row) => h('div', { class: 'cab-seat-row' }, row.map((seat) => {
+            if (seat === 'driver') return h('span', { class: 'cab-seat-driver' }, L('Driver', 'ड्राइवर'));
+            if (seat === null) return h('span', { 'aria-hidden': 'true' });
+            return seatButton(seat);
+          }))))
+      : h('div', { class: 'cab-seat-grid', role: 'group', 'aria-label': L('Numbered seats', 'सीट नंबर') },
+          Array.from({ length: r.seats_total }, (_, i) => seatButton(i + 1)));
+
+    updateSeatStep = () => {
+      for (const [seat, button] of buttons) {
+        const taken = st.taken.includes(seat);
+        const selected = st.seats.includes(seat);
+        button.disabled = taken || !st.ready || !isOpen() || seat > r.seats_total;
+        button.dataset.state = taken ? 'booked' : selected ? 'selected' : 'available';
+        button.setAttribute('aria-pressed', String(selected));
+        button.setAttribute('aria-label', `${L('Seat', 'सीट')} ${seat}${taken ? ' ' + L('booked', 'बुक') : ''}`);
+      }
+      chosen.textContent = sortedSeats(st.seats).join(', ') || '—';
+      total.textContent = inr(r.price_per_seat * st.seats.length);
+      cont.disabled = !st.ready || !canSelect() || st.seats.length !== n;
+      retry.hidden = st.notice !== availabilityError;
+      notice.textContent = st.notice || (!st.ready ? L('Checking live availability…', 'लाइव सीटें देख रहे हैं…')
+        : !canSelect() ? L('There are not enough available seats for this booking.', 'इस बुकिंग के लिए पर्याप्त सीटें उपलब्ध नहीं हैं।') : '');
     };
-    const seatBtn = (no) => {
-      const taken = st.taken.includes(no);
-      const b = h('button', { type: 'button', class: `seat${taken ? ' taken' : ''}${st.seats.includes(no) ? ' sel' : ''}`, disabled: taken,
-        'aria-pressed': String(st.seats.includes(no)), 'aria-label': `${L('Seat', 'सीट')} ${no}${taken ? ' ' + L('booked', 'बुक') : ''}` },
-        taken ? '✕' : String(no));
-      b.addEventListener('click', () => {
-        if (st.seats.includes(no)) st.seats = st.seats.filter((s) => s !== no);
-        else if (st.seats.length < max) st.seats.push(no);
-        else { st.seats.shift(); st.seats.push(no); }
-        b.parentElement.closest('.car').querySelectorAll('.seat').forEach((x) => x.classList.toggle('sel', st.seats.includes(Number(x.textContent))));
-        b.parentElement.closest('.car').querySelectorAll('.seat').forEach((x) => x.setAttribute('aria-pressed', String(st.seats.includes(Number(x.textContent)))));
-        upd();
-      });
-      return b;
-    };
-    // Layout: front passenger seat next to the driver, then rows of 2–3.
-    const seats = Array.from({ length: r.seats_total }, (_, i) => i + 1);
-    const rows = [[seats[0]]];
-    const rest = seats.slice(1);
-    const per = r.seats_total >= 7 ? 3 : 2;
-    for (let i = 0; i < rest.length; i += per) rows.push(rest.slice(i, i + per));
-    const car = h('div', { class: 'car' },
-      h('div', { class: 'car-row' }, h('span', { class: 'seat driver', 'aria-hidden': 'true' }, '◎'), seatBtn(rows[0][0])),
-      ...rows.slice(1).map((row) => h('div', { class: 'car-row' }, row.map(seatBtn))));
-    cont.addEventListener('click', () => {
-      try { sessionStorage.setItem(`hh_seats_${r.id}`, JSON.stringify(st.seats)); } catch { /* ignore */ }
-      if (!user()) { location.href = `/login?next=${encodeURIComponent(`/cab/ride/${r.id}?n=${n}&step=confirm`)}`; return; }
-      st.step = 'confirm'; paint();
-    });
-    const node = h('div', {},
-      h('div', { class: 'app-head' }, h('button', { class: 'app-back', type: 'button', 'aria-label': L('Back', 'पीछे'), onclick: () => { st.step = 'details'; paint(); } }, '←'),
-        h('div', { class: 'grow' }, h('h1', {}, L('Select seats', 'सीट चुनें')), h('p', { class: 'muted' }, `${r.vehicle_model} · ${L('choose', 'चुनें')} ${max}`))),
-      h('div', { class: 'legend' }, h('span', { class: 'lg lg-free' }, L('Available', 'खाली')), h('span', { class: 'lg lg-sel' }, L('Selected', 'चुनी हुई')), h('span', { class: 'lg lg-taken' }, L('Booked', 'बुक'))),
-      car,
-      h('div', { class: 'sticky-cta' },
-        h('div', {}, h('div', { class: 'small muted' }, L('Selected seats: ', 'चुनी सीटें: '), chosenEl), h('div', {}, h('span', { class: 'small muted' }, L('Total fare ', 'कुल किराया ')), total)),
-        cont));
-    upd();
-    return node;
+    updateSeatStep();
+
+    return h('div', { class: 'cab-discovery cab-booking-flow cab-seat-screen' },
+      h('div', { class: 'app-head' },
+        h('button', { class: 'app-back', type: 'button', 'aria-label': L('Back', 'पीछे'), onclick: () => setStep('details') }, '←'),
+        h('div', { class: 'grow' }, h('h1', {}, L('Select seats', 'सीट चुनें')),
+          h('p', { class: 'muted' }, r.vehicle_model, ' · ', L(`Choose ${n}`, `${n} चुनें`)))),
+      h('div', { class: 'cab-seat-panel' },
+        h('div', { class: 'cab-seat-legend' },
+          ['available', 'selected', 'booked'].map((status, i) => h('span', { 'data-state': status },
+            [L('Available', 'खाली'), L('Selected', 'चुनी हुई'), L('Booked or held', 'बुक या होल्ड')][i]))),
+        layout ? h('div', { class: 'cab-seat-front' }, L('Front of vehicle', 'गाड़ी का अगला हिस्सा')) : null,
+        cabin,
+        layout ? h('a', { class: 'small cab-seat-source', href: layout.source, target: '_blank', rel: 'noopener noreferrer' }, L('Manufacturer seating layout', 'निर्माता का सीट लेआउट'))
+          : h('p', { class: 'small muted' }, L('Seat numbers only. Confirm physical positions with the driver.', 'केवल सीट नंबर। सीट की जगह ड्राइवर से पूछें।')),
+        notice, retry),
+      h('div', { class: 'sticky-cta cab-seat-action' },
+        h('div', {}, h('div', { class: 'small muted' }, L('Selected seats ', 'चुनी सीटें '), chosen),
+          h('div', { class: 'small muted' }, L('Total fare', 'कुल किराया')), total), cont));
   }
 
   function confirmStep() {
@@ -510,42 +579,83 @@ export async function ride({ params, query }) {
     const noteI = h('textarea', { class: 'input', id: 'bk-note', rows: 2, maxlength: 300, placeholder: L('Luggage, pickup landmark… (optional)', 'सामान, पिकअप की जगह… (वैकल्पिक)') });
     if (query.pn) noteI.value = `${L('Please pick me up near', 'कृपया मुझे यहाँ के पास से लें:')} ${String(query.pn).slice(0, 80)}`;
     const err = h('p', { class: 'form-err', role: 'alert' });
-    const btn = h('button', { class: 'btn btn-block btn-lg', type: 'submit' }, r.auto_confirm ? L('Confirm booking', 'बुकिंग कन्फ़र्म करें') : L('Send ride request', 'राइड रिक्वेस्ट भेजें'));
+    const actionLabel = r.auto_confirm ? L('Confirm booking', 'बुकिंग कन्फ़र्म करें') : L('Send ride request', 'राइड रिक्वेस्ट भेजें');
+    const backButton = h('button', { class: 'app-back', type: 'button', 'aria-label': L('Back', 'पीछे'),
+      disabled: !!st.attempt, onclick: () => { setStep('seats'); void loadTaken(); } }, '←');
+    const btn = h('button', { class: 'btn btn-block btn-lg', type: 'submit' }, st.attempt ? L('Retry booking', 'बुकिंग फिर भेजें') : actionLabel);
     const form = h('form', { class: 'stack', novalidate: true, onsubmit: async (e) => {
       e.preventDefault(); clear(err);
       if (nameI.value.trim().length < 2) { err.textContent = L('Please enter your name.', 'अपना नाम लिखें।'); nameI.focus(); return; }
       if (phoneI.value.replace(/\D/g, '').length < 10) { err.textContent = L('Please enter a 10-digit mobile number.', '10 अंकों का मोबाइल नंबर लिखें।'); phoneI.focus(); return; }
-      await busy(btn, async () => {
-        const b = await q(sb.rpc('request_cab_ride', { p_ride: r.id, p_seat_numbers: st.seats, p_name: nameI.value.trim(), p_phone: phoneI.value.trim(), p_note: noteI.value.trim(), p_from_place: null, p_to_place: null }))
-          .catch(async (ex) => { err.textContent = ex.message; await loadTaken(); throw ex; });
-        try { sessionStorage.removeItem(`hh_seats_${r.id}`); } catch { /* ignore */ }
+      if (st.submitting) return;
+      if (!st.attempt && (st.seats.length !== n || !canSelect())) {
+        st.notice = lostSeat; setStep('seats'); void loadTaken(); return;
+      }
+      const seats = sortedSeats(st.seats);
+      st.attempt ||= { id: crypto.randomUUID(), user: user().id, seats: seats.join(',') };
+      writeSession(selectionKey, seats);
+      writeSession(attemptKey, st.attempt);
+      st.submitting = true;
+      btn.disabled = true;
+      backButton.disabled = true;
+      btn.textContent = L('Submitting…', 'भेज रहे हैं…');
+      try {
+        const { data: booking, error } = await sb.rpc('request_cab_ride_idempotent', {
+          p_request_id: st.attempt.id, p_ride: r.id, p_seat_numbers: seats, p_name: nameI.value.trim(),
+          p_phone: phoneI.value.trim(), p_note: noteI.value.trim(), p_from_place: null, p_to_place: null,
+        }).abortSignal(AbortSignal.timeout(18000));
+        if (error) {
+          if (error.code === 'P0001' || error.code === '23505') {
+            st.attempt = null;
+            writeSession(attemptKey, null);
+            if (error.code === '23505' || /^Seat .*has just been taken/.test(error.message)) {
+              st.submitting = false;
+              await loadTaken();
+              st.notice = lostSeat;
+              setStep('seats');
+              return;
+            }
+            err.textContent = error.message;
+          } else {
+            err.textContent = L('We could not confirm the response. Retry this booking to check its status.', 'बुकिंग का जवाब नहीं मिला। स्टेटस जानने के लिए फिर कोशिश करें।');
+          }
+          return;
+        }
+        if (!booking?.id) throw new Error('Missing booking ID');
+        writeSession(selectionKey, null);
+        writeSession(attemptKey, null);
         if (!p.phone) sb.from('profiles').update({ phone: phoneI.value.trim() }).eq('id', user().id).then(() => loadProfile());
-        location.href = `/cab/booking/${b.id}?new=1`;
-        return;
-      });
+        location.href = `/cab/booking/${booking.id}?new=1`;
+      } catch {
+        err.textContent = L('We could not confirm the response. Retry this booking to check its status.', 'बुकिंग का जवाब नहीं मिला। स्टेटस जानने के लिए फिर कोशिश करें।');
+      } finally {
+        st.submitting = false;
+        btn.disabled = false;
+        backButton.disabled = !!st.attempt;
+        btn.textContent = st.attempt ? L('Retry booking', 'बुकिंग फिर भेजें') : actionLabel;
+      }
     } },
       h('div', { class: 'confirm-card' },
         h('div', { class: 'driver-head' }, avatar(d.photo_url, d.full_name), h('div', {}, h('strong', {}, d.full_name), h('div', { class: 'small muted' }, r.vehicle_model))),
         timeline(),
-        h('div', { class: 'confirm-meta' }, h('span', {}, '🗓 ', dateOf(r.departure_at)), h('span', {}, L('Seats ', 'सीट ') + st.seats.join(', ')))),
+        h('div', { class: 'confirm-meta' }, h('span', {}, icon('clock', 15), dateOf(r.departure_at)), h('span', {}, icon('people', 15), L('Seats ', 'सीट ') + sortedSeats(st.seats).join(', ')))),
       h('div', { class: 'fare' },
         h('h2', {}, L('Fare details', 'किराए का हिसाब')),
         h('div', { class: 'fare-row' }, h('span', {}, `${inr(r.price_per_seat)} × ${st.seats.length}`), h('span', {}, inr(r.price_per_seat * st.seats.length))),
         h('div', { class: 'fare-row total' }, h('span', {}, L('Total amount', 'कुल रकम')), h('strong', {}, inr(r.price_per_seat * st.seats.length))),
-        h('p', { class: 'small muted' }, L('No online payment. You pay the driver directly for your share of the trip.', 'कोई ऑनलाइन पेमेंट नहीं। अपने हिस्से का किराया सीधे ड्राइवर को दें।'))),
+        h('p', { class: 'small muted' }, L('Pay the driver directly for your share of the trip.', 'अपने हिस्से का किराया सीधे ड्राइवर को दें।'))),
       h('label', { class: 'field', for: 'bk-name' }, h('span', { class: 'field-label' }, L('Your name', 'आपका नाम')), nameI),
       h('label', { class: 'field', for: 'bk-phone' }, h('span', { class: 'field-label' }, L('Mobile number', 'मोबाइल नंबर')), phoneI),
       h('label', { class: 'field', for: 'bk-note' }, h('span', { class: 'field-label' }, L('Message to driver', 'ड्राइवर के लिए संदेश')), noteI),
       err, btn,
       !r.auto_confirm ? h('p', { class: 'small muted center' }, L('The driver has 15 minutes to accept. Your seats are held until then; if there is no answer, they are released automatically.', 'ड्राइवर के पास मंज़ूर करने के लिए 15 मिनट हैं। तब तक सीटें आपके लिए रुकी रहेंगी; जवाब न आए तो अपने आप छूट जाएँगी।')) : null);
-    return h('div', {},
-      h('div', { class: 'app-head' }, h('button', { class: 'app-back', type: 'button', 'aria-label': L('Back', 'पीछे'), onclick: () => { st.step = 'seats'; paint(); } }, '←'),
-        h('h1', {}, L('Confirm your booking', 'बुकिंग कन्फ़र्म करें'))),
-      form);
+    return h('div', { class: 'cab-discovery cab-booking-flow cab-booking-review' },
+      h('div', { class: 'app-head' }, backButton, h('h1', {}, L('Confirm your booking', 'बुकिंग कन्फ़र्म करें'))), form);
   }
 
-  if (st.step === 'confirm' && !user()) st.step = 'seats';
-  paint();
+  if (st.step !== 'details') await loadTaken();
+  if (st.step === 'confirm' && (!user() || st.seats.length !== n)) st.step = 'seats';
+  setStep(st.step);
   return root;
 }
 
@@ -567,24 +677,30 @@ export async function booking({ params, query }) {
   const seatsTxt = `${b.seats} (${L('seat no.', 'सीट नं.')} ${(b.seat_numbers || []).join(', ') || '—'})`;
   const statusTxt = { pending: L('Waiting for the driver (15 min)', 'ड्राइवर के जवाब का इंतज़ार (15 मिनट)'), confirmed: L('Confirmed', 'कन्फ़र्म') }[b.status] || b.status;
 
-  if (query.new === '1') {
+  if (query.new === '1' && ['pending', 'confirmed'].includes(b.status)) {
     const pending = b.status === 'pending';
     setTimeout(() => {
-      if (!location.pathname.startsWith(`/cab/booking/${b.id}`)) return;
+      if (location.pathname !== `/cab/booking/${b.id}`) return;
       history.replaceState(null, '', `/cab/booking/${b.id}`);
       const dlg = celebrate({
+        cabBooking: true,
         wait: pending,
-        title: pending ? L('Request sent!', 'रिक्वेस्ट भेज दी!') : L('Your ride is booked!', 'आपकी राइड बुक हो गई!'),
+        title: pending ? L('Request sent!', 'रिक्वेस्ट भेज दी!') : L('Booking confirmed!', 'बुकिंग कन्फ़र्म हो गई!'),
         message: pending
-          ? L('Your seats are held for 15 minutes while the driver answers. We will tell you here as soon as they reply.', 'ड्राइवर के जवाब तक आपकी सीटें 15 मिनट रुकी हैं। जवाब आते ही हम आपको यहीं बताएँगे।')
-          : L('Your journey with The Himalayan Horizon is one step closer. Sit back and get ready to explore.', 'द हिमालयन होराइज़न के साथ आपकी यात्रा बस एक कदम दूर है। तैयार हो जाइए घूमने के लिए।'),
-        rows: [[L('Booking ID', 'बुकिंग आईडी'), refOf(b)], [L('Driver', 'ड्राइवर'), d.full_name], [L('Vehicle', 'गाड़ी'), r.vehicle_model],
-          [L('Pickup', 'पिकअप'), r.pickup_point || endName(r, 'from')], [L('Destination', 'मंज़िल'), r.drop_point || endName(r, 'to')],
-          [L('Date & time', 'तारीख़ और समय'), when], [L('Seats', 'सीटें'), seatsTxt], [L('Status', 'स्थिति'), statusTxt]],
+          ? L('Your seats are held while the driver responds.', 'ड्राइवर के जवाब तक आपकी सीटें होल्ड पर हैं।')
+          : L('Your shared cab is booked. Pay the driver directly for your seat.', 'आपकी शेयर्ड कैब बुक है। अपनी सीट का किराया सीधे ड्राइवर को दें।'),
+        rows: [
+          [L('Booking ID', 'बुकिंग आईडी'), refOf(b)],
+          [L('Route', 'रूट'), routeLabel(r)],
+          [L('Date & time', 'तारीख़ और समय'), when],
+          [L('Driver & vehicle', 'ड्राइवर और गाड़ी'), [d.full_name, r.vehicle_model].filter(Boolean).join(' · ')],
+          [L('Seats', 'सीटें'), seatsTxt],
+          [L('Total fare', 'कुल किराया'), inr(r.price_per_seat * b.seats)],
+        ],
         actions: [
-          h('button', { class: 'btn btn-block', type: 'button', onclick: () => dlg.close() }, L('Open booking details', 'बुकिंग की पूरी जानकारी')),
-          h('p', { class: 'cele-wa small muted' }, icon('bell', 15), L('Updates come to your THH notifications. WhatsApp updates will be added soon.', 'अपडेट आपकी THH सूचनाओं में आएँगे। WhatsApp अपडेट जल्द जोड़े जाएँगे।')),
-          support ? h('a', { class: 'btn btn-ghost btn-block', href: support.href, target: support.external ? '_blank' : null, rel: 'noopener' }, support.label) : null,
+          pending && b.hold_expires_at ? holdTimer(b.hold_expires_at, L('Driver has', 'ड्राइवर के पास')) : null,
+          h('button', { class: 'btn btn-block', type: 'button', onclick: () => dlg.close() }, L('View booking', 'बुकिंग देखें')),
+          h('a', { class: 'btn btn-ghost btn-block', href: '/account/cab' }, L('My bookings', 'मेरी बुकिंग')),
         ],
       });
     }, 60);
@@ -599,7 +715,7 @@ export async function booking({ params, query }) {
     started: h('p', { class: 'soft-note ok' }, L('Your ride is on the way. Have a safe journey!', 'आपकी राइड रास्ते में है। शुभ यात्रा!')),
   };
 
-  return h('div', { class: 'app-page' },
+  return h('div', { class: 'app-page' }, h('div', { class: 'cab-discovery cab-booking-flow cab-booking-record' },
     h('div', { class: 'app-head' }, back('/cab/bookings'), h('h1', {}, L('Booking details', 'बुकिंग की जानकारी'))),
     h('div', { class: 'code-box' },
       h('span', { class: 'small muted' }, L('Booking ID', 'बुकिंग आईडी')), h('strong', { class: 'mono' }, refOf(b)), statusPill(r.status === 'started' && b.status === 'confirmed' ? 'started' : b.status, r.departure_at),
@@ -622,7 +738,7 @@ export async function booking({ params, query }) {
     h('div', { class: 'stack' },
       h('a', { class: 'btn btn-block', href: '/cab/bookings' }, L('My bookings', 'मेरी बुकिंग')),
       support ? h('a', { class: 'btn btn-ghost btn-block', href: support.href, target: support.external ? '_blank' : null, rel: 'noopener' }, support.label) : null,
-      canCancel ? h('button', { class: 'btn btn-danger-ghost btn-block', type: 'button', onclick: () => confirmCancel(b) }, L('Cancel booking', 'बुकिंग रद्द करें')) : null));
+      canCancel ? h('button', { class: 'btn btn-danger-ghost btn-block', type: 'button', onclick: () => confirmCancel(b) }, L('Cancel booking', 'बुकिंग रद्द करें')) : null)));
 }
 
 function confirmCancel(b) {

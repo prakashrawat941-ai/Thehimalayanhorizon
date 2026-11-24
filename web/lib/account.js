@@ -25,11 +25,11 @@ export const nights = (a, b) => Math.max(1, Math.round((new Date(b) - new Date(a
 /** "Almora → Munsiyari" for a cab booking, using the booking's own pickup/drop when set. */
 export function rideRoute(b, places, locations, pick) {
   const r = b.cab_rides || {};
-  const nm = (pid, lid) => {
+  const nm = (pid, lid, geo, point) => {
     const p = pid && places.find((x) => x.id === pid);
     if (p) return pick(p, 'name');
     const l = lid && locations.find((x) => x.id === lid);
-    return l ? pick(l, 'name') : '?';
+    return l ? pick(l, 'name') : geo?.name || point || '?';
   };
-  return `${nm(b.from_place_id || r.from_place_id, r.from_location_id)} → ${nm(b.to_place_id || r.to_place_id, r.to_location_id)}`;
+  return `${nm(b.from_place_id || r.from_place_id, r.from_location_id, b.pickup_geo || r.from_geo, r.pickup_point)} → ${nm(b.to_place_id || r.to_place_id, r.to_location_id, b.drop_geo || r.to_geo, r.drop_point)}`;
 }
