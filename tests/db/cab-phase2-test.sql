@@ -41,7 +41,8 @@ update public.profiles set full_name = 'Test Passenger One', emergency_contact_n
 insert into public.driver_profiles (user_id, full_name, phone, is_verified) values
   ('00000000-0000-4000-8000-0000000000d1', 'Ramesh Test Driver', '9000000001', true),
   ('00000000-0000-4000-8000-0000000000d2', 'Unverified Driver', '9000000002', false);
-select pg_temp.put('ertiga', (select vv.id from public.vehicle_variants vv join public.vehicle_models mo on mo.id = vv.model_id where mo.name = 'Ertiga'));
+select pg_temp.put('ertiga', (select vv.id from public.vehicle_variants vv join public.vehicle_models mo on mo.id = vv.model_id
+                            where mo.name = 'Ertiga' and vv.variant = 'Standard' and vv.model_year is null));
 
 -- ── Driver side ──
 select pg_temp.login('00000000-0000-4000-8000-0000000000d1');
