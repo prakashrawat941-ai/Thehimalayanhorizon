@@ -40,4 +40,15 @@ select public.management_decide(:'review_id','approved','Checked');
 reset role;
 select pg_temp.check_true((select status='approved' from public.partners where id=:'partner_id'),'Partner approval did not apply');
 select pg_temp.check_true((select role='partner' from public.profiles where id='10000000-0000-0000-0000-000000000006'),'Partner profile did not update');
+select set_config('request.jwt.claims','{}',true);
+insert into public.homestays(partner_id,name,village,summary,description,rooms,max_guests,price_per_night,status)
+ values(:'partner_id','Test office stay','Surmoli','Summary','Description',1,2,1000,'approved') returning id as stay_id \gset
+insert into public.homestay_rooms(homestay_id,room_type,base_price,total_inventory)
+ values(:'stay_id','Double',1000,1) returning id as room_id \gset
+set local role authenticated;
+select pg_temp.login(4);
+select gen_random_uuid() as request_key \gset
+select public.management_book_stay(:'request_key',:'room_id','Walk-in guest','9999999999',current_date+2,current_date+3,1) as office_work \gset
+select pg_temp.check_true(public.management_book_stay(:'request_key',:'room_id','Walk-in guest','9999999999',current_date+2,current_date+3,1)=:'office_work'::uuid,'Retry made another booking');
+select pg_temp.check_true((select count(*)=1 from public.booking_requests b join public.management_work w on b.booking_code=w.booking_code where w.id=:'office_work' and b.status='requested'),'Office request missing');
 rollback;

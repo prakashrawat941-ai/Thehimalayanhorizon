@@ -43,6 +43,7 @@ const fixture = http.createServer(async (req, res) => {
 (async () => {
   await new Promise((r) => fixture.listen(54321, '127.0.0.1', r));
   const browser = await chromium.launch({
+    executablePath: process.env.CHROME_BIN,
     headless: true,
     args: ['--no-sandbox', '--disable-dev-shm-usage'],
   });

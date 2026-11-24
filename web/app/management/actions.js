@@ -29,3 +29,17 @@ export async function saveWork(form) {
         });
   redirect('/management?result=' + (result.error ? 'failed' : 'saved'));
 }
+
+export async function bookStay(form) {
+  const { db } = await requireUser('/employee');
+  const { error } = await db.rpc('management_book_stay', {
+    p_request: form.get('requestKey'),
+    p_room: form.get('room'),
+    p_guest: form.get('guest'),
+    p_phone: form.get('phone'),
+    p_start: form.get('arrival'),
+    p_end: form.get('departure'),
+    p_guests: Number(form.get('guests')),
+  });
+  redirect('/employee?result=' + (error ? 'failed' : 'saved'));
+}

@@ -5,11 +5,20 @@ import { requireUser } from '@/lib/account';
 
 export async function requireAdmin(next = '/admin') {
   const ctx = await requireUser(next);
+  const { data: member, error } = await ctx.db
+    .from('management_members')
+    .select('role')
+    .eq('user_id', ctx.user.id)
+    .maybeSingle();
+  if (error && error.code !== 'PGRST205' && error.code !== '42P01')
+    throw Error('Management directory unavailable');
+  if (member)
+    redirect(member.role === 'co_founder' ? '/co-founder' : '/management');
   if (!ctx.roles?.admin) notFound();
-  const {data:member,error}=await ctx.db.from('management_members').select('role').eq('user_id',ctx.user.id).maybeSingle();
-  if(error && error.code!=='PGRST205' && error.code!=='42P01')throw Error('Management directory unavailable');
-  if(member)redirect('/management');
   return ctx;
 }
 
-export const count = async (q) => { const { count: c } = await q; return c || 0; };
+export const count = async (q) => {
+  const { count: c } = await q;
+  return c || 0;
+};

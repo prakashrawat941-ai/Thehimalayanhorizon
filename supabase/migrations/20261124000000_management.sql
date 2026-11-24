@@ -183,4 +183,27 @@ create or replace function private.is_admin() returns boolean language sql stabl
  select exists(select from public.profiles p where p.id=auth.uid() and p.role='admin')
  and not exists(select from public.management_members where user_id=auth.uid())
 $$;
+create function public.management_book_stay(p_request uuid,p_room uuid,p_guest text,p_phone text,p_start date,p_end date,p_guests integer)
+returns uuid language plpgsql security definer set search_path='' as $$
+declare work uuid; stay uuid; code text;
+begin
+ if private.management_role() is distinct from 'employee' or p_request is null then raise exception 'Not permitted' using errcode='42501'; end if;
+ select h.id into strict stay from public.homestay_rooms r join public.homestays h on h.id=r.homestay_id
+ where r.id=p_room and r.is_active and h.status='approved';
+ insert into public.management_work(owner_id,office,kind,subject,request_key)
+ select user_id,office,'booking','Homestay',p_request from public.management_members where user_id=auth.uid()
+ on conflict(owner_id,request_key) do nothing returning id into work;
+ if work is null then
+ select id into strict work from public.management_work where owner_id=auth.uid() and request_key=p_request and kind='booking' and booking_code is not null;
+ return work;
+ end if;
+ -- Existing booking triggers validate inventory, quote the room and notify the host.
+ insert into public.booking_requests(kind,homestay_id,room_id,rooms_booked,user_id,guest_name,guest_phone,start_date,end_date,guests)
+ values('homestay',stay,p_room,1,auth.uid(),trim(p_guest),trim(p_phone),p_start,p_end,p_guests) returning booking_code into code;
+ update public.management_work set booking_code=code,subject=code where id=work;
+ insert into public.management_events(work_id,actor,action) values(work,auth.uid(),'submitted');
+ return work;
+end $$;
+revoke all on function public.management_book_stay(uuid,uuid,text,text,date,date,integer) from public,anon;
+grant execute on function public.management_book_stay(uuid,uuid,text,text,date,date,integer) to authenticated;
 commit;
