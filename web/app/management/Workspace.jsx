@@ -60,8 +60,23 @@ export async function Workspace({ expected, searchParams }) {
     throw Error('Workspace records unavailable');
   const requestKey = randomUUID();
   const title = (k) => L(...labels[k]);
+  const leadership = member.role !== 'employee';
+  const destinations = [
+    ['#overview', L('Overview', 'सारांश')],
+    ['#new-entry', L('New entry', 'नई प्रविष्टि')],
+    ['#work', L('Work and approvals', 'कार्य और मंज़ूरी')],
+    ...(member.role === 'founder' ? [['#finance', L('Finance', 'वित्त')]] : []),
+    ...(member.role === 'ceo' ? [['#team', L('Team', 'टीम')]] : []),
+    ...(member.role === 'co_founder' ? [['/co-founder/cms', title('cms')]] : []),
+    ['/account', L('Profile', 'प्रोफ़ाइल')],
+  ];
   return (
-    <div className="mgmt">
+    <div className={leadership ? 'mgmt leadership' : 'mgmt'}>
+      {leadership && <nav className="leadership-nav" aria-label={title(member.role)}>
+        <b>The Himalayan Horizon</b>
+        {destinations.map(([href, label]) => <Link key={href} href={href}>{label}</Link>)}
+      </nav>}
+      <div className="management-content" id="overview">
       <header>
         <p>{member.office}</p>
         <h1>{title(member.role)}</h1>
@@ -77,7 +92,7 @@ export async function Workspace({ expected, searchParams }) {
         </p>
       )}
       {finance.data && (
-        <section className="mgmt-fin">
+        <section className="mgmt-fin" id="finance">
           {[
             [
               L('Homestay booking value', 'होमस्टे बुकिंग मूल्य'),
@@ -108,7 +123,7 @@ export async function Workspace({ expected, searchParams }) {
           </article>
         ))}
       </div>
-      <section>
+      <section id="new-entry">
         <h2>{L('New entry', 'नई प्रविष्टि')}</h2>
         <EntryForm
           key={requestKey}
@@ -120,7 +135,7 @@ export async function Workspace({ expected, searchParams }) {
         />
       </section>
       {member.role === 'employee' && (
-        <section>
+        <section id="team">
           <details>
             <summary>
               {L(
@@ -190,7 +205,7 @@ export async function Workspace({ expected, searchParams }) {
         </section>
       )}
       {member.role === 'ceo' && (
-        <section>
+        <section id="team">
           <details>
             <summary>
               {L(
@@ -221,7 +236,7 @@ export async function Workspace({ expected, searchParams }) {
           </details>
         </section>
       )}
-      <section>
+      <section id="work">
         <h2>{L('Work and approvals', 'कार्य और मंज़ूरी')}</h2>
         {!work.data.length && (
           <p>
@@ -306,6 +321,7 @@ export async function Workspace({ expected, searchParams }) {
           )}
         </nav>
       </section>
+      </div>
     </div>
   );
 }
