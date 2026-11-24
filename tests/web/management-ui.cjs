@@ -1,5 +1,6 @@
 const http = require('node:http'),
   assert = require('node:assert/strict');
+const {mkdirSync}=require('node:fs');
 const { chromium } = require('playwright');
 const exp = Math.floor(Date.now() / 1000) + 3600;
 const id = '10000000-0000-0000-0000-000000000001';
@@ -102,6 +103,10 @@ const fixture = http.createServer(async (req, res) => {
           ),
           'horizontal overflow ' + r,
         );
+        if(process.env.THH_SCREENSHOTS){
+          mkdirSync(process.env.THH_SCREENSHOTS,{recursive:true});
+          await page.screenshot({path:process.env.THH_SCREENSHOTS+'/'+r+'-'+lang+'.png',fullPage:true});
+        }
         if (r === 'employee') {
           await page.selectOption('[name=kind]', 'expense');
           await page.locator('[name=amount]').waitFor();

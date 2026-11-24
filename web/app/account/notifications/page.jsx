@@ -12,8 +12,8 @@ export async function generateMetadata() {
 const MAP = { 'cab/bookings': '/account/cab', account: '/account', trips: '/account/trips', 'account/bookings': '/account/bookings' };
 function href(link) {
   if (!link) return null;
-  if (link.startsWith('#/')) { const p = link.slice(2); return MAP[p] || `https://thehimalayanhorizon.netlify.app/${link}`; }
-  return link;
+  if (link.startsWith('#/')) { const p = link.slice(2); return MAP[p] || `/${link}`; }
+  return /^\/(?![\/\\])/.test(link) && !/[\\\u0000-\u001f]/.test(link) ? link : null;
 }
 
 export default async function Notifications() {
