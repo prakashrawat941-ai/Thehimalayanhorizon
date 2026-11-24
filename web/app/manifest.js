@@ -4,8 +4,8 @@ export default async function manifest() {
     const {data} = await publicDb().from('site_settings').select('value').eq('key','pwa_icon').maybeSingle();
     const prefix = data?.value === 'classic' ? '' : 'signature-';
     return {
-        name: 'The Himalayan Horizon',
-        short_name: 'Himalayan Horizon',
+        name: process.env.NEXT_PUBLIC_THH_STAGING === '1' ? 'The Himalayan Horizon · Staging' : 'The Himalayan Horizon',
+        short_name: process.env.NEXT_PUBLIC_THH_STAGING === '1' ? 'THH Staging' : 'Himalayan Horizon',
         description: 'Discover the Himalayas Beyond the Ordinary. Villages, homestays, trip planner and shared cabs in Uttarakhand.',
         id: '/',
         start_url: '/?source=pwa',

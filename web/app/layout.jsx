@@ -42,6 +42,7 @@ export default async function RootLayout({ children }) {
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Mukta:wght@400;500;600;700&family=Caveat:wght@600&family=Tiro+Devanagari+Hindi&display=swap"/>
       </head>
       <body>
+        {process.env.NEXT_PUBLIC_THH_STAGING === '1' && <aside className="soft-note">{L('Staging · Test bookings only','परीक्षण साइट · केवल टेस्ट बुकिंग')}</aside>}
         <LaunchScreen />
         <a className="skip" href="#main">{t('skip')}</a>
         <Header lang={lang} labels={labels} roles={session.roles} brandName={(lang === 'hi' ? brand.name_hi : brand.name) || L('The Himalayan Horizon', 'द हिमालयन होराइज़न')} brandSub={L('Uttarakhand · Village Travel', 'उत्तराखंड · गाँव की यात्रा')}/>

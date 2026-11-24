@@ -1,6 +1,6 @@
 const http = require('node:http'),
   assert = require('node:assert/strict');
-const {mkdirSync}=require('node:fs');
+const { mkdirSync } = require('node:fs');
 const { chromium } = require('playwright');
 const exp = Math.floor(Date.now() / 1000) + 3600;
 const id = '10000000-0000-0000-0000-000000000001';
@@ -17,15 +17,50 @@ const user = {
 };
 let submitted;
 const fixture = http.createServer(async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', 'http://127.0.0.1:3199');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'authorization, apikey, x-client-info, accept, content-type, accept-profile, prefer, range',
+  );
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
   const path = req.url.split('?')[0];
   let body = [];
   if (path === '/auth/v1/user') body = user;
   if (path.endsWith('/profiles')) body = { id, role: 'traveler' };
-  if (path.endsWith('/driver_profiles')) body = null;
+  if (path.endsWith('/driver_profiles'))
+    body =
+      role === 'driver'
+        ? {
+            user_id: id,
+            full_name: 'UAT Driver',
+            status: 'pending',
+            is_verified: false,
+          }
+        : null;
+  if (path.endsWith('/partners') && role === 'host')
+    body = [
+      {
+        id,
+        owner_id: id,
+        business_name: 'UAT Homestay',
+        status: 'approved',
+        categories: ['homestay'],
+      },
+    ];
   if (path.endsWith('/management_members'))
     body = req.url.includes('role=eq.employee')
       ? []
-      : { role, office: 'Surmoli' };
+      : ['driver', 'customer', 'host'].includes(role)
+        ? null
+        : {
+            role: role === 'villageoffice' ? 'employee' : role,
+            office:
+              role === 'villageoffice' ? 'Surmoli Village Office' : 'Surmoli',
+          };
   if (path.endsWith('/management_finance'))
     body = { booking_value: 0, commission: 0 };
   if (path.endsWith('/management_submit')) {
@@ -54,6 +89,10 @@ const fixture = http.createServer(async (req, res) => {
       ['ceo', 'ceo'],
       ['co_founder', 'co-founder'],
       ['employee', 'employee'],
+      ['villageoffice', 'employee'],
+      ['customer', 'account'],
+      ['host', 'partner'],
+      ['driver', 'drive'],
     ]) {
       role = r;
       for (const [width, lang] of [
@@ -94,7 +133,13 @@ const fixture = http.createServer(async (req, res) => {
         });
         assert.equal(res.status(), 200);
         await page
-          .locator('.mgmt form select[name=kind]')
+          .locator(
+            {
+              customer: '.ds-head h1',
+              host: '.ds-head h1',
+              driver: '.app-page.dash h1',
+            }[r] || '.mgmt form select[name=kind]',
+          )
           .waitFor({ timeout: 5000 });
         assert.equal(await page.locator('html').getAttribute('lang'), lang);
         assert(
@@ -103,9 +148,12 @@ const fixture = http.createServer(async (req, res) => {
           ),
           'horizontal overflow ' + r,
         );
-        if(process.env.THH_SCREENSHOTS){
-          mkdirSync(process.env.THH_SCREENSHOTS,{recursive:true});
-          await page.screenshot({path:process.env.THH_SCREENSHOTS+'/'+r+'-'+lang+'.png',fullPage:true});
+        if (process.env.THH_SCREENSHOTS) {
+          mkdirSync(process.env.THH_SCREENSHOTS, { recursive: true });
+          await page.screenshot({
+            path: process.env.THH_SCREENSHOTS + '/' + r + '-' + lang + '.png',
+            fullPage: true,
+          });
         }
         if (r === 'employee') {
           await page.selectOption('[name=kind]', 'expense');
