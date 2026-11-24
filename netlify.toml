@@ -1,7 +1,8 @@
 [build]
   base = "web"
   command = '''
-if [ "$BRANCH" = "cab-upgrade-staging" ] || [ "$HEAD" = "cab-upgrade-staging" ]; then
+if [ "$BRANCH" = "cab-upgrade-staging" ] || [ "$HEAD" = "cab-upgrade-staging" ] ||
+   [ "$BRANCH" = "feature/instant-cab-monitor" ] || [ "$HEAD" = "feature/instant-cab-monitor" ]; then
   if [ "$CONTEXT" != "deploy-preview" ] && [ "$CONTEXT" != "branch-deploy" ]; then
     echo "Cab staging requires a non-production deploy context."
     exit 1

@@ -9,7 +9,7 @@ export async function generateMetadata() {
 }
 
 // Old links in the database look like "#/cab/bookings"; turn them into new-site paths where they exist.
-const MAP = { 'cab/bookings': '/account/cab', account: '/account', trips: '/account/trips', 'account/bookings': '/account/bookings' };
+const MAP = { 'admin/safety': '/admin/cab?tab=sos', 'cab/bookings': '/account/cab', account: '/account', trips: '/account/trips', 'account/bookings': '/account/bookings' };
 function href(link) {
   if (!link) return null;
   if (link.startsWith('#/')) { const p = link.slice(2); return MAP[p] || `https://thehimalayanhorizon.netlify.app/${link}`; }
