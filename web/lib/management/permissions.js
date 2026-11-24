@@ -1,6 +1,6 @@
 // Permission vocabulary only. Authorization must be enforced by database policies and server guards.
 export const MANAGEMENT_ROLES = Object.freeze(['founder','ceo','co_founder','employee']);
-export const WORKSPACES = Object.freeze({founder:'/founder',ceo:'/ceo',co_founder:'/admin',employee:'/employee'});
+export const WORKSPACES = Object.freeze({founder:'/founder',ceo:'/ceo',co_founder:'/co-founder',employee:'/employee'});
 export const PERMISSIONS = Object.freeze({
   businessRead:'business.read', businessApprove:'business.approve',
   financeRead:'finance.read', financeApprove:'finance.approve',

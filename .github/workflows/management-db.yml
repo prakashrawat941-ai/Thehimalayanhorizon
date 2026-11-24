@@ -1,0 +1,36 @@
+name: Management database checks
+on:
+  pull_request:
+    paths: ['supabase/migrations/**', 'tests/db/**', '.github/workflows/management-db.yml']
+permissions:
+  contents: read
+jobs:
+  postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: local-test-only
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: local-test-only
+      PGDATABASE: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - name: Replay migrations and check permissions and booking flows
+        shell: bash
+        run: |
+          set -eo pipefail
+          psql -Xq -v ON_ERROR_STOP=1 -f tests/db/supabase-stubs.sql
+          for migration in supabase/migrations/*.sql; do
+            # Scheduling is supplied by the existing Supabase test shim.
+            sed '/^create extension if not exists pg_cron;/d' "$migration" | psql -Xq -v ON_ERROR_STOP=1
+          done
+          psql -Xq -v ON_ERROR_STOP=1 -f tests/db/management-test.sql
+          for suite in tests/db/cab-phase2-test.sql tests/db/homestay-test.sql; do
+            (echo 'begin;'; cat "$suite"; echo 'do $$ begin if exists(select from r where not ok) then raise exception $msg$Regression failed$msg$; end if; end $$; rollback;') | psql -Xq -v ON_ERROR_STOP=1
+          done

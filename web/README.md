@@ -16,6 +16,6 @@ Built from `claude/THH-Project-Requirements.md` (PRD). Uses the **same Supabase 
 - Roles: `lib/auth.js` → customer / partner (has partner record) / driver (has driver profile) / admin (`profiles.role = 'admin'`, set only by the owner).
 - PWA: `app/manifest.js`, `scripts/sw.template.js` → `public/sw.js` (unique version per deploy), update check on open, on return to screen and every 30 minutes; version in footer.
 - CMS: home sections, themes, locations, itineraries from their tables; text pages from `site_settings.pages`; FAQ from `site_settings.faqs`; contact from `site_settings.contact`.
-- Contact form needs migration `supabase/migrations/20261122100000_contact_messages.sql` (verify against the deployment database).
+- Contact form needs migration `supabase/migrations/20261122071832_contact_messages.sql` (verify against the deployment database).
 
 Local: `npm install && npm run dev` inside `web/`.
