@@ -13,8 +13,8 @@ export async function catalog() {
   if (cat) return cat;
   const [makes, models, variants, images] = await Promise.all([
     q(sb.from('vehicle_makes').select('id,name').eq('is_active', true).order('name')).catch(() => []),
-    q(sb.from('vehicle_models').select('id,make_id,name,category').eq('is_active', true).order('name')).catch(() => []),
-    q(sb.from('vehicle_variants').select('id,model_id,model_year,variant,seats_total,passenger_seats,is_verified').eq('is_active', true)).catch(() => []),
+    q(sb.from('vehicle_models').select('id,make_id,name,category,aliases,market_status,is_electric').eq('is_active', true).order('name')).catch(() => []),
+    q(sb.from('vehicle_variants').select('id,model_id,model_year,variant,seats_total,passenger_seats,is_verified,generation,seating_source_url').eq('is_active', true)).catch(() => []),
     q(sb.from('vehicle_images').select('id,model_id,variant_id,model_year,angle,url,source_url,author,licence,is_generic,sort').eq('status', 'approved').order('sort')).catch(() => []),
   ]);
   const makeById = Object.fromEntries((makes || []).map((m) => [m.id, m]));
@@ -24,12 +24,23 @@ export async function catalog() {
 }
 export const resetCatalog = () => { cat = null; };
 
+const normalize = (name) => name.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^a-z0-9+]+/g, ' ').trim();
+const searchNames = (model) => [model.label, model.name, ...(model.aliases || [])].map(normalize);
+
 // Find the catalog model for a saved vehicle/ride name such as "Maruti Suzuki Ertiga" or "Maruti Ertiga".
 export function modelFor(name, c = cat) {
   if (!c || !name) return null;
-  const n = String(name).toLowerCase().replace(/\s+/g, ' ').trim();
-  return c.models.find((m) => m.label.toLowerCase() === n)
-    || c.models.filter((m) => n.includes(m.name.toLowerCase())).sort((a, b) => b.name.length - a.name.length)[0] || null;
+  const n = normalize(String(name));
+  const label = c.models.find((m) => normalize(m.label) === n);
+  if (label) return label;
+  const matches = c.models.filter((m) => searchNames(m).includes(n));
+  if (matches.length) return matches.length === 1 ? matches[0] : null;
+  const prefixes = c.models.flatMap((m) => searchNames(m)
+    .filter((candidate) => candidate.length >= 4 && n.startsWith(`${candidate} `))
+    .map((candidate) => ({ model: m, length: candidate.length })));
+  const longest = Math.max(0, ...prefixes.map((entry) => entry.length));
+  const best = new Set(prefixes.filter((entry) => entry.length === longest).map((entry) => entry.model));
+  return best.size === 1 ? [...best][0] : null;
 }
 
 // Best picture: exact variant/year → same model (labelled) → none (drawing).
@@ -88,6 +99,13 @@ export function vehicleVisual(name, { variantId = null, size = 'lg', model = nul
 
 // Searchable picker. Returns { el, value() } where value() gives the vehicle row or { error }.
 const TYPE_SLUG = { swift: 'swift', 'wagon r': 'wagonr', ertiga: 'ertiga', bolero: 'bolero', eeco: 'eeco' };
+const MAX_RIDE_SEATS = 12;
+
+function modelDescription(m) {
+  return [CAT_LABEL[m.category], m.is_electric ? 'EV' : '',
+    m.market_status === 'discontinued' ? L('Discontinued', 'बंद मॉडल') : ''].filter(Boolean).join(' · ');
+}
+
 export function vehiclePicker(v = {}, { regInput, acInput } = {}) {
   const st = { model: null, variant: null, manual: false };
   const search = h('input', { class: 'input', id: 'vh-search', type: 'search', autocomplete: 'off', placeholder: L('Type company or model, e.g. Ertiga', 'कंपनी या मॉडल लिखें, जैसे Ertiga'), 'aria-controls': 'vh-results' });
@@ -97,28 +115,39 @@ export function vehiclePicker(v = {}, { regInput, acInput } = {}) {
   const variants = h('div', { class: 'vh-variants' });
   const seatsNote = h('p', { class: 'small' });
   const manualModel = h('input', { class: 'input', id: 'vh-model', value: '', placeholder: 'e.g. Force Urbania' });
-  const manualSeats = h('input', { class: 'input', id: 'vh-seats', type: 'number', min: 1, max: 12, value: 4 });
+  const manualSeats = h('input', { class: 'input', id: 'vh-seats', type: 'number', min: 1, max: MAX_RIDE_SEATS, value: 4 });
   const manualBox = h('div', { class: 'stack', hidden: true },
     h('div', { class: 'row2' },
       h('label', { class: 'field', for: 'vh-model' }, h('span', { class: 'field-label' }, L('Company and model', 'कंपनी और मॉडल')), manualModel),
       h('label', { class: 'field', for: 'vh-seats' }, h('span', { class: 'field-label' }, L('Passenger seats', 'यात्री सीटें')), manualSeats)),
-    h('p', { class: 'small muted' }, L('Cars not in the list are checked by our team before your first ride.', 'जो गाड़ियाँ सूची में नहीं हैं, उन्हें हमारी टीम पहली राइड से पहले जाँचेगी।')));
+    h('p', { class: 'small muted' }, L('Enter the passenger seats shown on your registration document, excluding the driver.', 'रजिस्ट्रेशन दस्तावेज़ के अनुसार यात्री सीटें दर्ज करें। ड्राइवर की सीट शामिल न करें।')));
   const toggleManual = h('button', { type: 'button', class: 'link-btn small' }, L('My car is not in the list', 'मेरी गाड़ी सूची में नहीं है'));
 
   function list() {
     const c = cat; if (!c) return;
-    const t = search.value.trim().toLowerCase();
+    const t = normalize(search.value);
     const words = t.split(/\s+/).filter(Boolean);
-    let found = c.models.filter((m) => (!makeSel.value || m.make_id === makeSel.value) && words.every((w) => m.label.toLowerCase().includes(w)));
-    if (!found.length && t.length >= 3) { // small spelling mistakes: compare letters in order
-      const loose = (s) => s.replace(/[^a-z0-9]/g, '');
-      found = c.models.filter((m) => { const a = loose(m.label.toLowerCase()); let i = 0; for (const ch of loose(t)) { i = a.indexOf(ch, i); if (i < 0) return false; i += 1; } return true; });
+    const candidates = c.models.filter((m) => !makeSel.value || m.make_id === makeSel.value);
+    const exact = modelFor(t, { models: candidates });
+    let found = candidates.filter((m) => words.every((w) => searchNames(m).some((name) => name.includes(w))));
+    if (exact) found = [exact, ...found.filter((m) => m.id !== exact.id)];
+    if (!found.length && t.length >= 3) {
+      const matchesInOrder = (name) => {
+        let offset = 0;
+        for (const ch of t.replaceAll(' ', '')) {
+          const index = name.indexOf(ch, offset);
+          if (index < 0) return false;
+          offset = index + 1;
+        }
+        return true;
+      };
+      found = candidates.filter((m) => searchNames(m).some(matchesInOrder));
     }
     clear(results);
     if (st.model && !t) { results.hidden = true; return; }
     results.hidden = false;
     found.slice(0, 12).forEach((m) => results.append(h('button', { type: 'button', role: 'option', class: 'vh-opt', onclick: () => pick(m) },
-      vehicleVisual(m.label, { size: 'sm', model: m }), h('span', {}, h('strong', {}, m.name), h('small', {}, `${m.make} · ${CAT_LABEL[m.category] || ''}`)))));
+      vehicleVisual(m.label, { size: 'sm', model: m }), h('span', {}, h('strong', {}, m.name), h('small', {}, [m.make, modelDescription(m)].filter(Boolean).join(' · '))))));
     if (!found.length) results.append(h('p', { class: 'small muted' }, L('No match. Check the spelling, choose a company, or add your car below.', 'कुछ नहीं मिला। स्पेलिंग देखें, कंपनी चुनें या नीचे अपनी गाड़ी जोड़ें।')));
   }
   function pick(m, variantId = null) {
@@ -126,18 +155,34 @@ export function vehiclePicker(v = {}, { regInput, acInput } = {}) {
     const vs = cat.variants.filter((x) => x.model_id === m.id).sort((a, b) => a.seats_total - b.seats_total);
     st.variant = vs.find((x) => x.id === variantId) || (vs.length === 1 ? vs[0] : null);
     clear(chosen).append(vehicleVisual(m.label, { model: m, variantId: st.variant?.id }),
-      h('div', { class: 'vh-chosen-txt' }, h('strong', {}, m.label), h('span', { class: 'small muted' }, CAT_LABEL[m.category] || ''),
-        h('button', { type: 'button', class: 'link-btn small', onclick: () => { st.model = null; st.variant = null; clear(chosen); clear(variants); seatsNote.textContent = ''; list(); search.focus(); } }, L('Change', 'बदलें'))));
+      h('div', { class: 'vh-chosen-txt' }, h('strong', {}, m.label), h('span', { class: 'small muted' }, modelDescription(m)),
+        h('button', { type: 'button', class: 'link-btn small', onclick: () => { st.model = null; st.variant = null; st.manual = false; manualBox.hidden = true; clear(chosen); clear(variants); seatsNote.textContent = ''; list(); search.focus(); } }, L('Change', 'बदलें'))));
     clear(variants);
     if (vs.length > 1) {
       variants.append(h('span', { class: 'field-label' }, L('Seating layout', 'सीटों की व्यवस्था')));
       vs.forEach((x) => variants.append(h('button', { type: 'button', class: `chip-btn${st.variant?.id === x.id ? ' on' : ''}`, 'aria-pressed': String(st.variant?.id === x.id),
-        onclick: () => pick(m, x.id) }, `${x.variant}${x.model_year ? ` · ${x.model_year}` : ''}`)));
+        onclick: () => pick(m, x.id) }, [x.variant, x.generation, x.model_year].filter(Boolean).join(' · '))));
     }
-    seatsNote.textContent = st.variant
-      ? L(`${st.variant.passenger_seats} passenger seats (${st.variant.seats_total}-seater, driver not counted)${st.variant.is_verified ? '' : ' · to be confirmed by our team'}`,
-          `${st.variant.passenger_seats} यात्री सीटें (${st.variant.seats_total}-सीटर, ड्राइवर शामिल नहीं)${st.variant.is_verified ? '' : ' · हमारी टीम पुष्टि करेगी'}`)
-      : L('Choose the seating layout of your car.', 'अपनी गाड़ी की सीट व्यवस्था चुनें।');
+    if (!vs.length) {
+      variants.append(h('button', { type: 'button', class: 'link-btn small', onclick: () => {
+        st.manual = true;
+        manualBox.hidden = false;
+        manualModel.value = m.label;
+        manualSeats.value = '';
+        manualSeats.focus();
+      } }, L('Enter passenger seats from your registration', 'रजिस्ट्रेशन से यात्री सीटें दर्ज करें')));
+    }
+    clear(seatsNote);
+    if (st.variant) {
+      const x = st.variant;
+      seatsNote.append(L(`${x.passenger_seats} passenger seats (${x.seats_total}-seater, driver not counted)`,
+        `${x.passenger_seats} यात्री सीटें (${x.seats_total}-सीटर, ड्राइवर शामिल नहीं)`));
+      if (x.seating_source_url) seatsNote.append(' · ', h('a', { href: x.seating_source_url, target: '_blank', rel: 'noopener noreferrer' }, L('Manufacturer specification', 'निर्माता की जानकारी')));
+      else if (!x.is_verified) seatsNote.append(' · ', L('To be confirmed by our team', 'हमारी टीम पुष्टि करेगी'));
+      if (x.passenger_seats > MAX_RIDE_SEATS) seatsNote.append(' · ', L(`Up to ${MAX_RIDE_SEATS} seats can be offered per ride`, `एक राइड में अधिकतम ${MAX_RIDE_SEATS} सीटें दे सकते हैं`));
+    } else seatsNote.textContent = vs.length
+      ? L('Choose the seating layout of your car.', 'अपनी गाड़ी की सीट व्यवस्था चुनें।')
+      : L('A documented seating layout is unavailable for this model.', 'इस मॉडल के लिए सीटों की पुष्टि उपलब्ध नहीं है।');
     list();
   }
   toggleManual.addEventListener('click', () => { st.manual = !st.manual; manualBox.hidden = !st.manual; if (st.manual) { st.model = null; st.variant = null; clear(chosen); clear(variants); seatsNote.textContent = ''; manualModel.focus(); } });
@@ -161,12 +206,12 @@ export function vehiclePicker(v = {}, { regInput, acInput } = {}) {
       if (st.manual) {
         const seats = Number(manualSeats.value);
         if (manualModel.value.trim().length < 2) return { error: L('Please enter the car company and model.', 'गाड़ी की कंपनी और मॉडल लिखें।') };
-        if (!(seats >= 1 && seats <= 12)) return { error: L('Seats must be between 1 and 12.', 'सीटें 1 से 12 के बीच हों।') };
+        if (!(Number.isInteger(seats) && seats >= 1 && seats <= MAX_RIDE_SEATS)) return { error: L(`Enter a whole number from 1 to ${MAX_RIDE_SEATS}.`, `1 से ${MAX_RIDE_SEATS} के बीच पूरी संख्या दर्ज करें।`) };
         return { row: { vehicle_type: 'other', model: manualModel.value.trim(), seats, variant_id: null } };
       }
       if (!st.model) return { error: L('Please choose your car from the list.', 'सूची से अपनी गाड़ी चुनें।') };
       if (!st.variant) return { error: L('Please choose the seating layout.', 'सीटों की व्यवस्था चुनें।') };
-      return { row: { vehicle_type: TYPE_SLUG[st.model.name.toLowerCase()] || 'other', model: st.model.label.slice(0, 80), seats: st.variant.passenger_seats, variant_id: st.variant.id } };
+      return { row: { vehicle_type: TYPE_SLUG[st.model.name.toLowerCase()] || 'other', model: st.model.label.slice(0, 80), seats: Math.min(st.variant.passenger_seats, MAX_RIDE_SEATS), variant_id: st.variant.id } };
     },
   };
 }
