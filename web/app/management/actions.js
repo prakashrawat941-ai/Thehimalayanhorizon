@@ -4,6 +4,12 @@ import { requireUser } from '@/lib/account';
 export async function saveWork(form) {
   const { db } = await requireUser('/management');
   const id = form.get('id');
+  if (form.get('kind') === 'initiative' || form.has('initiativeId')) {
+    const { error } = form.has('initiativeId')
+      ? await db.rpc('advance_initiative', { p_id: form.get('initiativeId'), p_step: form.get('action'), p_note: form.get('note'), p_assignee: form.get('assignee') || null, p_due: form.get('due') || null })
+      : await db.rpc('create_initiative', { p_subject: form.get('subject'), p_request: form.get('requestKey') });
+    redirect('/management?result=' + (error ? 'failed' : 'saved'));
+  }
   const result = form.get('employeeEmail')
     ? await db.rpc('management_employee', {
         p_email: form.get('employeeEmail'),

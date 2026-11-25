@@ -41,8 +41,8 @@ export async function Workspace({ expected, searchParams }) {
     member.role === 'ceo'
       ? db
           .from('management_members')
-          .select('user_id,office,display_name')
-          .eq('role', 'employee')
+          .select('user_id,office,display_name,role')
+          .in('role', ['employee','co_founder'])
           .order('office')
       : {},
     member.role === 'founder' ? db.rpc('management_finance').single() : {},
@@ -147,7 +147,7 @@ export async function Workspace({ expected, searchParams }) {
           key={requestKey}
           requestKey={requestKey}
           member={member}
-          staff={staff}
+          staff={staff.data ? {data: staff.data.filter(s => s.role !== 'co_founder')} : staff}
           partners={partners}
           lang={lang}
         />
@@ -231,7 +231,7 @@ export async function Workspace({ expected, searchParams }) {
                 'कर्मचारी और कार्यालय आवंटन',
               )}
             </summary>
-            {staff.data.map((s) => (
+            {staff.data.filter(s => s.role !== 'co_founder').map((s) => (
               <p key={s.user_id}>
                 {s.display_name || s.user_id} · {s.office}
               </p>
@@ -270,7 +270,7 @@ export async function Workspace({ expected, searchParams }) {
               </small>
               <h3>{w.subject}</h3>
               <p>
-                {title(w.status)} {w.amount && ' · ₹' + w.amount}
+                {title(w.initiative_stage || w.status)} {w.amount && ' · ₹' + w.amount}
               </p>
               {w.icon_style && (
                 <p>
@@ -315,7 +315,14 @@ export async function Workspace({ expected, searchParams }) {
               </details>
               {actions.length > 0 && (
                 <form action={saveWork}>
-                  <input type="hidden" name="id" value={w.id} />
+                  <input type="hidden" name={w.kind === "initiative" ? "initiativeId" : "id"} value={w.id} />
+                  {actions.includes('assign') && <>
+                    <label>{L('Assign to', 'कार्य सौंपें')}<select name="assignee" required defaultValue="">
+                      <option value="">{L('Choose a team member','सदस्य चुनें')}</option>
+                      {staff.data.map(s => <option key={s.user_id} value={s.user_id}>{s.display_name || s.user_id} · {s.office}</option>)}
+                    </select></label>
+                    <label>{L('Due date','अंतिम तिथि')}<input type="date" name="due" required /></label>
+                  </>}
                   <label>
                     {L('Decision note', 'निर्णय टिप्पणी')}
                     <input name="note" required maxLength={500} />

@@ -1,5 +1,5 @@
 export const categories = {
-  founder: ['strategy'],
+  founder: ['initiative','strategy'],
   ceo: ['task', 'email', 'operation', 'finance', 'critical'],
   co_founder: ['partner', 'cms', 'release', 'critical'],
   employee: ['attendance', 'booking', 'service', 'expense', 'report'],
@@ -9,6 +9,15 @@ export const labels = {
   ceo: ['CEO', 'मुख्य कार्यकारी'],
   co_founder: ['Co-founder', 'सह-संस्थापक'],
   employee: ['Village office', 'ग्राम कार्यालय'],
+  initiative: ['Business initiative','व्यावसायिक पहल'],
+  planning: ['Awaiting CEO plan','CEO योजना लंबित'],
+  assigned: ['Assigned','कार्य सौंपा गया'],
+  review: ['Awaiting CEO review','CEO समीक्षा लंबित'],
+  final_review: ['Awaiting Founder approval','संस्थापक की मंज़ूरी लंबित'],
+  closed: ['Closed','समाप्त'],
+  assign: ['Assign work','कार्य सौंपें'],
+  deliver: ['Submit for review','समीक्षा के लिए भेजें'],
+  reviewed: ['Send for final approval','अंतिम मंज़ूरी के लिए भेजें'],
   strategy: ['Business strategy', 'व्यापार रणनीति'],
   task: ['Team task', 'टीम कार्य'],
   email: ['Email follow-up', 'ईमेल फ़ॉलो-अप'],
@@ -30,6 +39,13 @@ export const labels = {
   submitted: ['Submitted', 'दर्ज किया'],
 };
 export function decisions(member, userId, row) {
+  if (row.kind === 'initiative') {
+    if (row.initiative_stage === 'planning' && member === 'ceo') return ['assign'];
+    if (row.initiative_stage === 'assigned' && row.assignee === userId && ['co_founder','employee'].includes(member)) return ['deliver'];
+    if (row.initiative_stage === 'review' && member === 'ceo') return ['reviewed'];
+    if (row.initiative_stage === 'final_review' && row.owner_id === userId && member === 'founder') return ['approved'];
+    return [];
+  }
   if (row.status !== 'open') return [];
   if (
     row.owner_id !== userId &&
