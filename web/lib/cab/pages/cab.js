@@ -532,10 +532,17 @@ export async function ride({ params, query }) {
       buttons.set(no, button);
       return button;
     }
+    // Decorative SVG only; native buttons remain the accessible interactive controls.
+    const vehicleShell = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    vehicleShell.setAttribute('viewBox', '0 0 300 420');
+    vehicleShell.setAttribute('aria-hidden', 'true');
+    vehicleShell.setAttribute('preserveAspectRatio', 'none');
+    vehicleShell.setAttribute('style', 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none');
+    vehicleShell.innerHTML = '<rect x="18" y="55" width="17" height="72" rx="7" fill="#64748b"/><rect x="265" y="55" width="17" height="72" rx="7" fill="#64748b"/><rect x="18" y="292" width="17" height="72" rx="7" fill="#64748b"/><rect x="265" y="292" width="17" height="72" rx="7" fill="#64748b"/><rect x="30" y="5" width="240" height="410" rx="58" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2"/><path d="M65 48 Q150 12 235 48 L225 70 H75Z" fill="#dbeafe" stroke="#94a3b8"/><path d="M75 365 H225 L235 382 Q150 410 65 382Z" fill="#dbeafe" stroke="#94a3b8"/>';
     const cabin = layout
       ? h('div', { class: 'cab-seat-cabin', style: { gridTemplateColumns: `repeat(${layout.rows[0].length}, minmax(44px, 1fr))` }, role: 'group', 'aria-label': L('Vehicle seat map', 'गाड़ी का सीट मैप') },
           layout.rows.map((row) => h('div', { class: 'cab-seat-row' }, row.map((seat) => {
-            if (seat === 'driver') return h('span', { class: 'cab-seat-driver' }, L('Driver', 'ड्राइवर'));
+            if (seat === 'driver') return h('span', { class: 'cab-seat-driver', 'aria-label': L('Driver seat, unavailable', 'ड्राइवर सीट, उपलब्ध नहीं') }, '◉ ', L('Driver', 'ड्राइवर'));
             if (seat === null) return h('span', { 'aria-hidden': 'true' });
             return seatButton(seat);
           }))))
@@ -570,7 +577,8 @@ export async function ride({ params, query }) {
           ['available', 'selected', 'booked'].map((status, i) => h('span', { 'data-state': status },
             [L('Available', 'खाली'), L('Selected', 'चुनी हुई'), L('Booked or held', 'बुक या होल्ड')][i]))),
         layout ? h('div', { class: 'cab-seat-front' }, L('Front of vehicle', 'गाड़ी का अगला हिस्सा')) : null,
-        cabin,
+        layout ? h('div', { class: 'thh-vehicle-shell', style: { position: 'relative', maxWidth: '340px', margin: '12px auto', padding: '48px 42px', isolation: 'isolate' } },
+          vehicleShell, h('div', { style: { position: 'relative', zIndex: '1' } }, cabin)) : cabin,
         layout ? h('a', { class: 'small cab-seat-source', href: layout.source, target: '_blank', rel: 'noopener noreferrer' }, L('Manufacturer seating layout', 'निर्माता का सीट लेआउट'))
           : h('p', { class: 'small muted' }, L('Seat numbers only. Confirm physical positions with the driver.', 'केवल सीट नंबर। सीट की जगह ड्राइवर से पूछें।')),
         notice, retry),
