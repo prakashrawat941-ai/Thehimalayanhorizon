@@ -515,7 +515,7 @@ export async function ride({ params, query }) {
         return;
       }
       setStep('confirm');
-    } }, L('Continue', 'आगे बढ़ें'), icon('arrow', 16));
+    } }, L('Continue to Book', 'बुकिंग जारी रखें'), icon('arrow', 16));
 
     function seatButton(no) {
       const button = h('button', { type: 'button', class: 'cab-seat', onclick: () => {
@@ -570,24 +570,55 @@ export async function ride({ params, query }) {
     };
     updateSeatStep();
 
-    return h('div', { class: 'cab-discovery cab-booking-flow cab-seat-screen' },
-      h('div', { class: 'app-head' },
-        h('button', { class: 'app-back', type: 'button', 'aria-label': L('Back', 'पीछे'), onclick: () => setStep('details') }, '←'),
-        h('div', { class: 'grow' }, h('h1', {}, L('Select seats', 'सीट चुनें')),
-          h('p', { class: 'muted' }, r.vehicle_model, ' · ', L(`Choose ${n}`, `${n} चुनें`)))),
-      h('div', { class: 'cab-seat-panel' },
-        h('div', { class: 'cab-seat-legend' },
-          ['available', 'selected', 'booked', 'unavailable'].map((status, i) => h('span', { 'data-state': status },
-            [L('Available', 'खाली'), L('Selected', 'चुनी हुई'), L('Booked or held', 'बुक या होल्ड'), L('Unavailable', 'उपलब्ध नहीं')][i]))),
-        layout ? h('div', { class: 'cab-seat-front' }, L('Front of vehicle', 'गाड़ी का अगला हिस्सा')) : null,
-        layout ? h('div', { class: 'thh-vehicle-shell', style: { position: 'relative', maxWidth: '340px', margin: '12px auto', padding: '48px clamp(16px, 7vw, 42px)', isolation: 'isolate' } },
-          vehicleShell, h('div', { style: { position: 'relative', zIndex: '1' } }, cabin)) : cabin,
-        layout ? h('a', { class: 'small cab-seat-source', href: layout.source, target: '_blank', rel: 'noopener noreferrer' }, L('Manufacturer seating layout', 'निर्माता का सीट लेआउट'))
-          : h('p', { class: 'small muted' }, L('Seat numbers only. Confirm physical positions with the driver.', 'केवल सीट नंबर। सीट की जगह ड्राइवर से पूछें।')),
-        notice, retry),
-      h('div', { class: 'sticky-cta cab-seat-action' },
-        h('div', {}, h('div', { class: 'small muted' }, L('Selected seats ', 'चुनी सीटें '), chosen),
-          h('div', { class: 'small muted' }, L('Total fare', 'कुल किराया')), total), cont));
+    const css = h('style', {}, `
+      .thh-seat-v3{max-width:1440px;margin:auto;width:100%;box-sizing:border-box}
+      .thh-seat-v3 .thh-banner{padding:24px;color:white;border-radius:18px;background:linear-gradient(90deg,rgba(5,35,49,.9),rgba(5,35,49,.35)),url('/img/cab/road-hero-1200.webp') center/cover;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px}
+      .thh-seat-v3 .thh-banner h1{color:white;margin:8px 0}
+      .thh-seat-v3 .thh-progress{display:flex;flex-wrap:wrap;gap:12px;background:#fff;color:#14532d;padding:12px;border-radius:24px;font-size:13px;font-weight:700}
+      .thh-seat-v3 .thh-columns{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr) minmax(0,1fr);gap:14px;margin-top:14px;align-items:start}
+      .thh-seat-v3 .thh-panel{border:1px solid #94a3b833;border-radius:18px;padding:16px;box-shadow:0 5px 18px #0f172a0d;min-width:0}
+      .thh-seat-v3 .thh-panel h2{font-size:18px;margin:0 0 14px}
+      .thh-seat-v3 .thh-panel hr{border:0;border-top:1px solid #94a3b844;margin:16px 0}
+      .thh-seat-v3 .thh-line{display:flex;justify-content:space-between;gap:8px;margin:12px 0}
+      .thh-seat-v3 .thh-summary .btn{width:100%;margin-top:12px}
+      .thh-seat-v3 .cab-seat{position:relative;box-shadow:inset 0 5px 4px #ffffff44,inset 0 -6px 6px #00000022,0 3px 4px #00000055}
+      .thh-seat-v3 .cab-seat:focus-visible{outline:3px solid #60a5fa;outline-offset:2px}
+      .thh-seat-v3 .cab-seat-row{gap:6px}
+      .thh-seat-v3 .cab-seat-cabin{background:transparent;border:0;padding:0}
+      .thh-seat-v3 .thh-vehicle-shell{background:#17212b;border-radius:48px}
+      @media(max-width:900px){.thh-seat-v3 .thh-columns{grid-template-columns:minmax(0,1fr)}.thh-seat-v3 .thh-summary{position:sticky;bottom:0;z-index:2;background:var(--surface,#fff);color:var(--text,#17212b)}.thh-seat-v3 .thh-banner{padding:16px}.thh-seat-v3 .thh-progress{gap:8px;font-size:11px}}
+      @media(prefers-color-scheme:dark){.thh-seat-v3 .thh-summary{background:var(--surface,#17212b);color:var(--text,#f8fafc)}}
+    `);
+    const counts = h('p', { class: 'small', role: 'status' });
+    const fare = h('strong', {});
+    const refresh = updateSeatStep;
+    updateSeatStep = () => {
+      refresh();
+      counts.textContent = st.ready ? L('Available: ', 'खाली: ') + Math.max(0, r.seats_total - r.seats_booked) + ' · ' + L('Booked or held: ', 'बुक या होल्ड: ') + st.taken.length : L('Checking availability…', 'सीटें देख रहे हैं…');
+      fare.textContent = inr(r.price_per_seat);
+    };
+    updateSeatStep();
+    return h('div', { class: 'thh-seat-v3 cab-booking-flow' }, css,
+      h('header', { class: 'thh-banner' },
+        h('div', {}, h('button', { class: 'app-back', type: 'button', 'aria-label': L('Back', 'पीछे'), onclick: () => setStep('details') }, '←'),
+          h('h1', {}, L('Select Your Seat', 'अपनी सीट चुनें')), h('p', {}, L('Choose your preferred seat and book your journey', 'अपनी पसंद की सीट चुनें और यात्रा बुक करें'))),
+        h('div', { class: 'thh-progress', 'aria-label': L('Booking progress', 'बुकिंग प्रगति') }, '✓ ' + L('Search Ride', 'राइड खोजें'), '✓ ' + L('Choose Cab', 'कैब चुनें'), h('strong', { 'aria-current': 'step' }, '3 ' + L('Select Seat', 'सीट चुनें')), '4 ' + L('Confirm', 'कन्फ़र्म'))),
+      h('div', { class: 'thh-columns' },
+        h('section', { class: 'thh-panel' }, h('h2', {}, L('Your Selected Ride', 'आपकी चुनी राइड')),
+          vehicleVisual(r.vehicle_model, { size: 'card', gallery: false, variantId: variants[r.id], vehicleId: r.vehicle_id }),
+          h('h3', {}, r.vehicle_model), h('p', { class: 'muted' }, r.seats_total + ' ' + L('passenger seats', 'यात्री सीटें')), h('hr'),
+          h('div', { class: 'driver-head' }, avatar(d.photo_url, d.full_name, 'av av-lg'), h('div', {}, h('strong', {}, d.full_name), d.is_verified ? driverBadge(d) : null)),
+          trustPanel(rel), h('hr'), h('p', { class: 'small muted' }, dateOf(r.departure_at)), timeline()),
+        h('section', { class: 'thh-panel cab-seat-panel' }, h('h2', {}, L('Select Your Seat', 'अपनी सीट चुनें')),
+          h('div', { class: 'cab-seat-legend' }, ['available','selected','booked','unavailable'].map((status,i) => h('span', { 'data-state': status }, [L('Available','खाली'),L('Selected','चुनी हुई'),L('Booked or held','बुक या होल्ड'),L('Unavailable','उपलब्ध नहीं')][i]))),
+          counts, layout ? h('div', { class: 'thh-vehicle-shell', style: { position:'relative', maxWidth:'340px', margin:'12px auto', padding:'48px clamp(16px, 7vw, 42px)', isolation:'isolate' } }, vehicleShell, h('div', { style:{position:'relative',zIndex:'1'} }, cabin)) : cabin,
+          layout ? h('a', { class:'small cab-seat-source', href:layout.source,target:'_blank',rel:'noopener noreferrer' }, L('Manufacturer seating layout','निर्माता का सीट लेआउट')) : h('p', {class:'small muted'}, L('Seat numbers only. Confirm physical positions with the driver.','केवल सीट नंबर। सीट की जगह ड्राइवर से पूछें।')), notice,retry),
+        h('section', { class: 'thh-panel thh-summary' }, h('h2', {}, L('Your Selection','आपकी पसंद')),
+          h('p', {class:'small muted'}, L('Selected seats','चुनी सीटें')), chosen,h('hr'),
+          h('div', {class:'thh-line'}, L('Fare per seat','प्रति सीट किराया'),fare),
+          h('div', {class:'thh-line'}, L('Total payable','कुल किराया'),total),cont,
+          h('p', {class:'small muted'}, r.auto_confirm ? L('Instant confirmation','तुरंत कन्फ़र्म') : L('Driver confirmation required','ड्राइवर की मंज़ूरी आवश्यक')))));
+
   }
 
   function confirmStep() {
