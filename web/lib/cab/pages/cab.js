@@ -7,7 +7,7 @@ import { sb, q } from '../sb.js';
 import { state, user, loadProfile, settings } from '../store.js';
 import { allPlaces, placeInput, placeName, placeById, placesCached } from '../places.js';
 import { vehicleVisual, catalog, rideVehicleVariants } from '../cab/vehicles.js';
-import { seatLayoutFor } from '../cab/seat-layouts.js';
+import { illustrativeSeatRows, seatLayoutFor } from '../cab/seat-layouts.js';
 
 // Places in links: listed places by id (?from=…), any other village by position (?fromg=lat,lng|name).
 const placeKey = (p) => p?.id || (p ? `${(+p.lat).toFixed(4)},${(+p.lng).toFixed(4)}` : '');
@@ -444,9 +444,11 @@ export async function ride({ params, query }) {
   }
 
   watchRides([r.id], (row) => {
+    const capacityChanged = row.seats_total !== r.seats_total;
     Object.assign(r, row);
     seatsLive.textContent = seatsLeftText(Math.max(0, r.seats_total - r.seats_booked));
     updateDetailsAction?.();
+    if (capacityChanged && st.step === 'seats') setStep('seats');
     if (st.step !== 'details') void loadTaken();
   });
 
@@ -532,15 +534,44 @@ export async function ride({ params, query }) {
       buttons.set(no, button);
       return button;
     }
-    const cabin = layout
-      ? h('div', { class: 'cab-seat-cabin', style: { gridTemplateColumns: `repeat(${layout.rows[0].length}, minmax(44px, 1fr))` }, role: 'group', 'aria-label': L('Vehicle seat map', 'गाड़ी का सीट मैप') },
-          layout.rows.map((row) => h('div', { class: 'cab-seat-row' }, row.map((seat) => {
-            if (seat === 'driver') return h('span', { class: 'cab-seat-driver' }, L('Driver', 'ड्राइवर'));
-            if (seat === null) return h('span', { 'aria-hidden': 'true' });
-            return seatButton(seat);
-          }))))
-      : h('div', { class: 'cab-seat-grid', role: 'group', 'aria-label': L('Numbered seats', 'सीट नंबर') },
-          Array.from({ length: r.seats_total }, (_, i) => seatButton(i + 1)));
+    // The illustration depicts a right-hand-drive cabin with one passenger in
+    // front, three in the middle, and two in the rear. Other layouts use their
+    // documented grid or numbered seat labels instead of misplacing a marker.
+    const passengerRows = layout?.rows.map((row) => row.filter(Number.isInteger));
+    const hasCabinImage = passengerRows?.length === 3
+      && passengerRows[0].length === 1 && passengerRows[1].length === 3 && passengerRows[2].length === 2
+      && layout.rows[0].indexOf('driver') > layout.rows[0].indexOf(passengerRows[0][0]);
+    const markerRows = [
+      { x: [33], y: 42 },
+      { x: [31, 50, 69], y: 60 },
+      { x: [33, 66], y: 79 },
+    ];
+    let cabin;
+    if (hasCabinImage) {
+      cabin = h('div', { class: 'cab-seat-photo', role: 'group', 'aria-label': L('Vehicle seat map', 'गाड़ी का सीट मैप') },
+        h('img', { src: '/img/cab/seat-cabin-132.webp', alt: '', width: 499, height: 1000, decoding: 'async',
+          onerror: (event) => event.currentTarget.parentElement.classList.add('cab-seat-photo-missing') }),
+        passengerRows.flatMap((row, rowIndex) => row.map((seat, columnIndex) => {
+          const marker = seatButton(seat);
+          marker.style.setProperty('--seat-x', `${markerRows[rowIndex].x[columnIndex]}%`);
+          marker.style.setProperty('--seat-y', `${markerRows[rowIndex].y}%`);
+          return marker;
+        })));
+    } else {
+      const rows = layout?.rows || illustrativeSeatRows(r.seats_total);
+      const columns = rows[0]?.length || 3;
+      const wide = columns > 3;
+      cabin = h('div', { class: `cab-seat-cabin cab-seat-schematic${wide ? ' cab-seat-schematic-wide' : ''}`,
+        style: { '--cabin-columns': String(columns), '--cabin-tracks': !layout && wide
+          ? 'repeat(2, minmax(44px, 1fr)) 8px repeat(2, minmax(44px, 1fr))'
+          : `repeat(${columns}, minmax(44px, 1fr))` },
+        role: 'group', 'aria-label': layout ? L('Vehicle seat map', 'गाड़ी का सीट मैप') : L('Illustrative numbered seats', 'सीट नंबर का उदाहरण') },
+        rows.map((row) => h('div', { class: 'cab-seat-row' }, row.map((seat) => {
+          if (seat === 'driver') return h('span', { class: 'cab-seat-driver' }, L('Driver', 'ड्राइवर'));
+          if (seat === null) return h('span', { 'aria-hidden': 'true' });
+          return seatButton(seat);
+        }))));
+    }
 
     updateSeatStep = () => {
       for (const [seat, button] of buttons) {
@@ -566,16 +597,21 @@ export async function ride({ params, query }) {
         h('div', { class: 'grow' }, h('h1', {}, L('Select seats', 'सीट चुनें')),
           h('p', { class: 'muted' }, r.vehicle_model, ' · ', L(`Choose ${n}`, `${n} चुनें`)))),
       h('div', { class: 'cab-seat-panel' },
+        h('div', { class: 'cab-seat-trip' }, h('strong', {}, routeLabel(r)),
+          h('span', { class: 'seats-live' }, icon('people', 15), seatsLive)),
         h('div', { class: 'cab-seat-legend' },
           ['available', 'selected', 'booked'].map((status, i) => h('span', { 'data-state': status },
             [L('Available', 'खाली'), L('Selected', 'चुनी हुई'), L('Booked or held', 'बुक या होल्ड')][i]))),
-        layout ? h('div', { class: 'cab-seat-front' }, L('Front of vehicle', 'गाड़ी का अगला हिस्सा')) : null,
+        h('div', { class: 'cab-seat-front' }, layout ? L('Front of vehicle', 'गाड़ी का अगला हिस्सा')
+          : L('Illustrative layout', 'सीट लेआउट का उदाहरण')),
         cabin,
+        hasCabinImage ? h('p', { class: 'small muted' }, L('Cabin illustration', 'गाड़ी के अंदर का चित्र')) : null,
         layout ? h('a', { class: 'small cab-seat-source', href: layout.source, target: '_blank', rel: 'noopener noreferrer' }, L('Manufacturer seating layout', 'निर्माता का सीट लेआउट'))
-          : h('p', { class: 'small muted' }, L('Seat numbers only. Confirm physical positions with the driver.', 'केवल सीट नंबर। सीट की जगह ड्राइवर से पूछें।')),
+          : h('p', { class: 'small muted' }, L('Seat numbers are for booking. Confirm physical positions with the driver.', 'सीट नंबर बुकिंग के लिए हैं। गाड़ी में सीट की जगह ड्राइवर से पूछें।')),
         notice, retry),
       h('div', { class: 'sticky-cta cab-seat-action' },
-        h('div', {}, h('div', { class: 'small muted' }, L('Selected seats ', 'चुनी सीटें '), chosen),
+        h('div', { class: 'cab-seat-summary' }, h('div', { class: 'small muted', 'aria-live': 'polite' },
+          L('Selected seats: ', 'चुनी सीटें: '), h('strong', {}, chosen)),
           h('div', { class: 'small muted' }, L('Total fare', 'कुल किराया')), total), cont));
   }
 

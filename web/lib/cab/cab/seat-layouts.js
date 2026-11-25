@@ -37,3 +37,19 @@ export function seatLayoutFor(catalogue, variantId, offeredSeats) {
   if (!layout || layout.rows.flat().filter(Number.isInteger).length !== offeredSeats) return null;
   return layout;
 }
+
+// Schematic booking labels for capacities without a documented seat map.
+// This groups the offered seat numbers only; it does not identify physical seats.
+export function illustrativeSeatRows(offeredSeats) {
+  if (!Number.isInteger(offeredSeats) || offeredSeats < 1) return [];
+  const wide = offeredSeats > 7;
+  const rows = [wide ? [1, null, null, 'driver'] : [1, null, 'driver']];
+  let seat = 2;
+  while (seat <= offeredSeats) {
+    const row = Array.from({ length: wide ? 4 : 3 }, () => seat <= offeredSeats ? seat++ : null);
+    if (wide) row.splice(2, 0, null);
+    rows.push(row);
+  }
+  if (wide) rows[0].splice(2, 0, null);
+  return rows;
+}
