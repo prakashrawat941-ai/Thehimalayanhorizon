@@ -1,0 +1,66 @@
+.cab-booking-flow { width: min(100%, 620px); margin: 0 auto; display: grid; gap: 14px; }
+.cab-booking-flow .app-head { margin-bottom: 0; }
+.cab-booking-flow .app-head h1 { margin-bottom: 3px; }
+.cab-booking-flow .app-head p { margin: 0; }
+.cab-booking-flow .confirm-card, .cab-booking-flow .fare, .cab-seat-panel {
+  background: #fff;
+  border: 1px solid var(--cab-border);
+  border-radius: 18px;
+  box-shadow: 0 7px 26px #2345360a;
+}
+.cab-seat-panel { padding: 18px clamp(12px, 5vw, 28px); text-align: center; }
+.cab-seat-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: center; font-size: .82rem; }
+.cab-seat-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.cab-seat-legend span::before { content: ''; width: 10px; height: 10px; border-radius: 50%; background: var(--seat-dot); }
+.cab-seat-legend [data-state="available"] { --seat-dot: #177950; }
+.cab-seat-legend [data-state="selected"] { --seat-dot: #155ab0; }
+.cab-seat-legend [data-state="booked"] { --seat-dot: #6a717d; }
+.cab-seat-front { color: var(--muted); font-size: .78rem; font-weight: 650; margin: 18px 0 7px; }
+.cab-seat-cabin, .cab-seat-grid { display: grid; gap: 8px; justify-content: center; margin-inline: auto; }
+.cab-seat-cabin {
+  width: fit-content;
+  padding: 44px 18px 27px;
+  border: 5px solid #cad7de;
+  border-radius: 52px 52px 36px 36px;
+  background: linear-gradient(#485e6d 0 30px, #172c32 30px calc(100% - 18px), #485e6d calc(100% - 18px));
+  box-shadow: 0 0 0 1px #8098a7, 0 8px 22px #16374426, inset 0 0 0 2px #233d4b;
+}
+.cab-seat-row { display: contents; }
+.cab-seat-grid { grid-template-columns: repeat(4, minmax(44px, 58px)); margin-top: 18px; }
+.cab-seat, .cab-seat-driver {
+  display: grid; place-items: center; min-width: 44px; min-height: 47px;
+  border-radius: 10px; font: 750 .93rem var(--font);
+}
+.cab-seat {
+  border: 1px solid #83bba1; border-bottom-width: 4px;
+  background: #d9f1e5; color: #0a5138; cursor: pointer;
+}
+.cab-seat:hover:not(:disabled) { filter: brightness(.94); }
+.cab-seat[data-state="selected"] { background: #155ab0; border-color: #104985; color: #fff; }
+.cab-seat[data-state="booked"] { background: #535d6a; border-color: #3a4655; color: #fff; text-decoration: line-through; }
+.cab-seat:disabled { cursor: default; }
+.cab-seat-driver { background: #314855; color: #d6e8ed; font-size: .68rem; }
+.cab-seat-source { display: inline-block; margin-top: 10px; }
+.cab-seat-panel p { margin: 10px 0 0; }
+.cab-seat-notice { color: #7e390e; font-size: .86rem; }
+.cab-seat-notice:empty { display: none; }
+.cab-seat-panel .btn:not([hidden]) { margin-top: 10px; }
+.cab-seat-panel .btn[hidden] { display: none; }
+.cab-seat-action { bottom: calc(var(--tabbar, 0px) + 10px); }
+.cab-seat-action .price { display: block; line-height: 1.2; }
+.cab-booking-flow .confirm-meta span { display: inline-flex; align-items: center; gap: 7px; }
+.cab-booking-review .fare p { margin: 8px 0 0; }
+.cab-booking-review .field-label { margin-bottom: 3px; }
+
+.cab-booking-success { width: min(calc(100% - 26px), 480px); max-height: calc(100dvh - 24px); border-radius: 22px; color: #142628; background: #fff; }
+.cab-booking-success .modal-body { padding-top: 2px; }
+.cab-booking-success .cele-title { color: #142628; font: 750 clamp(1.22rem, 5vw, 1.65rem) var(--font); }
+.cab-booking-success .cele-rows { background: #eef6f7; border-color: #d8e6ea; }
+.cab-booking-success .cele-rows > div:first-child { padding-bottom: 6px; border-bottom: 1px solid #d8e6ea; }
+.cab-booking-success .cele-rows > div:first-child dd { color: #0c5944; font-weight: 750; }
+.cab-booking-success .cele-actions .btn:not(.btn-ghost) { background: #085844; color: white; }
+.cab-booking-success :focus-visible { outline: 3px solid #2169af; outline-offset: 3px; }
+
+@media (max-width: 860px) {
+  .cab-seat-action { bottom: calc(76px + env(safe-area-inset-bottom)); }
+}

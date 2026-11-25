@@ -13,7 +13,7 @@ export function Header({ lang, labels, roles, brandName, brandSub }) {
         ['/plan', labels.nav_planner, 'map'],
         ['/villages', labels.nav_villages, 'mountain'],
     ];
-    return (<header className="topbar">
+    return (<header className={isActive(path, '/cab') ? 'topbar cab-topbar' : 'topbar'}>
       <Link className="brand" href="/">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img className="logo-mark" src="/img/brand/mark.png" alt="" width={44} height={42}/>
