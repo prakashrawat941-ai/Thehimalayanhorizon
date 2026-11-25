@@ -532,15 +532,42 @@ export async function ride({ params, query }) {
       buttons.set(no, button);
       return button;
     }
-    const cabin = layout
-      ? h('div', { class: 'cab-seat-cabin', style: { gridTemplateColumns: `repeat(${layout.rows[0].length}, minmax(44px, 1fr))` }, role: 'group', 'aria-label': L('Vehicle seat map', 'गाड़ी का सीट मैप') },
-          layout.rows.map((row) => h('div', { class: 'cab-seat-row' }, row.map((seat) => {
-            if (seat === 'driver') return h('span', { class: 'cab-seat-driver' }, L('Driver', 'ड्राइवर'));
-            if (seat === null) return h('span', { 'aria-hidden': 'true' });
-            return seatButton(seat);
-          }))))
-      : h('div', { class: 'cab-seat-grid', role: 'group', 'aria-label': L('Numbered seats', 'सीट नंबर') },
-          Array.from({ length: r.seats_total }, (_, i) => seatButton(i + 1)));
+    // The illustration depicts a right-hand-drive cabin with one passenger in
+    // front, three in the middle, and two in the rear. Other layouts use their
+    // documented grid or numbered seat labels instead of misplacing a marker.
+    const passengerRows = layout?.rows.map((row) => row.filter(Number.isInteger));
+    const hasCabinImage = passengerRows?.length === 3
+      && passengerRows[0].length === 1 && passengerRows[1].length === 3 && passengerRows[2].length === 2
+      && layout.rows[0].indexOf('driver') > layout.rows[0].indexOf(passengerRows[0][0]);
+    const markerRows = [
+      { x: [33], y: 42 },
+      { x: [31, 50, 69], y: 60 },
+      { x: [33, 66], y: 79 },
+    ];
+    let cabin;
+    if (hasCabinImage) {
+      cabin = h('div', { class: 'cab-seat-photo', role: 'group', 'aria-label': L('Vehicle seat map', 'गाड़ी का सीट मैप') },
+        h('img', { src: '/img/cab/seat-cabin-132.webp', alt: '', width: 499, height: 1000, decoding: 'async',
+          onerror: (event) => event.currentTarget.parentElement.classList.add('cab-seat-photo-missing') }),
+        passengerRows.flatMap((row, rowIndex) => row.map((seat, columnIndex) => {
+          const marker = seatButton(seat);
+          marker.style.setProperty('--seat-x', `${markerRows[rowIndex].x[columnIndex]}%`);
+          marker.style.setProperty('--seat-y', `${markerRows[rowIndex].y}%`);
+          return marker;
+        })));
+    } else if (layout) {
+      cabin = h('div', { class: 'cab-seat-cabin', style: { gridTemplateColumns: `repeat(${layout.rows[0].length}, minmax(44px, 1fr))` }, role: 'group', 'aria-label': L('Vehicle seat map', 'गाड़ी का सीट मैप') },
+        layout.rows.map((row) => h('div', { class: 'cab-seat-row' }, row.map((seat) => {
+          if (seat === 'driver') return h('span', { class: 'cab-seat-driver' }, L('Driver', 'ड्राइवर'));
+          if (seat === null) return h('span', { 'aria-hidden': 'true' });
+          return seatButton(seat);
+        }))));
+    } else {
+      cabin = h('div', { class: 'cab-seat-numbered' },
+        vehicleVisual(r.vehicle_model, { size: 'card', gallery: false, variantId: variants[r.id], vehicleId: r.vehicle_id }),
+        h('div', { class: 'cab-seat-grid', role: 'group', 'aria-label': L('Numbered seats', 'सीट नंबर') },
+          Array.from({ length: r.seats_total }, (_, i) => seatButton(i + 1))));
+    }
 
     updateSeatStep = () => {
       for (const [seat, button] of buttons) {
@@ -573,6 +600,7 @@ export async function ride({ params, query }) {
             [L('Available', 'खाली'), L('Selected', 'चुनी हुई'), L('Booked or held', 'बुक या होल्ड')][i]))),
         layout ? h('div', { class: 'cab-seat-front' }, L('Front of vehicle', 'गाड़ी का अगला हिस्सा')) : null,
         cabin,
+        hasCabinImage ? h('p', { class: 'small muted' }, L('Cabin illustration', 'गाड़ी के अंदर का चित्र')) : null,
         layout ? h('a', { class: 'small cab-seat-source', href: layout.source, target: '_blank', rel: 'noopener noreferrer' }, L('Manufacturer seating layout', 'निर्माता का सीट लेआउट'))
           : h('p', { class: 'small muted' }, L('Seat numbers only. Confirm physical positions with the driver.', 'केवल सीट नंबर। सीट की जगह ड्राइवर से पूछें।')),
         notice, retry),
