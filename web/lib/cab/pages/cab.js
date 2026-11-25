@@ -566,6 +566,8 @@ export async function ride({ params, query }) {
         h('div', { class: 'grow' }, h('h1', {}, L('Select seats', 'सीट चुनें')),
           h('p', { class: 'muted' }, r.vehicle_model, ' · ', L(`Choose ${n}`, `${n} चुनें`)))),
       h('div', { class: 'cab-seat-panel' },
+        h('div', { class: 'cab-seat-trip' }, h('strong', {}, routeLabel(r)),
+          h('span', { class: 'seats-live' }, icon('people', 15), seatsLive)),
         h('div', { class: 'cab-seat-legend' },
           ['available', 'selected', 'booked'].map((status, i) => h('span', { 'data-state': status },
             [L('Available', 'खाली'), L('Selected', 'चुनी हुई'), L('Booked or held', 'बुक या होल्ड')][i]))),
@@ -575,7 +577,8 @@ export async function ride({ params, query }) {
           : h('p', { class: 'small muted' }, L('Seat numbers only. Confirm physical positions with the driver.', 'केवल सीट नंबर। सीट की जगह ड्राइवर से पूछें।')),
         notice, retry),
       h('div', { class: 'sticky-cta cab-seat-action' },
-        h('div', {}, h('div', { class: 'small muted' }, L('Selected seats ', 'चुनी सीटें '), chosen),
+        h('div', { class: 'cab-seat-summary' }, h('div', { class: 'small muted', 'aria-live': 'polite' },
+          L('Selected seats: ', 'चुनी सीटें: '), h('strong', {}, chosen)),
           h('div', { class: 'small muted' }, L('Total fare', 'कुल किराया')), total), cont));
   }
 
