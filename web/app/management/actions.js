@@ -44,3 +44,17 @@ export async function bookStay(form) {
   });
   redirect('/employee?result=' + (error ? 'failed' : 'saved'));
 }
+
+export async function inviteLeader(form) {
+  const { db } = await requireUser('/founder');
+  const { error } = await db.rpc('invite_leadership', {
+    p_email: form.get('email'), p_role: form.get('role'),
+  });
+  redirect('/founder?invite=' + (error ? 'failed' : 'created'));
+}
+
+export async function acceptLeadershipInvitation() {
+  const { db } = await requireUser('/management');
+  const { error } = await db.rpc('accept_leadership_invitation');
+  redirect(error ? '/management?invite=missing' : '/management');
+}

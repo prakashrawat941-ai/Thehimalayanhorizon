@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { getT } from '@/lib/i18n/server';
 import { requireUser } from '@/lib/account';
 import { labels, decisions } from '@/lib/management/catalog';
-import { saveWork, bookStay } from './actions';
+import { saveWork, bookStay, inviteLeader, acceptLeadershipInvitation } from './actions';
 import { randomUUID } from 'node:crypto';
 import { APP_VERSION } from '@/lib/config';
 import EntryForm from './EntryForm';
@@ -18,10 +18,18 @@ export async function Workspace({ expected, searchParams }) {
     .eq('user_id', user.id)
     .maybeSingle();
   if (error) throw Error('Management directory unavailable');
+  const sp = (await searchParams) || {};
+  if (!member && !expected) return (
+    <div className="mgmt"><section>
+      <h1>{L('Leadership invitation', 'नेतृत्व आमंत्रण')}</h1>
+      <p>{L('Sign in with your invited email and accept your invitation.', 'आमंत्रित ईमेल से प्रवेश करके आमंत्रण स्वीकार करें।')}</p>
+      {sp.invite === 'missing' && <p role="alert">{L('No active invitation for this verified account.', 'इस सत्यापित खाते के लिए सक्रिय आमंत्रण नहीं मिला।')}</p>}
+      <form action={acceptLeadershipInvitation}><button>{L('Accept invitation', 'आमंत्रण स्वीकार करें')}</button></form>
+    </section></div>
+  );
   if (!member || (expected && expected !== member.role)) notFound();
   const assurance = await db.auth.mfa.getAuthenticatorAssuranceLevel();
   if (assurance.data?.currentLevel !== 'aal2') return <Mfa lang={lang} />;
-  const sp = (await searchParams) || {};
   const page = Math.max(0, Math.min(100000, parseInt(sp.page, 10) || 0));
   const [work, staff, finance, partners, summary, rooms] = await Promise.all([
     db
@@ -91,6 +99,16 @@ export async function Workspace({ expected, searchParams }) {
               )}
         </p>
       )}
+      {member.role === 'founder' && <section>
+        <h2>{L('Invite leadership', 'नेतृत्व को आमंत्रित करें')}</h2>
+        <form action={inviteLeader}>
+          <label>{L('Email', 'ईमेल')}<input name="email" type="email" required maxLength={254} /></label>
+          <label>{L('Role', 'भूमिका')}<select name="role"><option value="ceo">CEO</option><option value="co_founder">Co-Founder</option></select></label>
+          <button>{L('Create invitation', 'आमंत्रण बनाएँ')}</button>
+        </form>
+        {sp.invite === 'created' && <p role="status">{L('Invitation ready for 7 days. Share this page with the recipient after signup:', 'आमंत्रण 7 दिन के लिए तैयार है। पंजीकरण के बाद यह पेज साझा करें:')} <Link href="/management">/management</Link></p>}
+        {sp.invite === 'failed' && <p role="alert">{L('Could not create invitation. Check the email and existing role.', 'आमंत्रण नहीं बन पाया। ईमेल और मौजूदा भूमिका जाँचें।')}</p>}
+      </section>}
       {finance.data && (
         <section className="mgmt-fin" id="finance">
           {[
