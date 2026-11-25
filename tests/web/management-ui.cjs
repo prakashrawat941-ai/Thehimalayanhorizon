@@ -52,7 +52,7 @@ const fixture = http.createServer(async (req, res) => {
       },
     ];
   if (path.endsWith('/management_members'))
-    body = req.url.includes('role=eq.employee')
+    body = new URL(req.url, 'http://localhost').searchParams.has('role')
       ? []
       : ['driver', 'customer', 'host'].includes(role)
         ? null
