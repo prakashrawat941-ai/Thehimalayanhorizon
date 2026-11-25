@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import CabScreen from '@/components/CabScreen';
 import { getLang } from '@/lib/i18n/server';
 import '../cab-discovery.css';
+import '../cab-booking.css';
 const screens = {'find': 'find', 'ride/:id': 'ride', 'booking/:id': 'booking', 'bookings': 'bookings', 'me': 'me'};
 export default async function Page({ params, searchParams }) {
   const { segments = [] } = await params;

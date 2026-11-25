@@ -26,7 +26,7 @@ export default async function CabBookings({ searchParams }) {
   const { t, L, pick, lang } = tr;
   const [all, places, locations] = await Promise.all([
     rows(db.from('cab_bookings')
-      .select('*, cab_rides(departure_at, from_location_id, to_location_id, from_place_id, to_place_id, vehicle_model, price_per_seat, ride_ref, status)')
+      .select('*, cab_rides(departure_at, from_location_id, to_location_id, from_place_id, to_place_id, from_geo, to_geo, pickup_point, drop_point, vehicle_model, price_per_seat, ride_ref, status)')
       .eq('user_id', user.id).order('created_at', { ascending: false })),
     getPlaces(), getLocations(),
   ]);

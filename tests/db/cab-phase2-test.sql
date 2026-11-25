@@ -280,4 +280,24 @@ select pg_temp.ok((select count(*) >= 12 from public.vehicle_makes) and (select 
 select pg_temp.ok(exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'cab_rides'), '69 live seat updates switched on');
 select pg_temp.ok(exists (select 1 from cron.job where jobname = 'thh-cab-housekeeping' and schedule = '* * * * *'), '70 expiry job scheduled every minute');
 
+-- Phase 5: the same request key replays the original booking without reserving again.
+select pg_temp.login('00000000-0000-4000-8000-000000000003');
+select pg_temp.put('retry_booking', (public.request_cab_ride_idempotent('00000000-0000-4000-8000-000000000071',
+  pg_temp.id('r2'), '{4}', 'Retry Test Passenger', '9876543212')).id);
+select pg_temp.ok((public.request_cab_ride_idempotent('00000000-0000-4000-8000-000000000071',
+  pg_temp.id('r2'), '{4}', 'Retry Test Passenger', '9876543212')).id = pg_temp.id('retry_booking'),
+  '71 retry after last seat fills returns the same booking');
+select pg_temp.err($q$select public.request_cab_ride_idempotent('00000000-0000-4000-8000-000000000071',
+  pg_temp.id('r2'), '{1}', 'Retry Test Passenger', '9876543212')$q$, 'another seat selection', '72 different selection cannot reuse a request key');
+reset role;
+select pg_temp.ok((select count(*) = 1 from public.cab_seat_holds where booking_id = pg_temp.id('retry_booking')), '73 retry creates only one seat hold');
+select pg_temp.login('00000000-0000-4000-8000-000000000003');
+select public.cancel_cab_booking(pg_temp.id('retry_booking'));
+select pg_temp.ok((public.request_cab_ride_idempotent('00000000-0000-4000-8000-000000000071',
+  pg_temp.id('r2'), '{4}', 'Retry Test Passenger', '9876543212')).status = 'cancelled', '74 retry after cancellation returns the original status');
+reset role;
+select pg_temp.ok((select seats_booked = 3 from public.cab_rides where id = pg_temp.id('r2')), '75 replay does not reacquire the cancelled seat');
+select pg_temp.ok(not has_function_privilege('anon', 'public.request_cab_ride_idempotent(uuid,uuid,integer[],text,text,text,uuid,uuid)', 'EXECUTE'), '76 anonymous users cannot submit retries');
+select pg_temp.ok(not has_table_privilege('authenticated', 'private.cab_booking_attempts', 'SELECT'), '77 clients cannot read stored request keys');
+
 select n, name, ok, info from r order by n;
