@@ -7,6 +7,7 @@ import { saveWork, bookStay, inviteLeader, acceptLeadershipInvitation } from './
 import { randomUUID } from 'node:crypto';
 import { APP_VERSION } from '@/lib/config';
 import EntryForm from './EntryForm';
+import OperationsPanel from './OperationsPanel';
 import Mfa from './Mfa';
 import './workspace.css';
 export async function Workspace({ expected, searchParams }) {
@@ -85,10 +86,14 @@ export async function Workspace({ expected, searchParams }) {
         {destinations.map(([href, label]) => <Link key={href} href={href}>{label}</Link>)}
       </nav>}
       <div className="management-content" id="overview">
-      <header>
+      <header className={member.role === 'co_founder' ? 'ops-partner-banner' : undefined}>
         <p>{member.office}</p>
         <h1>{title(member.role)}</h1>
       </header>
+      {['ceo','co_founder'].includes(member.role) && <OperationsPanel
+        role={member.role} lang={lang} rows={work.data.slice(0,20)}
+        staff={staff.data || []} partners={partners.data || []} userId={user.id}
+      />}
       {sp.result && (
         <p role="status">
           {sp.result === 'saved'
@@ -264,7 +269,7 @@ export async function Workspace({ expected, searchParams }) {
         {work.data.slice(0, 20).map((w) => {
           const actions = decisions(member.role, user.id, w);
           return (
-            <article key={w.id}>
+            <article key={w.id} id={'work-'+w.id}>
               <small>
                 {title(w.kind)} · {w.office} · {w.work_day}
               </small>
