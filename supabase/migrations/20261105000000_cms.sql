@@ -1,0 +1,1 @@
+-- Historical version marker. The November 19 clean-start migration superseded this legacy schema.

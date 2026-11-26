@@ -8,6 +8,7 @@ import { Cover } from '@/components/Cover';
 
 export default async function AccountOverview() {
   const { db, user, profile, roles } = await requireUser('/account');
+  const {data:membership}=await db.from('management_members').select('role').eq('user_id',user.id).maybeSingle();
   const tr = await getT();
   const { t, L, pick, lang } = tr;
   const today = todayIST();
@@ -35,6 +36,7 @@ export default async function AccountOverview() {
 
   return (
     <>
+      {membership && <Link className="btn" href="/management">{L('Staff workspace','टीम कार्यक्षेत्र')}</Link>}
       <div className="ds-head">
         <span className="ds-avatar">
           {/* eslint-disable-next-line @next/next/no-img-element */}
