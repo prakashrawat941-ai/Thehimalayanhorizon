@@ -7,7 +7,7 @@ import { CrudTable } from '@/components/admin/CrudTable';
 
 const REGIONS = [['Garhwal', 'Garhwal'], ['Kumaon', 'Kumaon'], ['Both', 'Both']];
 
-export async function CmsEditor({ searchParams, db, user, base='/admin/cms' }) {
+export async function CmsEditor({ searchParams, db, user, previewOnly = false, base='/admin/cms' }) {
   const sp = await searchParams;
 
   const tr = await getT();
@@ -61,9 +61,9 @@ export async function CmsEditor({ searchParams, db, user, base='/admin/cms' }) {
   return (
     <>
       <div className="ds-head"><div className="grow"><h1>{L('Content (CMS)', 'कंटेंट (CMS)')}</h1>
-        <p className="muted">{L('Changes show on the website straight away. Never add made-up reviews, prices or contact details.', 'बदलाव वेबसाइट पर तुरंत दिखते हैं। कभी भी नकली रिव्यू, दाम या संपर्क न डालें।')}</p></div></div>
+        <p className="muted">{previewOnly ? L('Founder preview: try location matching. Changes are not saved.', 'Founder प्रीव्यू: जगह खोजकर देखें। बदलाव सेव नहीं होंगे।') : L('Changes show on the website straight away. Never add made-up reviews, prices or contact details.', 'बदलाव वेबसाइट पर तुरंत दिखते हैं। कभी भी नकली रिव्यू, दाम या संपर्क न डालें।')}</p></div></div>
       <div className="seg-tabs">{Object.entries(T).map(([k, c]) => <Link key={k} className={k === key ? 'on' : ''} href={`${base}?t=${k}`}>{c.label}</Link>)}{base.startsWith('/admin') && <Link href="/admin/settings">{L('Pages, FAQ & settings', 'पेज, FAQ और सेटिंग')}</Link>}</div>
-      <CrudTable key={key} placeLabels={key === 'locations' ? searchLabels(tr) : null} lang={lang} table={key} rows={data} fields={cfg.fields} titleField={cfg.title} subField={cfg.sub} defaults={cfg.defaults} userId={user.id} />
+      <CrudTable previewOnly={previewOnly} key={key} placeLabels={key === 'locations' ? searchLabels(tr) : null} lang={lang} table={key} rows={data} fields={cfg.fields} titleField={cfg.title} subField={cfg.sub} defaults={cfg.defaults} userId={user.id} />
     </>
   );
 }
