@@ -403,7 +403,7 @@ export async function ride({ params, query }) {
   const attempt = savedAttempt?.user === user()?.id && savedAttempt?.seats === sortedSeats(savedSeats).join(',') ? savedAttempt : null;
   const st = {
     step: (query.step === 'confirm' || attempt) && savedSeats.length === n ? 'confirm' : query.step === 'confirm' || query.step === 'seats' ? 'seats' : 'details',
-    seats: savedSeats, taken: [], ready: false, notice: '', attempt, submitting: false,
+    seats: savedSeats, taken: [], held: [], holdInfo: false, ready: false, notice: '', attempt, submitting: false,
   };
   const root = h('div', { class: 'app-page ride-page' });
   const isOwn = user() && r.driver_id === user().id;
@@ -427,7 +427,10 @@ export async function ride({ params, query }) {
     try {
       const taken = await q(sb.rpc('cab_ride_taken_seats', { p_ride: r.id }));
       if (version !== availabilityVersion) return;
-      st.taken = taken || [];
+      const parsed = takenSeats(taken);
+      st.taken = parsed.taken;
+      st.held = parsed.held;
+      st.holdInfo = parsed.holdInfo;
       st.ready = true;
       if (st.notice === availabilityError) st.notice = '';
       if (!st.attempt && !st.submitting && st.seats.some((seat) => st.taken.includes(seat) || seat > r.seats_total)) {
@@ -530,58 +533,31 @@ export async function ride({ params, query }) {
         }
         st.notice = '';
         updateSeatStep();
-      } }, String(no));
+      } }, h('span', { class: 'cab-seat-no' }, String(no)), h('span', { class: 'cab-seat-mark', 'aria-hidden': 'true' }));
       buttons.set(no, button);
       return button;
     }
-    // The illustration depicts a right-hand-drive cabin with one passenger in
-    // front, three in the middle, and two in the rear. Other layouts use their
-    // documented grid or numbered seat labels instead of misplacing a marker.
-    const passengerRows = layout?.rows.map((row) => row.filter(Number.isInteger));
-    const hasCabinImage = passengerRows?.length === 3
-      && passengerRows[0].length === 1 && passengerRows[1].length === 3 && passengerRows[2].length === 2
-      && layout.rows[0].indexOf('driver') > layout.rows[0].indexOf(passengerRows[0][0]);
-    const markerRows = [
-      { x: [33], y: 42 },
-      { x: [31, 50, 69], y: 60 },
-      { x: [33, 66], y: 79 },
-    ];
-    let cabin;
-    if (hasCabinImage) {
-      cabin = h('div', { class: 'cab-seat-photo', role: 'group', 'aria-label': L('Vehicle seat map', 'गाड़ी का सीट मैप') },
-        h('img', { src: '/img/cab/seat-cabin-132.webp', alt: '', width: 499, height: 1000, decoding: 'async',
-          onerror: (event) => event.currentTarget.parentElement.classList.add('cab-seat-photo-missing') }),
-        passengerRows.flatMap((row, rowIndex) => row.map((seat, columnIndex) => {
-          const marker = seatButton(seat);
-          marker.style.setProperty('--seat-x', `${markerRows[rowIndex].x[columnIndex]}%`);
-          marker.style.setProperty('--seat-y', `${markerRows[rowIndex].y}%`);
-          return marker;
-        })));
-    } else {
-      const rows = layout?.rows || illustrativeSeatRows(r.seats_total);
-      const columns = rows[0]?.length || 3;
-      const wide = columns > 3;
-      cabin = h('div', { class: `cab-seat-cabin cab-seat-schematic${wide ? ' cab-seat-schematic-wide' : ''}`,
-        style: { '--cabin-columns': String(columns), '--cabin-tracks': !layout && wide
-          ? 'repeat(2, minmax(44px, 1fr)) 8px repeat(2, minmax(44px, 1fr))'
-          : `repeat(${columns}, minmax(44px, 1fr))` },
-        role: 'group', 'aria-label': layout ? L('Vehicle seat map', 'गाड़ी का सीट मैप') : L('Illustrative numbered seats', 'सीट नंबर का उदाहरण') },
-        rows.map((row) => h('div', { class: 'cab-seat-row' }, row.map((seat) => {
-          if (seat === 'driver') return h('span', { class: 'cab-seat-driver' }, L('Driver', 'ड्राइवर'));
-          if (seat === null) return h('span', { 'aria-hidden': 'true' });
-          return seatButton(seat);
-        }))));
-    }
+    // Top-view cabin built from the documented rows (or numbered booking seats when no map exists).
+    const rows = layout?.rows || illustrativeSeatRows(r.seats_total);
+    const cabin = vehicleCabin(rows, { body: cabinBody(catalogue, variants[r.id], rows), documented: !!layout, seat: seatButton });
+    const legendHeld = h('span', { 'data-state': 'held', hidden: true }, L('Held', 'होल्ड'));
+    const legendTaken = h('span', { 'data-state': 'booked' }, L('Booked or held', 'बुक या होल्ड'));
 
     updateSeatStep = () => {
       for (const [seat, button] of buttons) {
         const taken = st.taken.includes(seat);
+        const held = taken && st.held.includes(seat);
         const selected = st.seats.includes(seat);
+        const state = held ? 'held' : taken ? 'booked' : selected ? 'selected' : 'available';
         button.disabled = !!isOwn || taken || !st.ready || !isOpen() || seat > r.seats_total;
-        button.dataset.state = taken ? 'booked' : selected ? 'selected' : 'available';
+        button.dataset.state = state;
         button.setAttribute('aria-pressed', String(selected));
-        button.setAttribute('aria-label', `${L('Seat', 'सीट')} ${seat}${taken ? ' ' + L('booked', 'बुक') : ''}`);
+        const takenLabel = held ? L('held', 'होल्ड') : st.holdInfo ? L('booked', 'बुक') : L('booked or held', 'बुक या होल्ड');
+        button.setAttribute('aria-label', `${L('Seat', 'सीट')} ${seat}${taken ? ' ' + takenLabel : selected ? ' ' + L('selected', 'चुनी हुई') : ''}`);
+        button.querySelector('.cab-seat-mark').textContent = held ? L('Held', 'होल्ड') : taken ? '✕' : selected ? '✓' : '';
       }
+      legendHeld.hidden = !st.holdInfo;
+      legendTaken.textContent = st.holdInfo ? L('Booked', 'बुक') : L('Booked or held', 'बुक या होल्ड');
       chosen.textContent = sortedSeats(st.seats).join(', ') || '—';
       total.textContent = inr(r.price_per_seat * st.seats.length);
       cont.disabled = !st.ready || !canSelect() || st.seats.length !== n;
@@ -599,14 +575,16 @@ export async function ride({ params, query }) {
       h('div', { class: 'cab-seat-panel' },
         h('div', { class: 'cab-seat-trip' }, h('strong', {}, routeLabel(r)),
           h('span', { class: 'seats-live' }, icon('people', 15), seatsLive)),
-        h('div', { class: 'cab-seat-legend' },
-          ['available', 'selected', 'booked'].map((status, i) => h('span', { 'data-state': status },
-            [L('Available', 'खाली'), L('Selected', 'चुनी हुई'), L('Booked or held', 'बुक या होल्ड')][i]))),
-        h('div', { class: 'cab-seat-front' }, layout ? L('Front of vehicle', 'गाड़ी का अगला हिस्सा')
-          : L('Illustrative layout', 'सीट लेआउट का उदाहरण')),
+        h('div', { class: 'cab-seat-legend', 'aria-label': L('Seat legend', 'सीट की पहचान') },
+          h('span', { 'data-state': 'available' }, L('Available', 'खाली')),
+          h('span', { 'data-state': 'selected' }, L('Selected', 'चुनी हुई')),
+          legendHeld, legendTaken,
+          h('span', { 'data-state': 'driver' }, L('Driver', 'ड्राइवर'))),
+        layout ? null : h('p', { class: 'cab-seat-illustrative' }, L('Illustrative layout', 'सीट लेआउट का उदाहरण')),
         cabin,
-        hasCabinImage ? h('p', { class: 'small muted' }, L('Cabin illustration', 'गाड़ी के अंदर का चित्र')) : null,
-        layout ? h('a', { class: 'small cab-seat-source', href: layout.source, target: '_blank', rel: 'noopener noreferrer' }, L('Manufacturer seating layout', 'निर्माता का सीट लेआउट'))
+        layout ? h('p', { class: 'small cab-seat-source' }, L('Seat positions from the ', 'सीटों की जगह '),
+          h('a', { href: layout.source, target: '_blank', rel: 'noopener noreferrer' }, L('manufacturer seating layout', 'निर्माता के सीट लेआउट')),
+          L('. Driver sits on the right.', ' से। ड्राइवर दाईं ओर बैठते हैं।'))
           : h('p', { class: 'small muted' }, L('Seat numbers are for booking. Confirm physical positions with the driver.', 'सीट नंबर बुकिंग के लिए हैं। गाड़ी में सीट की जगह ड्राइवर से पूछें।')),
         notice, retry),
       h('div', { class: 'sticky-cta cab-seat-action' },
@@ -724,6 +702,7 @@ function showBookingReceipt(booking, ride, driver, { alreadyOnBooking = false } 
       : L('Your shared cab is booked. Pay the driver directly for your seat.', 'आपकी शेयर्ड कैब बुक है। अपनी सीट का किराया सीधे ड्राइवर को दें।'),
     rows: [
       [L('Booking ID', 'बुकिंग आईडी'), refOf(booking)],
+      [L('Ride ID', 'राइड आईडी'), ride.ride_ref],
       [L('Route', 'रूट'), routeLabel(ride)],
       [L('Date & time', 'तारीख़ और समय'), `${dateOf(ride.departure_at)} · ${timeOf(ride.departure_at)}`],
       [L('Driver & vehicle', 'ड्राइवर और गाड़ी'), [driver.full_name, ride.vehicle_model].filter(Boolean).join(' · ')],
@@ -731,6 +710,7 @@ function showBookingReceipt(booking, ride, driver, { alreadyOnBooking = false } 
       [L('Total fare', 'कुल किराया'), inr(ride.price_per_seat * booking.seats)],
     ],
     actions: [
+      receiptContact(booking, pending),
       pending && booking.hold_expires_at ? holdTimer(booking.hold_expires_at, L('Driver has', 'ड्राइवर के पास')) : null,
       alreadyOnBooking
         ? h('button', { class: 'btn btn-block', type: 'button', onclick: () => dialog.close() }, label)
@@ -738,6 +718,77 @@ function showBookingReceipt(booking, ride, driver, { alreadyOnBooking = false } 
       h('a', { class: 'btn btn-ghost btn-block', href: '/account/cab' }, L('My bookings', 'मेरी बुकिंग')),
     ],
   });
+}
+
+// Driver contact in the receipt: the server returns it only for a confirmed booking.
+function receiptContact(booking, pending) {
+  const box = h('section', { class: 'cab-receipt-contact', 'aria-live': 'polite' },
+    h('h3', {}, L('Driver contact', 'ड्राइवर से संपर्क')));
+  if (pending) {
+    box.append(h('p', { class: 'small muted' }, L('The driver’s phone and vehicle number appear after the driver accepts.', 'ड्राइवर के मंज़ूर करने के बाद उनका फ़ोन और गाड़ी नंबर दिखेगा।')));
+    return box;
+  }
+  const status = h('p', { class: 'small muted' }, L('Loading driver contact…', 'ड्राइवर का संपर्क लोड हो रहा है…'));
+  box.append(status);
+  q(sb.rpc('cab_booking_contact', { p_booking: booking.id })).then((c) => {
+    if (!c?.phone && !c?.registration) { status.textContent = L('Contact details are on the booking page.', 'संपर्क की जानकारी बुकिंग पेज पर है।'); return; }
+    status.replaceWith(h('dl', { class: 'cele-rows' },
+      c.name ? h('div', { class: 'cele-row' }, h('dt', {}, L('Name', 'नाम')), h('dd', {}, c.name)) : null,
+      c.phone ? h('div', { class: 'cele-row' }, h('dt', {}, L('Phone', 'फ़ोन')), h('dd', {}, h('a', { href: `tel:${String(c.phone).replace(/\s/g, '')}` }, c.phone))) : null,
+      c.registration ? h('div', { class: 'cele-row' }, h('dt', {}, L('Vehicle no.', 'गाड़ी नंबर')), h('dd', { class: 'mono' }, c.registration)) : null));
+  }).catch(() => { status.textContent = L('Contact details are on the booking page.', 'संपर्क की जानकारी बुकिंग पेज पर है।'); });
+  return box;
+}
+
+// cab_ride_taken_seats returns integer[] today (booked and held seats together).
+// If the server later returns [{ seat_no, status }], held seats are shown separately.
+function takenSeats(reply) {
+  const list = Array.isArray(reply) ? reply : [];
+  const taken = []; const held = []; let holdInfo = false;
+  for (const item of list) {
+    if (item && typeof item === 'object') {
+      const no = Number(item.seat_no ?? item.seat);
+      if (!Number.isInteger(no)) continue;
+      holdInfo = true;
+      taken.push(no);
+      if (['held', 'pending'].includes(item.status)) held.push(no);
+    } else if (Number.isInteger(Number(item))) taken.push(Number(item));
+  }
+  return { taken, held, holdInfo };
+}
+
+// Body outline for the top-view cabin: vans and travellers are long and boxy, SUVs square, cars rounded.
+function cabinBody(catalogue, variantId, rows) {
+  const variant = catalogue?.variants?.find((item) => item.id === variantId);
+  const model = variant && catalogue.models.find((item) => item.id === variant.model_id);
+  if ((rows[0]?.length || 3) > 3 || ['van', 'tempo_traveller'].includes(model?.category)) return 'van';
+  return model?.category === 'suv' ? 'suv' : 'car';
+}
+
+const STEERING = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M12 14.5V21M9.6 11.2 3.5 9.5M14.4 11.2l6.1-1.7"/></svg>';
+function vehicleCabin(rows, { body, documented, seat }) {
+  const driver = () => {
+    const el = h('span', { class: 'cab-cabin-driver', role: 'img', 'aria-label': L('Driver seat, not bookable', 'ड्राइवर की सीट, बुक नहीं होगी') });
+    el.innerHTML = STEERING;
+    el.append(h('span', {}, L('Driver', 'ड्राइवर')));
+    return el;
+  };
+  const grid = h('div', { class: 'cab-cabin-grid', role: 'group',
+    'aria-label': documented ? L('Vehicle seat map', 'गाड़ी का सीट मैप') : L('Illustrative numbered seats', 'सीट नंबर का उदाहरण') },
+    rows.map((row) => h('div', { class: 'cab-cabin-row' }, row.map((no) => {
+      if (no === 'driver') return driver();
+      if (no === null) return h('span', { class: 'cab-cabin-aisle', 'aria-hidden': 'true' });
+      return seat(no);
+    }))));
+  // h() assigns style objects with Object.assign, which ignores CSS custom properties.
+  grid.style.setProperty('--cabin-columns', String(rows[0]?.length || 3));
+  return h('div', { class: 'cab-cabin-wrap' },
+    h('span', { class: 'cab-cabin-end' }, '▲ ', L('Front of vehicle', 'गाड़ी का अगला हिस्सा')),
+    h('div', { class: `cab-cabin cab-cabin-${body}` },
+      ['fl', 'fr', 'rl', 'rr'].map((w) => h('span', { class: `cab-cabin-wheel ${w}`, 'aria-hidden': 'true' })),
+      h('span', { class: 'cab-cabin-mirror l', 'aria-hidden': 'true' }), h('span', { class: 'cab-cabin-mirror r', 'aria-hidden': 'true' }),
+      grid),
+    h('span', { class: 'cab-cabin-end' }, L('Rear', 'पीछे')));
 }
 
 // ---------- 8. Booking page ----------
