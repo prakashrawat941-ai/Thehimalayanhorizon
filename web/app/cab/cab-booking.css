@@ -8,7 +8,7 @@
   border-radius: 18px;
   box-shadow: 0 7px 26px #2345360a;
 }
-.cab-seat-screen { --seat-green: #2f6b4f; --seat-pine: #1f4d3a; --seat-blue: #1d5f99; --seat-amber: #9a5b00; --seat-slate: #8e9aa6; }
+.cab-seat-screen, .cab-own-seats { --seat-green: #2f6b4f; --seat-pine: #1f4d3a; --seat-blue: #1d5f99; --seat-amber: #9a5b00; --seat-slate: #8e9aa6; }
 .cab-seat-panel { padding: 18px clamp(12px, 5vw, 28px); text-align: center; }
 .cab-seat-trip {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
@@ -152,3 +152,9 @@
 .cab-receipt-contact p { margin: 0; }
 .cab-receipt-contact .cele-rows { margin: 0; background: transparent; border: 0; padding: 0; }
 .cab-seat-screen .cab-seat-panel { padding-inline: clamp(8px, 3vw, 22px); }
+
+/* Read-only seat map on the driver's own ride page. */
+.cab-own-seats { container-type: inline-size; text-align: center; }
+.cab-own-seats > p { margin: 6px 0 0; }
+.cab-seat.cab-seat-static { cursor: default; }
+.cab-seat.cab-seat-static:hover { transform: none; box-shadow: none; }

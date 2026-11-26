@@ -497,10 +497,52 @@ export async function ride({ params, query }) {
           timeline(), discoveryMap(r),
           r.ride_ref ? h('p', { class: 'small muted' }, L('Ride ID ', 'राइड आईडी '), h('span', { class: 'mono' }, r.ride_ref)) : null,
           r.notes ? h('div', { class: 'cab-detail-about' }, h('h3', {}, L('Notes from the driver', 'ड्राइवर की बात')), h('p', {}, r.notes)) : null),
+        isOwn ? ownSeatMap() : null,
         h('div', { class: 'sticky-cta cab-detail-action' },
           h('div', {}, h('strong', { class: 'price' }, inr(r.price_per_seat * n)),
             h('div', { class: 'small muted' }, `${inr(r.price_per_seat)} × ${n} ${L('seat(s)', 'सीट')}`)),
           isOwn ? h('a', { class: 'btn', href: `/drive/trip/${r.id}` }, L('This is your ride', 'यह आपकी राइड है')) : select)));
+  }
+
+  // The driver's own ride: the passenger seat map, read-only, with live taken seats.
+  function ownSeatMap() {
+    const layout = seatLayoutFor(catalogue, variants[r.id], r.seats_total);
+    const rows = layout?.rows || illustrativeSeatRows(r.seats_total);
+    const seats = new Map();
+    const seat = (no) => {
+      const el = h('span', { class: 'cab-seat cab-seat-static', role: 'img', 'data-state': 'available',
+        'aria-label': `${L('Seat', 'सीट')} ${no}` },
+      h('span', { class: 'cab-seat-no' }, String(no)), h('span', { class: 'cab-seat-mark', 'aria-hidden': 'true' }));
+      seats.set(no, el);
+      return el;
+    };
+    const legendHeld = h('span', { 'data-state': 'held', hidden: true }, L('Held', 'होल्ड'));
+    const legendTaken = h('span', { 'data-state': 'booked' }, L('Booked or held', 'बुक या होल्ड'));
+    const status = h('p', { class: 'small muted', role: 'status' }, L('Loading seats…', 'सीटें लोड हो रही हैं…'));
+    q(sb.rpc('cab_ride_taken_seats', { p_ride: r.id })).then((reply) => {
+      const { taken, held, holdInfo } = takenSeats(reply);
+      for (const [no, el] of seats) {
+        const isTaken = taken.includes(no);
+        const isHeld = isTaken && held.includes(no);
+        const label = isHeld ? L('held', 'होल्ड') : isTaken ? (holdInfo ? L('booked', 'बुक') : L('booked or held', 'बुक या होल्ड')) : L('available', 'खाली');
+        el.dataset.state = isHeld ? 'held' : isTaken ? 'booked' : 'available';
+        el.querySelector('.cab-seat-mark').textContent = isHeld ? L('Held', 'होल्ड') : isTaken ? '✕' : '';
+        el.setAttribute('aria-label', `${L('Seat', 'सीट')} ${no}, ${label}`);
+      }
+      legendHeld.hidden = !holdInfo;
+      legendTaken.textContent = holdInfo ? L('Booked', 'बुक') : L('Booked or held', 'बुक या होल्ड');
+      const free = [...seats.keys()].filter((no) => !taken.includes(no)).length;
+      status.textContent = `${free} ${L(free === 1 ? 'seat free' : 'seats free', 'सीट खाली')} · ${seats.size - free} ${L('taken', 'भरी')}`;
+    }).catch(() => { status.textContent = L('Seat availability could not load.', 'सीटों की जानकारी लोड नहीं हुई।'); });
+    return h('section', { class: 'cab-detail-route cab-own-seats' },
+      h('h2', {}, L('Seat map (passenger view)', 'सीट मैप (यात्री को ऐसा दिखेगा)')),
+      h('p', { class: 'small muted' }, L('Passengers choose their seats on this map. You can’t book seats on your own ride.', 'यात्री इसी मैप पर सीट चुनते हैं। अपनी राइड पर आप सीट बुक नहीं कर सकते।')),
+      h('div', { class: 'cab-seat-legend', 'aria-label': L('Seat legend', 'सीट की पहचान') },
+        h('span', { 'data-state': 'available' }, L('Available', 'खाली')), legendHeld, legendTaken,
+        h('span', { 'data-state': 'driver' }, L('Driver', 'ड्राइवर'))),
+      layout ? null : h('p', { class: 'cab-seat-illustrative' }, L('Illustrative layout', 'सीट लेआउट का उदाहरण')),
+      vehicleCabin(rows, { body: cabinBody(catalogue, variants[r.id], rows), documented: !!layout, seat }),
+      status);
   }
 
   function seatsStep() {
