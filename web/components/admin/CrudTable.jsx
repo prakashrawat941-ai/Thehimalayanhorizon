@@ -8,7 +8,7 @@ import { browserDb } from '@/lib/supabase/client';
  * Simple editor for a content table (admin only; the database checks it too).
  * fields: [{ name, label, type: text|textarea|number|bool|select|list|json|image, options, required }]
  */
-export function CrudTable({ lang, table, rows, fields, titleField, subField, defaults = {}, idField = 'id', userId, placeLabels }) {
+export function CrudTable({ lang, table, rows, fields, titleField, subField, defaults = {}, idField = 'id', userId, placeLabels, previewOnly = false }) {
   const L = (en, hi) => (lang === 'hi' ? hi : en);
   const router = useRouter();
   const [edit, setEdit] = useState(null); // row being edited (or {} for new)
@@ -53,6 +53,7 @@ export function CrudTable({ lang, table, rows, fields, titleField, subField, def
   }
   const open = (r) => { setPicked(null); setWeather(''); setErr(''); setEdit(r); setV(toForm({...defaults, ...r})); };
   async function upload(name, file) {
+    if (previewOnly) return;
     if (!file) return;
     if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size > 5 * 1024 * 1024) return setErr(L('JPG, PNG or WebP under 5 MB.', 'JPG, PNG या WebP, 5 MB से कम।'));
     const db = browserDb();
@@ -62,6 +63,7 @@ export function CrudTable({ lang, table, rows, fields, titleField, subField, def
     setV((c) => ({ ...c, [name]: db.storage.from('media').getPublicUrl(path).data.publicUrl }));
   }
   async function save() {
+    if (previewOnly) return;
     setErr('');
     const row = {};
     for (const f of fields) {
@@ -83,6 +85,7 @@ export function CrudTable({ lang, table, rows, fields, titleField, subField, def
     setEdit(null); router.refresh();
   }
   async function remove() {
+    if (previewOnly) return;
     if (!window.confirm(L('Delete this item? This cannot be undone.', 'यह आइटम हटाएँ? यह वापस नहीं होगा।'))) return;
     setBusy(true);
     const { error } = await browserDb().from(table).delete().eq(idField, edit[idField]);
@@ -99,7 +102,7 @@ export function CrudTable({ lang, table, rows, fields, titleField, subField, def
         : <input className="input" type={f.type === 'number' ? 'number' : 'text'} step="any" value={val} onChange={on} />;
     return (
       <label className="field"><span className="field-label">{f.label}{f.required ? ' *' : ''}</span>{control}
-        {f.type === 'image' ? <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => upload(f.name, e.target.files?.[0])} /> : null}
+        {!previewOnly && f.type === 'image' ? <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => upload(f.name, e.target.files?.[0])} /> : null}
         {f.hint ? <small className="muted">{f.hint}</small> : null}</label>
     );
   };
@@ -113,9 +116,9 @@ export function CrudTable({ lang, table, rows, fields, titleField, subField, def
           <div className="form-grid">{fields.map((f) => <div key={f.name} className={f.wide || f.type === 'textarea' || f.type === 'json' ? 'span-2' : ''}>{input(f)}</div>)}</div>
           {err ? <p className="form-err" role="alert">{err}</p> : null}
           <div className="row-actions">
-            <button type="button" className="btn" disabled={busy} onClick={save}>{L('Save', 'सेव करें')}</button>
+            <button type="button" className="btn" disabled={busy || previewOnly} onClick={save}>{L('Save', 'सेव करें')}</button>
             <button type="button" className="btn btn-ghost" onClick={() => setEdit(null)}>{L('Cancel', 'रद्द')}</button>
-            {edit[idField] ? <button type="button" className="btn btn-ghost" disabled={busy} onClick={remove}>{L('Delete', 'हटाएँ')}</button> : null}
+            {!previewOnly && edit[idField] ? <button type="button" className="btn btn-ghost" disabled={busy} onClick={remove}>{L('Delete', 'हटाएँ')}</button> : null}
           </div>
         </section>
       ) : <button type="button" className="btn" onClick={() => open({})}>+ {L('Add new', 'नया जोड़ें')}</button>}
