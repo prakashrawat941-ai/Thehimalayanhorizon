@@ -7,7 +7,6 @@ import { Cover } from '@/components/Cover';
 import { Photo } from '@/components/Photo';
 import { PhotoCredits } from '@/components/PhotoCredits';
 import { HomeSearch } from '@/components/home/HomeSearch';
-import { imgUrl } from '@/lib/img';
 import { PLACE_PHOTO, THEME_PHOTO } from '@/lib/photos';
 import { Grid, ItineraryCard, ListingCard, PlaceCard } from '@/components/Blocks';
 import { searchLabels } from '@/lib/searchLabels';
@@ -33,8 +32,7 @@ function Head({ eyebrow, title, note, link, label }) {
 // Photo tile: a CMS image, a bundled/licensed photo, or generated art when neither exists.
 function Tile({ link, cms, photo, seed, title, sub, tag, lang, className = 'rf-tile' }) {
     return (<Link className={className} href={link}>
-      {cms ? <img src={imgUrl(cms)} alt="" loading="lazy" decoding="async"/> /* eslint-disable-line @next/next/no-img-element */
-            : photo ? <Photo name={photo} lang={lang} alt=""/> : <Cover url={null} seed={seed} className="rf-art"/>}
+      {photo && !cms ? <Photo name={photo} lang={lang} alt=""/> : <Cover url={cms || null} seed={seed} className="rf-art"/>}
       {tag ? <span className="rf-tag">{tag}</span> : null}
       <span className="rf-tile-b"><b>{title}</b>{sub ? <span>{sub}</span> : null}</span>
     </Link>);
@@ -65,7 +63,7 @@ export default async function Home() {
     const blocks = {
         hero: (s) => (<div key={s.id}>
         <section className="rf-hero">
-          {s.image_url ? <img className="rf-hero-img" src={imgUrl(s.image_url)} alt="" fetchPriority="high"/> /* eslint-disable-line @next/next/no-img-element */
+          {s.image_url ? <Cover url={s.image_url} seed="hero" eager className="rf-hero-img"/>
                 : <Photo name={notePhoto('hero')} lang={lang} eager className="rf-hero-img"/>}
           <div className="wrap rf-hero-in">
             <p className="eyebrow">{t('tagline')}</p>

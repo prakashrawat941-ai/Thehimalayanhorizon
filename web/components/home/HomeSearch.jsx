@@ -71,12 +71,12 @@ export function HomeSearch({ lang, labels, text }) {
       </div>
       <div className="rf-sf" role="tabpanel">
         {tab === 'stays' ? (<>
-          <PlaceSearch key="stays" lang={lang} labels={labels} onPick={pick(setWhere)} placeholder={T('where')} initial={where?.name || ''}/>
+          <PlaceSearch key="stays" lang={lang} labels={labels} onPick={pick(setWhere)} onType={() => setWhere(null)} placeholder={T('where')} initial={where?.name || ''}/>
           <Stepper value={guests} min={1} max={20} onChange={setGuests} label={T('guests')} unit={(n) => T(n === 1 ? 'guest' : 'guests_unit')}/>
         </>) : null}
         {tab === 'cab' ? (<>
-          <PlaceSearch key="from" lang={lang} labels={labels} onPick={pick(setFrom)} placeholder={T('from')} initial={from?.name || ''}/>
-          <PlaceSearch key="to" lang={lang} labels={labels} onPick={pick(setTo)} placeholder={T('to')} initial={to?.name || ''}/>
+          <PlaceSearch key="from" lang={lang} labels={labels} onPick={pick(setFrom)} onType={() => setFrom(null)} placeholder={T('from')} initial={from?.name || ''}/>
+          <PlaceSearch key="to" lang={lang} labels={labels} onPick={pick(setTo)} onType={() => setTo(null)} placeholder={T('to')} initial={to?.name || ''}/>
           <div className="rf-sf-row">
             <label className="rf-in"><Icon name="calendar" size={18}/><span className="sr-only">{T('date')}</span>
               <input type="date" value={date} min={todayISO()} onChange={(e) => setDate(e.target.value || todayISO())} aria-label={T('date')}/></label>
@@ -84,7 +84,7 @@ export function HomeSearch({ lang, labels, text }) {
           </div>
         </>) : null}
         {tab === 'plan' ? (
-          <PlaceSearch key="plan" lang={lang} labels={labels} onPick={pick(setWhere)} placeholder={T('plan_where')} initial={where?.name || ''}/>
+          <PlaceSearch key="plan" lang={lang} labels={labels} onPick={pick(setWhere)} onType={() => setWhere(null)} placeholder={T('plan_where')} initial={where?.name || ''}/>
         ) : null}
         {error ? <p className="rf-err" role="alert">{error}</p> : null}
         <button className="btn rf-go" type="submit">{T(`go_${tab}`)}<Icon name="arrow" size={16}/></button>
