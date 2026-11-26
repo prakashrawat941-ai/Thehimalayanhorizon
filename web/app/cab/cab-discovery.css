@@ -125,3 +125,10 @@
   .cab-topbar .logo-mark { flex-shrink: 0; width: 36px; height: auto; }
   .cab-topbar .topbar-actions { flex-shrink: 0; }
 }
+
+/* THH UI refresh: blue for route information, green for actions and availability. */
+.cab-trip-card .cab-trip-meta .ico, .cab-detail-route .tl-dot.end { color: #1d5f99; }
+.cab-trip-card .rc-near { color: #164b7a; font-weight: 650; }
+.cab-trip-card .seat-pill { background: #1f4d3a; }
+.cab-trip-card .rc-foot { background: #fbfcfd; }
+.cab-trip-card .veh-card { background: linear-gradient(180deg, #f5f8fb, #e7edf3); border-radius: 12px; }
