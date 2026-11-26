@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>THH public pages — HD design preview (demo data)</title><meta name="robots" content="noindex,nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Mukta:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --pine:#1f4d3a;--pine-2:#2f6b4f;--pine-l:#e7f2ec;--glacier:#1d5f99;--glacier-2:#164b7a;--glacier-l:#eaf2fa;
+  --snow:#fff;--mist:#f2f5f8;--ink:#17212b;--ink-2:#34414d;--muted:#5a6773;--line:#dde4ea;--amber:#9a5b00;--amber-l:#fdf1dc;
+  --r:18px;--shadow:0 1px 2px rgba(23,33,43,.06),0 10px 28px rgba(23,33,43,.08);
+  --font:'Mukta',system-ui,-apple-system,'Segoe UI',sans-serif;--display:'Fraunces',Georgia,serif;
+}
+*{box-sizing:border-box}html,body{margin:0}
+body{font:16px/1.6 var(--font);color:var(--ink);background:#e6ebef}
+button{font:inherit;color:inherit}img{display:block;max-width:100%}
+h1,h2,h3{font-family:var(--display);font-weight:500;line-height:1.15;margin:0;letter-spacing:-.01em}
+a{color:var(--glacier)}
+:focus-visible{outline:3px solid #d99a2b;outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* preview controls */
+.ctl{background:#1b2630;color:#e6edf2;padding:12px 14px;font-size:13px}
+.ctl-in{max-width:1180px;margin:0 auto;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.ctl-badge{background:#d99a2b;color:#1b2630;font-weight:700;border-radius:6px;padding:2px 8px;font-size:12px}
+.ctl-group{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.ctl-group>span{color:#9fb0bd}
+.ctl button{background:#2a3843;border:1px solid #3c4d5a;color:#e6edf2;border-radius:999px;padding:4px 11px;cursor:pointer;font-size:13px}
+.ctl button[aria-pressed="true"]{background:#e6edf2;color:#1b2630;border-color:#e6edf2;font-weight:600}
+.stage{padding:16px 0 40px}.frame-label{text-align:center;font-size:12px;color:var(--muted);margin:0 0 10px}
+.frame{margin:0 auto;background:#fbfcfd;container-type:inline-size;container-name:app;overflow:hidden;position:relative}
+.stage.m .frame{width:360px;border-radius:28px;box-shadow:0 0 0 10px #1b2630,0 20px 50px rgba(0,0,0,.25)}
+.stage.d .frame{max-width:1240px;border-radius:14px;box-shadow:var(--shadow)}
+
+/* header */
+.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:14px;padding:10px 16px;background:rgba(255,255,255,.96);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:9px;text-decoration:none;color:var(--ink);min-width:0}
+.brand img{width:36px;height:34px;object-fit:contain;mix-blend-mode:multiply;flex:none}
+.brand b{font-family:var(--display);font-weight:600;font-size:15px;color:var(--pine);line-height:1.1;display:block}
+.brand small{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.nav{display:none;gap:4px;margin:0 auto}
+.nav button{border:0;background:none;padding:8px 10px;border-radius:999px;cursor:pointer;font-weight:500;color:var(--ink-2);white-space:nowrap}
+.nav button[aria-current="page"]{background:var(--pine-l);color:var(--pine);font-weight:600}
+.top-acts{display:flex;gap:8px;align-items:center;margin-left:auto}
+.lang{border:1px solid var(--line);background:#fff;border-radius:999px;padding:4px 10px;font-size:13px;font-weight:600;cursor:pointer;min-height:36px}
+.top .signin{display:none}
+@container app (min-width:980px){.nav{display:flex}.top-acts{margin-left:0}.top .signin{display:inline-flex}.top{padding:12px 28px}}
+.tabbar{position:sticky;bottom:0;z-index:20;display:grid;grid-template-columns:repeat(5,1fr);background:#fff;border-top:1px solid var(--line);box-shadow:0 -6px 18px rgba(31,77,58,.06)}
+.tabbar button{border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:1px;padding:8px 0 10px;font-size:11.5px;font-weight:500;color:var(--muted);cursor:pointer;min-height:58px}
+.tabbar button[aria-current="page"]{color:var(--pine)}
+.tabbar svg{width:22px;height:22px}
+@container app (min-width:980px){.tabbar{display:none}}
+
+/* shared */
+.wrap{padding:0 16px}
+@container app (min-width:760px){.wrap{padding:0 28px}}
+@container app (min-width:1100px){.wrap{padding:0 max(28px,calc((100cqi - 1120px)/2))}}
+.sec{margin:36px 0}
+@container app (min-width:760px){.sec{margin:56px 0}}
+.eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600;margin:0 0 6px}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.head h2{font-size:24px}
+@container app (min-width:760px){.head h2{font-size:30px}}
+.head p{margin:4px 0 0;color:var(--muted);max-width:56ch}
+.more{display:inline-flex;align-items:center;gap:6px;font-weight:600;color:var(--glacier);text-decoration:none;background:none;border:0;cursor:pointer;padding:6px 0}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:999px;background:var(--pine);color:#fff;font-weight:700;padding:12px 20px;min-height:46px;cursor:pointer;text-decoration:none;font-size:15px;white-space:nowrap}
+.btn:hover{background:var(--pine-2)}
+.btn.blue{background:var(--glacier)}.btn.blue:hover{background:var(--glacier-2)}
+.btn.light{background:#fff;color:var(--pine)}
+.btn.ghost{background:transparent;color:var(--pine);box-shadow:inset 0 0 0 1.5px currentColor}
+.btn.ghost-w{background:rgba(255,255,255,.12);color:#fff;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.8)}
+.muted{color:var(--muted)}.small{font-size:14px}
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;border-radius:999px;padding:2px 9px;white-space:nowrap}
+.tag.demo{background:var(--amber-l);color:var(--amber);border:1px dashed #e0a33a}
+.tag.green{background:var(--pine-l);color:var(--pine)}.tag.blue{background:var(--glacier-l);color:var(--glacier-2)}
+.grid{display:grid;gap:16px;grid-template-columns:1fr}
+@container app (min-width:620px){.grid{grid-template-columns:1fr 1fr}}
+@container app (min-width:980px){.grid.g3{grid-template-columns:repeat(3,1fr)}.grid.g4{grid-template-columns:repeat(4,1fr)}}
+.hscroll{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(240px,78%);gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:6px}
+.hscroll>*{scroll-snap-align:start;min-width:0}
+@container app (min-width:980px){.hscroll{grid-auto-flow:row;grid-template-columns:repeat(4,1fr);overflow:visible}}
+
+/* hero */
+.hero{position:relative;color:#fff;min-height:520px;display:flex;align-items:flex-end;overflow:hidden}
+.hero>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:60% 40%}
+.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,30,45,.05) 0%,rgba(10,30,45,.35) 35%,rgba(10,30,45,.88) 100%)}
+.hero h1,.hero p{text-shadow:0 1px 12px rgba(5,20,32,.45)}
+.hero-in{position:relative;z-index:1;width:100%;padding-top:80px;padding-bottom:48px}
+.hero .eyebrow{color:#d8e8f4}
+.hero h1{font-size:34px;color:#fff;max-width:14ch}
+.hero p.lead{font-size:17px;color:#f2f7fb;margin:10px 0 18px;max-width:46ch}
+.hero-acts{display:flex;gap:10px;flex-wrap:wrap}
+@container app (min-width:760px){.hero{min-height:620px}.hero h1{font-size:56px}.hero p.lead{font-size:19px}.hero::after{background:linear-gradient(90deg,rgba(10,30,45,.86) 0%,rgba(10,30,45,.62) 42%,rgba(10,30,45,.08) 78%)}.hero-in{padding-bottom:64px}}
+.search{position:relative;z-index:2;margin-top:-24px;background:#fff;border-radius:var(--r);box-shadow:var(--shadow);padding:12px;display:grid;gap:10px}
+.search-field{display:flex;align-items:center;gap:10px;border:1.5px solid var(--line);border-radius:14px;padding:10px 12px;min-height:50px;color:var(--muted)}
+.search-field svg{flex:none;width:20px;height:20px;color:var(--glacier)}
+.search-tabs{display:flex;gap:6px;overflow-x:auto}
+.search-tabs button{border:0;border-radius:999px;padding:6px 12px;background:var(--mist);font-weight:600;font-size:14px;cursor:pointer;white-space:nowrap}
+.search-tabs button[aria-pressed="true"]{background:var(--glacier);color:#fff}
+@container app (min-width:760px){.search{grid-template-columns:auto 1fr auto;align-items:center;margin-top:-36px;padding:14px 16px}}
+
+/* quick actions */
+.qa-row{display:grid;gap:12px;grid-template-columns:1fr}
+@container app (min-width:760px){.qa-row{grid-template-columns:repeat(3,1fr)}}
+.qa{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:10px;text-align:left;cursor:pointer;width:100%}
+.qa img{width:64px;height:64px;border-radius:12px;object-fit:cover;flex:none}
+.qa b{display:block;font-size:16px}.qa span{font-size:13.5px;color:var(--muted)}
+.qa .go{margin-left:auto;width:34px;height:34px;border-radius:50%;background:var(--glacier-l);color:var(--glacier);display:flex;align-items:center;justify-content:center;flex:none}
+
+/* theme pills */
+.themes{display:flex;gap:8px;flex-wrap:wrap}
+.theme{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-weight:600;font-size:14.5px;cursor:pointer}
+.theme:hover{border-color:var(--pine-2)}
+
+/* photo card */
+.pc{position:relative;border-radius:var(--r);overflow:hidden;background:#cfdbe5;aspect-ratio:3/2;color:#fff;display:flex;align-items:flex-end;text-decoration:none}
+.pc img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.pc::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 45%,rgba(8,24,36,.82))}
+.pc .pc-b{position:relative;z-index:1;padding:14px;width:100%}
+.pc b{font-family:var(--display);font-size:21px;font-weight:500;display:block}
+.pc span{font-size:13.5px;opacity:.92}
+.pc .tag{position:absolute;top:12px;left:12px;z-index:1}
+.pc.noimg{background:linear-gradient(160deg,#cfe0ee,#d8ebdf)}
+.pc.noimg .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#6b8296;font-size:13px;font-weight:600}
+.pc.noimg::after{background:linear-gradient(180deg,transparent 40%,rgba(8,24,36,.7))}
+
+/* listing card */
+.lc{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column}
+.lc-m{position:relative;aspect-ratio:16/10;background:#cfdbe5;overflow:hidden}
+.lc-m img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.lc-m .tag{position:absolute;top:10px;left:10px}
+.lc-b{padding:14px;display:grid;gap:4px;flex:1}
+.lc-b h3{font-size:19px}
+.lc-meta{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:13.5px;color:var(--muted)}
+.lc-f{display:flex;justify-content:space-between;align-items:center;gap:10px;border-top:1px solid var(--line);padding:12px 14px;background:#fbfcfd}
+.lc-f b{font-size:18px}
+
+/* bands */
+.band{background:linear-gradient(180deg,#eef5f1,#f6faf8);padding:36px 0}
+@container app (min-width:760px){.band{padding:64px 0}}
+.split{display:grid;gap:22px;align-items:center}
+@container app (min-width:900px){.split{grid-template-columns:1fr 1fr;gap:48px}}
+.split-img{border-radius:22px;overflow:hidden;aspect-ratio:16/10}
+.split-img img{width:100%;height:100%;object-fit:cover}
+.split h2{font-size:28px}
+@container app (min-width:760px){.split h2{font-size:38px}}
+.split h2 em{font-style:italic;color:var(--pine-2)}
+.lead{font-size:17px;color:var(--ink-2)}
+.feats{display:grid;gap:12px;grid-template-columns:1fr 1fr;margin:18px 0}
+.feat{display:flex;gap:10px;align-items:flex-start}
+.feat i{width:40px;height:40px;border-radius:50%;background:#fff;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;flex:none;font-style:normal;color:var(--pine)}
+.feat b{display:block;font-size:14.5px}.feat span{font-size:13px;color:var(--muted)}
+.cab-promo{background:var(--glacier-2);color:#fff;border-radius:24px;padding:24px;display:grid;gap:16px;position:relative;overflow:hidden}
+.cab-promo h2{color:#fff;font-size:26px}
+.cab-promo ol{margin:0;padding-left:20px;display:grid;gap:6px;opacity:.95}
+@container app (min-width:900px){.cab-promo{grid-template-columns:1.2fr .8fr;align-items:center;padding:40px}}
+.cab-promo .seats{display:grid;grid-template-columns:repeat(3,38px);gap:6px;justify-content:center;background:rgba(255,255,255,.1);border-radius:20px;padding:16px}
+.cab-promo .seats i{height:42px;border-radius:9px 9px 6px 6px;border:2px solid rgba(255,255,255,.75)}
+.cab-promo .seats i.sel{background:#7fd1a6;border-color:#7fd1a6}.cab-promo .seats i.drv{background:#0d2f4d;border-color:#0d2f4d}.cab-promo .seats i.gap{border:0}
+.seasons{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(150px,44%);gap:10px;overflow-x:auto;scroll-snap-type:x mandatory}
+@container app (min-width:900px){.seasons{grid-auto-flow:row;grid-template-columns:repeat(5,1fr)}}
+.season{position:relative;border-radius:16px;overflow:hidden;aspect-ratio:3/2;color:#fff;scroll-snap-align:start}
+.season img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.season::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,rgba(8,24,36,.8))}
+.season span{position:absolute;left:12px;right:12px;bottom:10px;z-index:1;font-size:13px}
+.season b{display:block;font-family:var(--display);font-size:18px;font-weight:500}
+.why{display:grid;gap:12px;grid-template-columns:1fr 1fr}
+@container app (min-width:900px){.why{grid-template-columns:repeat(4,1fr)}}
+.why div{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px}
+.why b{display:block;margin:6px 0 2px}.why span{font-size:13.5px;color:var(--muted)}
+.closing{border-radius:24px;overflow:hidden;position:relative;color:#fff;padding:32px 22px;display:grid;gap:14px}
+.closing>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.closing::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(15,50,38,.9),rgba(15,50,38,.55))}
+.closing>*:not(img){position:relative;z-index:1}
+.closing h2{color:#fff;font-size:28px;max-width:18ch}
+@container app (min-width:900px){.closing{padding:56px;grid-template-columns:1fr auto;align-items:center}.closing h2{font-size:40px}}
+.soft{background:#fff;border:1px dashed #c9d5df;border-radius:16px;padding:18px;text-align:center;color:var(--muted)}
+.soft b{display:block;color:var(--ink);font-family:var(--display);font-weight:500;font-size:19px;margin-bottom:4px}
+.soft .btn{margin-top:10px}
+
+/* page head */
+.ph{position:relative;color:#fff;overflow:hidden;min-height:220px;display:flex;align-items:flex-end}
+.ph>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.ph::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,30,45,.15),rgba(10,30,45,.8))}
+.ph .wrap{position:relative;z-index:1;padding-top:40px;padding-bottom:22px;width:100%}
+.ph h1{color:#fff;font-size:30px}.ph p{margin:6px 0 0;opacity:.94;max-width:56ch}
+.ph .eyebrow{color:#d8e8f4}
+@container app (min-width:900px){
+  .ph{min-height:0;color:var(--ink);background:linear-gradient(180deg,#eef5f1,#f6faf8);display:block}
+  .ph::after{display:none}
+  .ph .wrap{display:grid;grid-template-columns:1fr minmax(0,520px);gap:40px;align-items:center;padding-top:40px;padding-bottom:56px}
+  .ph>img{display:none}.ph .ph-img{display:block}
+  .ph h1{color:var(--ink);font-size:46px}.ph .eyebrow{color:var(--muted)}.ph p{color:var(--ink-2)}
+}
+.ph-img{display:none;border-radius:22px;overflow:hidden;aspect-ratio:16/10}
+.ph-img img{width:100%;height:100%;object-fit:cover}
+.filters{display:grid;gap:10px;background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:12px;margin:-22px 0 18px;position:relative;z-index:2;box-shadow:var(--shadow)}
+.pills{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.pill{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font-size:14px;font-weight:600;white-space:nowrap;cursor:pointer}
+.pill[aria-pressed="true"]{background:var(--pine);border-color:var(--pine);color:#fff}
+.fgrid{display:grid;gap:10px;grid-template-columns:1fr 1fr}
+.fgrid label{font-size:13px;font-weight:600;color:var(--ink-2)}
+.fgrid .in{display:block;margin-top:3px;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;min-height:46px;color:var(--muted);font-weight:400;background:#fff}
+@container app (min-width:760px){.fgrid{grid-template-columns:repeat(3,1fr) auto;align-items:end}}
+.count{font-size:14px;color:var(--muted);margin:0 0 12px}
+
+/* info pages */
+.prose{max-width:66ch;font-size:17px;color:var(--ink-2)}
+.prose p{margin:0 0 14px}
+.placeholder{background:repeating-linear-gradient(135deg,#fbfcfd 0 10px,#f3f6f9 10px 20px);border:1.5px dashed #c9d5df;border-radius:14px;padding:16px;color:var(--muted)}
+.values{display:grid;gap:12px;grid-template-columns:1fr}
+@container app (min-width:760px){.values{grid-template-columns:repeat(3,1fr)}}
+.values div{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px}
+.values b{display:block;font-family:var(--display);font-weight:500;font-size:19px;margin:6px 0 4px}
+.contact{display:grid;gap:12px;grid-template-columns:1fr}
+@container app (min-width:760px){.contact{grid-template-columns:1fr 1fr}}
+.cc{display:flex;gap:12px;align-items:flex-start;background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px}
+.cc i{width:42px;height:42px;border-radius:12px;background:var(--glacier-l);color:var(--glacier);display:flex;align-items:center;justify-content:center;flex:none;font-style:normal}
+.cc b{display:block}.cc span{font-size:14.5px;color:var(--ink-2);overflow-wrap:anywhere}
+.map{border-radius:18px;overflow:hidden;border:1px solid var(--line);background:#e7eef3;aspect-ratio:16/9;position:relative}
+.map svg{width:100%;height:100%}
+.map .pin{position:absolute;left:52%;top:46%;transform:translate(-50%,-100%);background:var(--pine);color:#fff;border-radius:999px;padding:4px 10px;font-size:13px;font-weight:600;white-space:nowrap}
+
+footer.ft{background:#13261e;color:#cfe0d7;padding:32px 0 24px;margin-top:40px}
+.ft-grid{display:grid;gap:18px;grid-template-columns:1fr 1fr}
+@container app (min-width:900px){.ft-grid{grid-template-columns:2fr 1fr 1fr 1fr}}
+.ft b{color:#fff;display:block;margin-bottom:6px}
+.ft a,.ft button{display:block;color:#cfe0d7;text-decoration:none;font-size:14px;padding:3px 0;background:none;border:0;cursor:pointer;text-align:left}
+.ft small{display:block;margin-top:20px;font-size:12px;color:#93a99d}
+</style>
+</head>
+<body>
+<div class="ctl" role="region" aria-label="Preview controls">
+  <div class="ctl-in">
+    <span class="ctl-badge">PREVIEW · DEMO DATA</span><strong>Public pages</strong>
+    <div class="ctl-group" data-group="frame"><span>Frame</span><button data-v="m" aria-pressed="true">Mobile 360px</button><button data-v="d" aria-pressed="false">Desktop</button></div>
+    <div class="ctl-group" data-group="content"><span>Content</span><button data-v="demo" aria-pressed="true">Filled (demo)</button><button data-v="live" aria-pressed="false">Today's live data</button></div>
+    <div class="ctl-group" data-group="lang"><span>Language</span><button data-v="en" aria-pressed="true">English</button><button data-v="hi" aria-pressed="false">हिंदी</button></div>
+  </div>
+</div>
+<div class="stage m" id="stage">
+  <p class="frame-label" id="frameLabel">Mobile frame · 360px wide</p>
+  <div class="frame">
+    <header class="top">
+      <button class="brand" data-go="home" style="border:0;background:none;cursor:pointer;text-align:left"><img src="/img/brand/mark.png" alt=""><span><b>The Himalayan Horizon</b><small data-t="tagline_short"></small></span></button>
+      <nav class="nav" id="nav" aria-label="Main"></nav>
+      <div class="top-acts"><button class="lang" id="langBtn" aria-label="Switch language">हिं</button><button class="btn signin" style="min-height:38px;padding:8px 16px" data-t="signin"></button></div>
+    </header>
+    <main id="app" tabindex="-1"></main>
+    <footer class="ft" id="footer"></footer>
+    <nav class="tabbar" id="tabbar" aria-label="App"></nav>
+  </div>
+</div>
+
+<script>
+/* DEMO DATA for the design preview. Theme names are the six published CMS themes; every place, listing
+   and price marked "Demo" is invented to show the layout. Photos are the site's own images in web/public/img. */
+const IMG = { road:'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Panchachuli_Peaks.jpg/1920px-Panchachuli_Peaks.jpg', road_xl:'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Panchachuli_Peaks.jpg/3840px-Panchachuli_Peaks.jpg', village:'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/Terrace_farming_in_a_small_himalayan_village(binsar_wild_life_sanctury).jpg/1920px-Terrace_farming_in_a_small_himalayan_village(binsar_wild_life_sanctury).jpg', kumaon:'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/Landscape_of_Kumaon.jpg/1920px-Landscape_of_Kumaon.jpg', hero:'/img/home/hero.jpg', work:'/img/home/work.jpg', qcab:'/img/home/q-cab.jpg', qplan:'/img/home/q-plan.jpg', qvillage:'/img/home/q-village.jpg',
+  almora:'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/Almora_Uttarakhand.jpg/1280px-Almora_Uttarakhand.jpg', binsar:'https://upload.wikimedia.org/wikipedia/commons/f/f6/Binsar,_a_view_of_Kumaon_Himalayas.jpg', jageshwar:'https://upload.wikimedia.org/wikipedia/commons/thumb/6/64/Jageshwar_Dham_Temple,_Almora_91.jpg/1280px-Jageshwar_Dham_Temple,_Almora_91.jpg', munsiyari:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/Panchuli_peak_from_munsiyari_-_panoramio_(2).jpg/1280px-Panchuli_peak_from_munsiyari_-_panoramio_(2).jpg',
+  food:'/img/home/c-food.jpg', walk:'/img/home/c-walk.jpg', craft:'/img/home/c-craft.jpg', spring:'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Way_to_Jageshwar_Temple_Almora.jpg/960px-Way_to_Jageshwar_Temple_Almora.jpg', summer:'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/A_view_of_a_village_near_Almora_district_of_Uttarakhand,_north_India.jpg/960px-A_view_of_a_village_near_Almora_district_of_Uttarakhand,_north_India.jpg', monsoon:'https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Valley_of_flowers_national_park,_Uttarakhand,_India_03_(edit).jpg/960px-Valley_of_flowers_national_park,_Uttarakhand,_India_03_(edit).jpg', autumn:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/Panchchuli_Peaks_at_Sunset,_near_Munsiyari,_Uttarakhand.jpg/960px-Panchchuli_Peaks_at_Sunset,_near_Munsiyari,_Uttarakhand.jpg', winter:'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/Auli_Lake.jpg/960px-Auli_Lake.jpg' };
+const FALLBACK = {"https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Panchachuli_Peaks.jpg/1920px-Panchachuli_Peaks.jpg": "/img/cab/road-hero-1200.webp", "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Panchachuli_Peaks.jpg/3840px-Panchachuli_Peaks.jpg": "/img/cab/road-hero-1200.webp", "https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/Panchuli_peak_from_munsiyari_-_panoramio_(2).jpg/1280px-Panchuli_peak_from_munsiyari_-_panoramio_(2).jpg": "/img/places/munsiyari.jpg", "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/Almora_Uttarakhand.jpg/1280px-Almora_Uttarakhand.jpg": "/img/places/almora.jpg", "https://upload.wikimedia.org/wikipedia/commons/thumb/6/64/Jageshwar_Dham_Temple,_Almora_91.jpg/1280px-Jageshwar_Dham_Temple,_Almora_91.jpg": "/img/places/jageshwar.jpg", "https://upload.wikimedia.org/wikipedia/commons/f/f6/Binsar,_a_view_of_Kumaon_Himalayas.jpg": "/img/places/binsar.jpg", "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/Terrace_farming_in_a_small_himalayan_village(binsar_wild_life_sanctury).jpg/1920px-Terrace_farming_in_a_small_himalayan_village(binsar_wild_life_sanctury).jpg": "/img/home/c-walk.jpg", "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/Landscape_of_Kumaon.jpg/1920px-Landscape_of_Kumaon.jpg": "/img/home/hero.jpg", "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Way_to_Jageshwar_Temple_Almora.jpg/960px-Way_to_Jageshwar_Temple_Almora.jpg": "/img/home/s-spring.jpg", "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/A_view_of_a_village_near_Almora_district_of_Uttarakhand,_north_India.jpg/960px-A_view_of_a_village_near_Almora_district_of_Uttarakhand,_north_India.jpg": "/img/home/s-summer.jpg", "https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Valley_of_flowers_national_park,_Uttarakhand,_India_03_(edit).jpg/960px-Valley_of_flowers_national_park,_Uttarakhand,_India_03_(edit).jpg": "/img/home/s-monsoon.jpg", "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/Panchchuli_Peaks_at_Sunset,_near_Munsiyari,_Uttarakhand.jpg/960px-Panchchuli_Peaks_at_Sunset,_near_Munsiyari,_Uttarakhand.jpg": "/img/home/s-autumn.jpg", "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/Auli_Lake.jpg/960px-Auli_Lake.jpg": "/img/home/s-winter.jpg"};
+document.addEventListener('error', (e) => { const im = e.target; if (im.tagName !== 'IMG' || im.dataset.fb) return; const fb = FALLBACK[im.currentSrc || im.src] || FALLBACK[im.getAttribute('src')]; if (fb) { im.dataset.fb = '1'; im.removeAttribute('srcset'); im.src = fb; } }, true);
+const CREDITS = [{"use": "Home hero, Our Office", "title": "Panchachuli Peaks.jpg", "author": "Mukul.pandey07", "lic": "CC BY-SA 4.0", "licUrl": "https://creativecommons.org/licenses/by-sa/4.0/", "page": "https://commons.wikimedia.org/wiki/File:Panchachuli_Peaks.jpg"}, {"use": "Munsiyari", "title": "Panchuli peak from munsiyari - panoramio (2).jpg", "author": "Vipin Vasudeva", "lic": "CC BY-SA 3.0", "licUrl": "https://creativecommons.org/licenses/by-sa/3.0/", "page": "https://commons.wikimedia.org/wiki/File:Panchuli_peak_from_munsiyari_-_panoramio_(2).jpg"}, {"use": "Almora", "title": "Almora Uttarakhand.jpg", "author": "SureshChandraPandey", "lic": "CC BY-SA 4.0", "licUrl": "https://creativecommons.org/licenses/by-sa/4.0/", "page": "https://commons.wikimedia.org/wiki/File:Almora_Uttarakhand.jpg"}, {"use": "Jageshwar", "title": "Jageshwar Dham Temple, Almora 91.jpg", "author": "FarEnd2018", "lic": "CC BY-SA 4.0", "licUrl": "https://creativecommons.org/licenses/by-sa/4.0/", "page": "https://commons.wikimedia.org/wiki/File:Jageshwar_Dham_Temple,_Almora_91.jpg"}, {"use": "Binsar", "title": "Binsar, a view of Kumaon Himalayas.jpg", "author": "solarshakti", "lic": "CC BY 2.0", "licUrl": "https://creativecommons.org/licenses/by/2.0/", "page": "https://commons.wikimedia.org/wiki/File:Binsar,_a_view_of_Kumaon_Himalayas.jpg"}, {"use": "Village stays, Homestays, Our Story", "title": "Terrace farming in a small himalayan village(binsar wild life sanctury).jpg", "author": "Rajborah123", "lic": "CC BY-SA 4.0", "licUrl": "https://creativecommons.org/licenses/by-sa/4.0/", "page": "https://commons.wikimedia.org/wiki/File:Terrace_farming_in_a_small_himalayan_village(binsar_wild_life_sanctury).jpg"}, {"use": "Explore header, closing banner", "title": "Landscape of Kumaon.jpg", "author": "Harshit SR", "lic": "CC BY-SA 4.0", "licUrl": "https://creativecommons.org/licenses/by-sa/4.0/", "page": "https://commons.wikimedia.org/wiki/File:Landscape_of_Kumaon.jpg"}, {"use": "Spring", "title": "Way to Jageshwar Temple Almora.jpg", "author": "Chauhans87", "lic": "CC BY-SA 4.0", "licUrl": "https://creativecommons.org/licenses/by-sa/4.0/", "page": "https://commons.wikimedia.org/wiki/File:Way_to_Jageshwar_Temple_Almora.jpg"}, {"use": "Summer", "title": "A view of a village near Almora district of Uttarakhand, north India.jpg", "author": "Raja Harjai", "lic": "CC BY-SA 2.0", "licUrl": "https://creativecommons.org/licenses/by-sa/2.0/", "page": "https://commons.wikimedia.org/wiki/File:A_view_of_a_village_near_Almora_district_of_Uttarakhand,_north_India.jpg"}, {"use": "Monsoon", "title": "Valley of flowers national park, Uttarakhand, India 03 (edit).jpg", "author": "Rohit Sharma (derivative: UnpetitproleX)", "lic": "CC BY-SA 4.0", "licUrl": "https://creativecommons.org/licenses/by-sa/4.0/", "page": "https://commons.wikimedia.org/wiki/File:Valley_of_flowers_national_park,_Uttarakhand,_India_03_(edit).jpg"}, {"use": "Autumn", "title": "Panchchuli Peaks at Sunset, near Munsiyari, Uttarakhand.jpg", "author": "solarshakti", "lic": "CC BY 2.0", "licUrl": "https://creativecommons.org/licenses/by/2.0/", "page": "https://commons.wikimedia.org/wiki/File:Panchchuli_Peaks_at_Sunset,_near_Munsiyari,_Uttarakhand.jpg"}, {"use": "Winter", "title": "Auli Lake.jpg", "author": "ArmouredCyborg", "lic": "CC BY-SA 4.0", "licUrl": "https://creativecommons.org/licenses/by-sa/4.0/", "page": "https://commons.wikimedia.org/wiki/File:Auli_Lake.jpg"}];
+const S = { frame:'m', content:'demo', lang:'en', page:'home', region:'', kind:'', theme:'' };
+const PAGES = ['home','explore','homestays','workations','story','office'];
+const T = {
+  en:{ tagline_short:'Uttarakhand', signin:'Sign in', home:'Home', explore:'Explore', homestays:'Homestays', workations:'Workations', story:'Our Story', office:'Our Office', plan:'Plan', cab:'Cab', account:'Account',
+    tagline:'Discover the Himalayas Beyond the Ordinary.', hero_h:'Real villages. Real people. Bigger stories.', hero_p:'Stay with local families, plan your route day by day and share a ride on the mountain road.',
+    explore_villages:'Explore villages', plan_trip:'Plan your trip', search_ph:'Search a village, town or trek', search:'Search', s_places:'Places', s_stays:'Homestays', s_work:'Workations',
+    q_cab:'Instant Cab', q_cab_s:'Shared seats on hill routes', q_plan:'Trip Planner', q_plan_s:'Route, days and budget', q_village:'Villages', q_village_s:'Hidden villages and homestays',
+    themes_h:'Travel your way', themes_p:'Choose what you love about the hills.', places_e:'Places', places_h:'Villages and hill towns', view_all:'View all',
+    stay_e:'Village stays', stay_h1:'Stay a little longer,', stay_h2:'live a little deeper.', stay_p:'Homestays run by local families: home food, warm rooms and someone who knows every path.',
+    f_home:'Family homestays', f_home_s:'Hosted by locals', f_net:'Internet', f_net_s:'Where available', f_food:'Pahadi food', f_food_s:'Cooked at home', f_people:'Meaningful', f_people_s:'Money stays local',
+    stays_h:'Homestays', stays_p:'Send a request; the host confirms.', per_night:'/ night', request:'Request to book',
+    work_e:'Work from the mountains', work_h:'Your desk, a Himalayan view.', work_p:'Wi-Fi, power backup and quiet. By the day or the month.', w_wifi:'Fast Wi-Fi', w_wifi_s:'Speed listed by host', w_desk:'Proper desk', w_desk_s:'Chair and power', w_calm:'Calm', w_calm_s:'No city noise', per_day:'/ day',
+    cab_e:'Instant Cab', cab_h:'Share a ride on the mountain road', cab_1:'Drivers publish a ride with route, vehicle and seats', cab_2:'You pick your route, date and exact seat', cab_3:'Pay your share to the driver directly', find_ride:'Find a ride',
+    culture_e:'Culture', culture_h:'Meet the culture. Taste the place.', c_food:'Pahadi kitchens', c_walk:'Village walks', c_craft:'Local crafts',
+    seasons_e:'When to go', s_spring:'Spring', s_spring_s:'Fresh pine forests', s_summer:'Summer', s_summer_s:'Cool escapes', s_monsoon:'Monsoon', s_monsoon_s:'Valley of Flowers', s_autumn:'Autumn', s_autumn_s:'Clear peaks', s_winter:'Winter', s_winter_s:'Snow and quiet',
+    why_e:'Why The Himalayan Horizon', y_local:'Local first', y_local_s:'Hosts and drivers from the hills', y_honest:'Honest information', y_honest_s:'No fake reviews or prices', y_plan:'Planned properly', y_plan_s:'Real routes and drive times', y_safe:'Safer rides', y_safe_s:'Verified drivers, SOS and live sharing',
+    cta_h:'Ready for your Himalayan story?', cta_p:'Plan a route, pick your stays and go.',
+    partner_h:'Host travellers in your village', partner_p:'List a homestay, a village walk or a workspace. The admin approves every listing.', partner_b:'Become a partner',
+    exp_h:'Villages and places to discover', exp_p:'Quiet villages, temple towns, lakes and treks across Garhwal and Kumaon.', all:'All', garhwal:'Garhwal', kumaon:'Kumaon', villages:'Villages', towns:'Towns', destinations:'Destinations', results:'places',
+    hs_p:'Real mountain homes run by local families. Send a request and the host confirms.', district:'District', max_price:'Max price / night', guests:'Guests', any:'Any', filter:'Filter',
+    wk_h:'Workations', wk_p:'Desks with Wi-Fi and power backup, with a Himalayan view.',
+    story_e:'Our Story', story_h:'Why we started The Himalayan Horizon', office_e:'Visit us', office_h:'Our Office', address:'Address', phone:'Phone', whatsapp:'WhatsApp', email:'Email', write:'Send us a message', map_note:'Map from OpenStreetMap (live page)',
+    empty_places:'Places are being added', empty_places_p:'The admin publishes villages and towns from the CMS. Check back soon.',
+    empty_stays:'No homestays listed yet', empty_stays_p:'Local hosts are joining. Do you run a homestay?', empty_work:'No workspaces listed yet', empty_work_p:'Own a café or homestay with good Wi-Fi? List it as a workspace.',
+    empty_page:'This page is coming soon', empty_page_p:'The owner adds this text in Admin → CMS → Pages.', no_photo:'Photo coming soon', demo:'Demo', footer_rights:'Version shown in the app footer. No fake reviews, prices or contact details.' },
+  hi:{ tagline_short:'उत्तराखंड', signin:'साइन इन', home:'होम', explore:'घूमें', homestays:'होमस्टे', workations:'वर्केशन', story:'हमारी कहानी', office:'हमारा ऑफ़िस', plan:'प्लान', cab:'कैब', account:'अकाउंट',
+    tagline:'हिमालय को साधारण से आगे जानिए।', hero_h:'असली गाँव। असली लोग। बड़ी कहानियाँ।', hero_p:'स्थानीय परिवारों के साथ रुकिए, दिन-ब-दिन रूट प्लान कीजिए और पहाड़ी रास्ते पर राइड शेयर कीजिए।',
+    explore_villages:'गाँव देखें', plan_trip:'यात्रा प्लान करें', search_ph:'गाँव, कस्बा या ट्रेक खोजें', search:'खोजें', s_places:'जगहें', s_stays:'होमस्टे', s_work:'वर्केशन',
+    q_cab:'इंस्टेंट कैब', q_cab_s:'पहाड़ी रूट पर शेयर सीट', q_plan:'ट्रिप प्लानर', q_plan_s:'रूट, दिन और बजट', q_village:'गाँव', q_village_s:'छिपे गाँव और होमस्टे',
+    themes_h:'अपने तरीके से घूमिए', themes_p:'पहाड़ों में जो पसंद है, वो चुनिए।', places_e:'जगहें', places_h:'गाँव और पहाड़ी कस्बे', view_all:'सब देखें',
+    stay_e:'गाँव में ठहराव', stay_h1:'थोड़ा ज़्यादा रुकिए,', stay_h2:'थोड़ा गहराई से जीइए।', stay_p:'स्थानीय परिवारों के होमस्टे: घर का खाना, गरम कमरे और हर रास्ता जानने वाले लोग।',
+    f_home:'पारिवारिक होमस्टे', f_home_s:'स्थानीय होस्ट', f_net:'इंटरनेट', f_net_s:'जहाँ उपलब्ध हो', f_food:'पहाड़ी खाना', f_food_s:'घर का बना', f_people:'सार्थक', f_people_s:'पैसा गाँव में रहता है',
+    stays_h:'होमस्टे', stays_p:'रिक्वेस्ट भेजिए, होस्ट कन्फ़र्म करेंगे।', per_night:'/ रात', request:'बुकिंग रिक्वेस्ट',
+    work_e:'पहाड़ से काम', work_h:'आपकी डेस्क, हिमालय का नज़ारा।', work_p:'वाई-फ़ाई, पावर बैकअप और शांति। दिन या महीने के हिसाब से।', w_wifi:'तेज़ वाई-फ़ाई', w_wifi_s:'स्पीड होस्ट बताते हैं', w_desk:'ठीक डेस्क', w_desk_s:'कुर्सी और बिजली', w_calm:'शांति', w_calm_s:'शहर का शोर नहीं', per_day:'/ दिन',
+    cab_e:'इंस्टेंट कैब', cab_h:'पहाड़ी रास्ते पर राइड शेयर करें', cab_1:'ड्राइवर रूट, गाड़ी और सीटों के साथ राइड डालते हैं', cab_2:'आप रूट, तारीख़ और अपनी सीट चुनते हैं', cab_3:'अपने हिस्से का किराया सीधे ड्राइवर को दें', find_ride:'राइड खोजें',
+    culture_e:'संस्कृति', culture_h:'संस्कृति से मिलिए। स्वाद चखिए।', c_food:'पहाड़ी रसोई', c_walk:'गाँव की सैर', c_craft:'स्थानीय हस्तकला',
+    seasons_e:'कब जाएँ', s_spring:'बसंत', s_spring_s:'चीड़ के ताज़ा जंगल', s_summer:'गर्मी', s_summer_s:'ठंडी जगहें', s_monsoon:'मानसून', s_monsoon_s:'फूलों की घाटी', s_autumn:'शरद', s_autumn_s:'साफ़ चोटियाँ', s_winter:'सर्दी', s_winter_s:'बर्फ़ और शांति',
+    why_e:'द हिमालयन होराइज़न क्यों', y_local:'स्थानीय पहले', y_local_s:'पहाड़ के होस्ट और ड्राइवर', y_honest:'सच्ची जानकारी', y_honest_s:'कोई नकली रिव्यू या दाम नहीं', y_plan:'सही प्लानिंग', y_plan_s:'असली रूट और ड्राइव टाइम', y_safe:'सुरक्षित राइड', y_safe_s:'वेरिफ़ाइड ड्राइवर, SOS और लाइव शेयरिंग',
+    cta_h:'आपकी हिमालयी कहानी के लिए तैयार?', cta_p:'रूट प्लान करें, ठहरने की जगह चुनें और निकल पड़ें।',
+    partner_h:'अपने गाँव में यात्रियों की मेज़बानी करें', partner_p:'होमस्टे, गाँव की सैर या वर्कस्पेस लिस्ट करें। हर लिस्टिंग एडमिन मंज़ूर करते हैं।', partner_b:'पार्टनर बनें',
+    exp_h:'गाँव और घूमने की जगहें', exp_p:'गढ़वाल और कुमाऊँ के शांत गाँव, मंदिरों वाले कस्बे, झीलें और ट्रेक।', all:'सब', garhwal:'गढ़वाल', kumaon:'कुमाऊँ', villages:'गाँव', towns:'कस्बे', destinations:'डेस्टिनेशन', results:'जगहें',
+    hs_p:'स्थानीय परिवारों के असली पहाड़ी घर। रिक्वेस्ट भेजिए, होस्ट कन्फ़र्म करेंगे।', district:'ज़िला', max_price:'अधिकतम दाम / रात', guests:'मेहमान', any:'कोई भी', filter:'फ़िल्टर',
+    wk_h:'वर्केशन', wk_p:'वाई-फ़ाई और पावर बैकअप वाली डेस्क, हिमालय के नज़ारे के साथ।',
+    story_e:'हमारी कहानी', story_h:'हमने द हिमालयन होराइज़न क्यों शुरू किया', office_e:'हमसे मिलिए', office_h:'हमारा ऑफ़िस', address:'पता', phone:'फ़ोन', whatsapp:'व्हाट्सऐप', email:'ईमेल', write:'हमें संदेश भेजें', map_note:'मैप OpenStreetMap से (असली पेज पर)',
+    empty_places:'जगहें जोड़ी जा रही हैं', empty_places_p:'एडमिन CMS से गाँव और कस्बे पब्लिश करते हैं। जल्द देखिए।',
+    empty_stays:'अभी कोई होमस्टे नहीं', empty_stays_p:'स्थानीय होस्ट जुड़ रहे हैं। क्या आप होमस्टे चलाते हैं?', empty_work:'अभी कोई वर्कस्पेस नहीं', empty_work_p:'अच्छे वाई-फ़ाई वाला कैफ़े या होमस्टे है? उसे वर्कस्पेस के रूप में लिस्ट करें।',
+    empty_page:'यह पेज जल्द आएगा', empty_page_p:'मालिक यह टेक्स्ट एडमिन → CMS → पेज में जोड़ते हैं।', no_photo:'फ़ोटो जल्द', demo:'डेमो', footer_rights:'वर्ज़न ऐप के फ़ुटर में दिखता है। कोई नकली रिव्यू, दाम या संपर्क नहीं।' } };
+const t = (k) => T[S.lang][k] ?? T.en[k] ?? k;
+const THEMES = [ ['🏡','Village Life & Culture','गाँव और संस्कृति','village-life'], ['💻','Work from Mountain','पहाड़ से काम','work-from-mountain'], ['🥾','Treks & Nature','ट्रेक और प्रकृति','treks-nature'],
+  ['🛕','Temples & Spiritual','मंदिर और आध्यात्म','spiritual'], ['🍲','Pahadi Food','पहाड़ी खाना','local-food'], ['🦅','Wildlife & Birding','वन्यजीव और पक्षी','wildlife-birding'] ];
+const PLACES = [
+  { n:'Munsiyari', hi:'मुनस्यारी', img:'munsiyari', region:'Kumaon', kind:'town', theme:'treks-nature', s:'Pithoragarh · Panchachuli views' },
+  { n:'Almora', hi:'अल्मोड़ा', img:'almora', region:'Kumaon', kind:'town', theme:'village-life', s:'Almora · Kumaon hill town' },
+  { n:'Jageshwar', hi:'जागेश्वर', img:'jageshwar', region:'Kumaon', kind:'destination', theme:'spiritual', s:'Almora · Temple complex' },
+  { n:'Binsar', hi:'बिनसर', img:'binsar', region:'Kumaon', kind:'destination', theme:'wildlife-birding', s:'Almora · Himalayan views' },
+  { n:'Demo village', hi:'डेमो गाँव', img:null, region:'Garhwal', kind:'village', theme:'village-life', s:'No photo yet · Garhwal' } ];
+const STAYS = [ { n:'Demo Homestay A', img:'walk', place:'Munsiyari', price:'₹—', guests:4 }, { n:'Demo Homestay B', img:'food', place:'Almora', price:'₹—', guests:6 }, { n:'Demo Homestay C', img:'craft', place:'Binsar', price:'₹—', guests:3 } ];
+const WORKS = [ { n:'Demo Workspace A', img:'work', place:'Almora', price:'₹—', wifi:'— Mbps (host)' }, { n:'Demo Workspace B', img:'craft', place:'Munsiyari', price:'₹—', wifi:'— Mbps (host)' } ];
+const live = () => S.content === 'live';
+const svg = { search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+  arrow:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 11 12 4l9 7v9H5v-9"/></svg>',
+  map:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg>',
+  mtn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 20 10 8l4 6 2-3 5 9z"/></svg>',
+  car:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 16V11l2-5h10l2 5v5M5 16h14M5 16v2M19 16v2"/><circle cx="8" cy="13" r="1"/><circle cx="16" cy="13" r="1"/></svg>',
+  user:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>' };
+const pName = (p) => S.lang === 'hi' ? p.hi : p.n;
+
+/* ---------- controls + navigation ---------- */
+document.querySelectorAll('.ctl-group').forEach((g) => g.addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  g.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', x === b));
+  S[g.dataset.group] = b.dataset.v;
+  if (g.dataset.group === 'frame') { document.getElementById('stage').className = 'stage ' + S.frame; document.getElementById('frameLabel').textContent = S.frame === 'm' ? 'Mobile frame · 360px wide' : 'Desktop frame · up to 1240px wide'; }
+  render();
+}));
+document.getElementById('langBtn').onclick = () => { S.lang = S.lang === 'en' ? 'hi' : 'en'; document.querySelectorAll('[data-group=lang] button').forEach((x) => x.setAttribute('aria-pressed', x.dataset.v === S.lang)); render(); };
+document.addEventListener('click', (e) => {
+  const go = e.target.closest('[data-go]'); if (go) { e.preventDefault(); goTo(go.dataset.go); return; }
+  const f = e.target.closest('[data-filter]'); if (f) { S[f.dataset.filter] = f.dataset.v; render(); }
+});
+function goTo(p){ if (!PAGES.includes(p)) return; S.page = p; try { history.replaceState(null, '', '#' + p); } catch {} render(); document.querySelector('.frame').scrollIntoView({ block:'start' }); }
+window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (PAGES.includes(h) && h !== S.page) { S.page = h; render(); } });
+
+function chrome(){
+  document.querySelector('[data-t=tagline_short]').textContent = t('tagline_short');
+  document.querySelector('[data-t=signin]').textContent = t('signin');
+  document.getElementById('langBtn').textContent = S.lang === 'en' ? 'हिं' : 'EN';
+  document.documentElement.lang = S.lang;
+  document.getElementById('nav').innerHTML = ['explore','homestays','workations','story','office'].map((p) => `<button data-go="${p}" ${S.page===p?'aria-current="page"':''}>${t(p)}</button>`).join('') + `<button data-go="home">${t('q_cab')}</button><button data-go="home">${t('q_plan')}</button>`;
+  const tabs = [['home','home',svg.home],['explore','explore',svg.mtn],['home','plan',svg.map],['home','cab',svg.car],['office','account',svg.user]];
+  document.getElementById('tabbar').innerHTML = tabs.map(([p,l,ic],i) => `<button data-go="${p}" ${(S.page===p && (i===0||i===1)) ? 'aria-current="page"' : ''}>${ic}<span>${t(l)}</span></button>`).join('');
+  document.getElementById('footer').innerHTML = `<div class="wrap"><div class="ft-grid">
+    <div><b style="font-family:var(--display);font-size:20px">The Himalayan Horizon</b><span style="font-size:14px">${t('tagline')}</span></div>
+    <div><b>${t('explore')}</b><button data-go="explore">${t('villages')}</button><button data-go="homestays">${t('homestays')}</button><button data-go="workations">${t('workations')}</button></div>
+    <div><b>${t('story')}</b><button data-go="story">${t('story')}</button><button data-go="office">${t('office')}</button></div>
+    <div><b>${t('partner_b')}</b><button data-go="home">${t('partner_b')}</button></div></div>
+    <details style="margin-top:18px"><summary style="cursor:pointer;font-size:13px;color:#cfe0d7">Photo credits</summary><ul style="margin:8px 0 0;padding-left:18px;font-size:12.5px;line-height:1.7">${CREDITS.map((c) => `<li>${c.use}: <a style="display:inline;color:#cfe0d7;text-decoration:underline" href="${c.page}" target="_blank" rel="noopener">${c.title}</a> by ${c.author}, <a style="display:inline;color:#cfe0d7;text-decoration:underline" href="${c.licUrl}" target="_blank" rel="noopener">${c.lic}</a>, via Wikimedia Commons</li>`).join('')}<li>Other photos: The Himalayan Horizon site images (web/public/img).</li></ul></details>
+    <small>${t('footer_rights')}</small></div>`;
+}
+
+/* ---------- pieces ---------- */
+const placeCard = (p) => p.img
+  ? `<a class="pc" href="#explore" data-go="explore"><img src="${IMG[p.img]}" alt=""><span class="tag demo">${t('demo')}</span><span class="pc-b"><b>${pName(p)}</b><span>${p.s}</span></span></a>`
+  : `<a class="pc noimg" href="#explore" data-go="explore"><span class="ph">${t('no_photo')}</span><span class="tag demo">${t('demo')}</span><span class="pc-b"><b>${pName(p)}</b><span>${p.s}</span></span></a>`;
+const stayCard = (x) => `<article class="lc"><div class="lc-m"><img src="${IMG[x.img]}" alt=""><span class="tag demo">${t('demo')}</span></div>
+  <div class="lc-b"><h3>${x.n}</h3><div class="lc-meta"><span>📍 ${x.place}</span><span>👥 ${x.guests} ${t('guests').toLowerCase()}</span></div></div>
+  <div class="lc-f"><span><b>${x.price}</b> <span class="muted small">${t('per_night')}</span></span><button class="btn" style="min-height:40px;padding:8px 14px">${t('request')}</button></div></article>`;
+const workCard = (x) => `<article class="lc"><div class="lc-m"><img src="${IMG[x.img]}" alt=""><span class="tag demo">${t('demo')}</span></div>
+  <div class="lc-b"><h3>${x.n}</h3><div class="lc-meta"><span>📍 ${x.place}</span><span>📶 ${x.wifi}</span></div></div>
+  <div class="lc-f"><span><b>${x.price}</b> <span class="muted small">${t('per_day')}</span></span><button class="btn ghost" style="min-height:40px;padding:8px 14px">${t('request')}</button></div></article>`;
+const soft = (h, p, btn) => `<div class="soft"><b>${h}</b>${p}${btn ? `<div><button class="btn ghost">${btn}</button></div>` : ''}</div>`;
+const head = (e, h, p, more) => `<div class="head"><div>${e?`<p class="eyebrow">${e}</p>`:''}<h2>${h}</h2>${p?`<p>${p}</p>`:''}</div>${more?`<button class="more" data-go="${more}">${t('view_all')} ${svg.arrow}</button>`:''}</div>`;
+
+/* ---------- pages ---------- */
+function home(){
+  const places = live() ? PLACES.filter((p) => !p.img) : PLACES.filter((p) => p.img);
+  return `
+  <section class="hero"><img src="${IMG.road}" srcset="${IMG.road} 1920w, ${IMG.road_xl} 3840w" sizes="100vw" alt="Panchachuli peaks seen from Pithoragarh">
+    <div class="wrap hero-in"><p class="eyebrow">${t('tagline')}</p><h1>${t('hero_h')}</h1><p class="lead">${t('hero_p')}</p>
+      <div class="hero-acts"><button class="btn light" data-go="explore">${t('explore_villages')} ${svg.arrow}</button><button class="btn ghost-w">${t('plan_trip')}</button></div></div></section>
+  <div class="wrap"><div class="search" role="search">
+    <div class="search-tabs"><button aria-pressed="true">${t('s_places')}</button><button aria-pressed="false">${t('s_stays')}</button><button aria-pressed="false">${t('s_work')}</button></div>
+    <div class="search-field">${svg.search}<span>${t('search_ph')}</span></div>
+    <button class="btn blue">${t('search')}</button></div></div>
+  <div class="wrap sec" style="margin-top:22px"><div class="qa-row">
+    ${[['qcab','q_cab','q_cab_s','home'],['qplan','q_plan','q_plan_s','home'],['qvillage','q_village','q_village_s','explore']].map(([im,a,b,go]) => `<button class="qa" data-go="${go}"><img src="${IMG[im]}" alt=""><span><b>${t(a)}</b><span>${t(b)}</span></span><span class="go">${svg.arrow}</span></button>`).join('')}</div></div>
+  <section class="wrap sec">${head('', t('themes_h'), t('themes_p'))}<div class="themes">${THEMES.map(([ic,en,hi]) => `<button class="theme" data-go="explore"><span aria-hidden="true">${ic}</span>${S.lang==='hi'?hi:en}</button>`).join('')}</div></section>
+  <section class="wrap sec">${head(t('places_e'), t('places_h'), '', 'explore')}
+    ${places.length ? `<div class="hscroll">${places.map(placeCard).join('')}</div>` : soft(t('empty_places'), t('empty_places_p'))}</section>
+  <section class="band"><div class="wrap split">
+    <div><p class="eyebrow">${t('stay_e')}</p><h2>${t('stay_h1')}<br><em>${t('stay_h2')}</em></h2><p class="lead">${t('stay_p')}</p>
+      <div class="feats">${[['🏡','f_home','f_home_s'],['📶','f_net','f_net_s'],['🍲','f_food','f_food_s'],['🤝','f_people','f_people_s']].map(([i,a,b]) => `<div class="feat"><i aria-hidden="true">${i}</i><span><b>${t(a)}</b><span>${t(b)}</span></span></div>`).join('')}</div>
+      <button class="btn" data-go="homestays">${t('homestays')} ${svg.arrow}</button></div>
+    <div class="split-img"><img src="${IMG.village}" alt=""></div></div></section>
+  <section class="wrap sec">${head('', t('stays_h'), t('stays_p'), 'homestays')}
+    ${live() ? soft(t('empty_stays'), t('empty_stays_p'), t('partner_b')) : `<div class="grid g3">${STAYS.map(stayCard).join('')}</div>`}</section>
+  <section class="wrap sec"><div class="split">
+    <div class="split-img"><img src="${IMG.work}" alt=""></div>
+    <div><p class="eyebrow">${t('work_e')}</p><h2>${t('work_h')}</h2><p class="lead">${t('work_p')}</p>
+      <div class="feats">${[['📶','w_wifi','w_wifi_s'],['🪑','w_desk','w_desk_s'],['🌿','w_calm','w_calm_s']].map(([i,a,b]) => `<div class="feat"><i aria-hidden="true">${i}</i><span><b>${t(a)}</b><span>${t(b)}</span></span></div>`).join('')}</div>
+      <button class="btn ghost" data-go="workations">${t('workations')} ${svg.arrow}</button></div></div></section>
+  <section class="wrap sec"><div class="cab-promo">
+    <div><p class="eyebrow" style="color:#bcd7ee">${t('cab_e')}</p><h2>${t('cab_h')}</h2><ol style="margin-top:12px"><li>${t('cab_1')}</li><li>${t('cab_2')}</li><li>${t('cab_3')}</li></ol>
+      <div style="margin-top:16px"><button class="btn light">${t('find_ride')} ${svg.arrow}</button></div></div>
+    <div class="seats" aria-hidden="true"><i></i><i class="gap"></i><i class="drv"></i><i class="sel"></i><i></i><i class="sel"></i><i></i><i class="gap"></i><i></i></div></div></section>
+  <section class="wrap sec">${head(t('culture_e'), t('culture_h'))}<div class="grid g3">
+    ${[['food','c_food'],['walk','c_walk'],['craft','c_craft']].map(([im,k]) => `<a class="pc" style="aspect-ratio:4/3" href="#explore" data-go="explore"><img src="${IMG[im]}" alt=""><span class="pc-b"><b>${t(k)}</b></span></a>`).join('')}</div></section>
+  <section class="wrap sec"><p class="eyebrow">${t('seasons_e')}</p><div class="seasons">
+    ${['spring','summer','monsoon','autumn','winter'].map((s) => `<div class="season"><img src="${IMG[s]}" alt=""><span><b>${t('s_'+s)}</b>${t('s_'+s+'_s')}</span></div>`).join('')}</div></section>
+  <section class="wrap sec">${head(t('why_e'), '')}<div class="why">
+    ${[['🏔️','y_local'],['✅','y_honest'],['🗺️','y_plan'],['🛡️','y_safe']].map(([i,k]) => `<div><span aria-hidden="true" style="font-size:22px">${i}</span><b>${t(k)}</b><span>${t(k+'_s')}</span></div>`).join('')}</div></section>
+  <section class="wrap sec"><div class="closing"><img src="${IMG.kumaon}" alt=""><div><h2>${t('cta_h')}</h2><p style="margin:8px 0 0;opacity:.92">${t('cta_p')}</p></div><button class="btn light">${t('plan_trip')} ${svg.arrow}</button></div></section>
+  <section class="wrap sec"><div class="soft" style="text-align:left;display:grid;gap:8px;border-style:solid"><b>${t('partner_h')}</b><span>${t('partner_p')}</span><div><button class="btn">${t('partner_b')}</button></div></div></section>`;
+}
+
+function explore(){
+  let list = live() ? PLACES.filter((p) => !p.img) : PLACES;
+  list = list.filter((p) => (!S.region || p.region === S.region) && (!S.kind || p.kind === S.kind) && (!S.theme || p.theme === S.theme));
+  const pill = (name, v, label) => `<button class="pill" data-filter="${name}" data-v="${v}" aria-pressed="${S[name]===v}">${label}</button>`;
+  return `<section class="ph"><img src="${IMG.kumaon}" alt=""><div class="wrap"><div><p class="eyebrow">${t('places_e')}</p><h1>${t('exp_h')}</h1><p>${t('exp_p')}</p></div><div class="ph-img"><img src="${IMG.kumaon}" alt=""></div></div></section>
+  <div class="wrap"><div class="filters">
+    <div class="search-field">${svg.search}<span>${t('search_ph')}</span></div>
+    <div class="pills" role="group" aria-label="Region">${pill('region','',t('all'))}${pill('region','Garhwal',t('garhwal'))}${pill('region','Kumaon',t('kumaon'))}</div>
+    <div class="pills" role="group" aria-label="Kind">${pill('kind','',t('all'))}${pill('kind','village',t('villages'))}${pill('kind','destination',t('destinations'))}${pill('kind','town',t('towns'))}</div>
+    <div class="pills" role="group" aria-label="Theme">${pill('theme','',t('all'))}${THEMES.map(([ic,en,hi,slug]) => pill('theme',slug,`${ic} ${S.lang==='hi'?hi:en}`)).join('')}</div></div>
+    <p class="count">${list.length} ${t('results')}${live() ? ' · live today' : ''}</p>
+    ${list.length ? `<div class="grid g3">${list.map(placeCard).join('')}</div>` : soft(t('empty_places'), t('empty_places_p'))}
+    <div class="sec">${soft(t('partner_h'), t('partner_p'), t('partner_b'))}</div></div>`;
+}
+
+function listingPage(kind){
+  const isStay = kind === 'homestays';
+  const rows = live() ? [] : (isStay ? STAYS : WORKS);
+  return `<section class="ph"><img src="${IMG[isStay ? 'village' : 'work']}" alt=""><div class="wrap"><div><p class="eyebrow">${isStay ? t('stay_e') : t('work_e')}</p><h1>${isStay ? t('homestays') : t('wk_h')}</h1><p>${isStay ? t('hs_p') : t('wk_p')}</p></div><div class="ph-img"><img src="${IMG[isStay ? 'village' : 'work']}" alt=""></div></div></section>
+  <div class="wrap">
+    ${rows.length ? `<div class="filters"><div class="fgrid"><label>${t('district')}<span class="in">${t('any')}</span></label><label>${t('max_price')}<span class="in">₹</span></label>${isStay ? `<label>${t('guests')}<span class="in">2</span></label>` : '<span></span>'}<button class="btn">${t('filter')}</button></div></div>
+      <p class="count">${rows.length} ${isStay ? t('homestays').toLowerCase() : t('workations').toLowerCase()}</p><div class="grid g3">${rows.map(isStay ? stayCard : workCard).join('')}</div>`
+      : `<div style="margin-top:18px">${isStay ? soft(t('empty_stays'), t('empty_stays_p'), t('partner_b')) : soft(t('empty_work'), t('empty_work_p'), t('partner_b'))}</div>`}
+    ${!isStay ? `<section class="sec"><div class="feats" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">${[['📶','w_wifi','w_wifi_s'],['🪑','w_desk','w_desk_s'],['🌿','w_calm','w_calm_s']].map(([i,a,b]) => `<div class="feat"><i aria-hidden="true">${i}</i><span><b>${t(a)}</b><span>${t(b)}</span></span></div>`).join('')}</div></section>` : ''}
+  </div>`;
+}
+
+function story(){
+  const body = live() ? soft(t('empty_page'), t('empty_page_p'))
+    : `<div class="placeholder"><span class="tag demo">${t('demo')}</span><p style="margin:8px 0 0">[ Placeholder: the owner writes the real story in Admin → CMS → Pages → “Our Story”. Paragraphs appear here exactly as written. No story text is invented by the site. ]</p></div>`;
+  return `<section class="ph"><img src="${IMG.village}" alt=""><div class="wrap"><div><p class="eyebrow">${t('story_e')}</p><h1>${t('story_h')}</h1><p>${t('tagline')}</p></div><div class="ph-img"><img src="${IMG.village}" alt=""></div></div></section>
+  <div class="wrap sec"><div class="split" style="align-items:start"><div class="prose">${body}</div>
+    <div class="split-img"><img src="${IMG.walk}" alt=""></div></div></div>
+  <section class="wrap sec">${head(t('why_e'), '')}<div class="values">
+    ${[['🏔️','y_local'],['✅','y_honest'],['🛡️','y_safe']].map(([i,k]) => `<div><span aria-hidden="true" style="font-size:22px">${i}</span><b>${t(k)}</b><span class="muted small">${t(k+'_s')}</span></div>`).join('')}</div></section>`;
+}
+
+function office(){
+  const v = (k) => live() ? `<span>From Admin → Settings → Contact (<b style="display:inline">${k}</b>)</span>` : `<span>[${k} from settings] <span class="tag demo">${t('demo')}</span></span>`;
+  return `<section class="ph"><img src="${IMG.road}" alt=""><div class="wrap"><div><p class="eyebrow">${t('office_e')}</p><h1>${t('office_h')}</h1></div><div class="ph-img"><img src="${IMG.road}" alt=""></div></div></section>
+  <div class="wrap sec"><div class="split" style="align-items:start">
+    <div class="contact">
+      <div class="cc"><i aria-hidden="true">📍</i><div><b>${t('address')}</b>${v('address')}</div></div>
+      <div class="cc"><i aria-hidden="true">📞</i><div><b>${t('phone')}</b>${v('phone')}</div></div>
+      <div class="cc"><i aria-hidden="true">💬</i><div><b>${t('whatsapp')}</b>${v('whatsapp')}</div></div>
+      <div class="cc"><i aria-hidden="true">✉️</i><div><b>${t('email')}</b>${v('email')}</div></div>
+    </div>
+    <div><div class="map"><svg viewBox="0 0 400 225" aria-hidden="true"><rect width="400" height="225" fill="#e3ecf2"/><path d="M0 160 C80 140 120 180 200 150 S320 110 400 130" stroke="#c5d6e3" stroke-width="18" fill="none"/><path d="M40 0 L120 225 M260 0 L220 225 M0 70 L400 90" stroke="#fff" stroke-width="6"/><path d="M0 60 C60 40 100 70 160 50 S280 20 400 40" stroke="#cfe2d4" stroke-width="30" fill="none" opacity=".7"/></svg><span class="pin">📍 THH</span></div>
+      <p class="muted small" style="margin:8px 0 14px">${t('map_note')}</p>
+      <div class="soft" style="text-align:left;border-style:solid"><b>${t('write')}</b><span>Name, phone, message → saved to the database (existing contact form).</span><div><button class="btn blue">${t('write')}</button></div></div></div>
+  </div></div>`;
+}
+
+function render(){
+  chrome();
+  const html = { home, explore, homestays:() => listingPage('homestays'), workations:() => listingPage('workations'), story, office }[S.page]();
+  const app = document.getElementById('app'); app.innerHTML = html;
+}
+const h0 = location.hash.slice(1); if (PAGES.includes(h0)) S.page = h0;
+render();
+</script>
+</body>
+</html>
