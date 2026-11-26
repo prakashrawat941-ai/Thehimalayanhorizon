@@ -28,7 +28,8 @@ export async function Workspace({ expected, searchParams }) {
       <form action={acceptLeadershipInvitation}><button>{L('Accept invitation', 'आमंत्रण स्वीकार करें')}</button></form>
     </section></div>
   );
-  if (expected && expected !== member.role) return (
+  const founderPreview = member.role === 'founder' && ['ceo', 'co_founder'].includes(expected);
+  if (expected && expected !== member.role && !founderPreview) return (
     <div className="mgmt"><section>
       <h1>{L('This dashboard needs a different role', 'इस डैशबोर्ड के लिए अलग भूमिका चाहिए')}</h1>
       <p>{L('Sign in with the account assigned to this dashboard, or open your own workspace.', 'इस डैशबोर्ड के लिए नियुक्त खाते से लॉगिन करें या अपना डैशबोर्ड खोलें।')}</p>
@@ -75,8 +76,16 @@ export async function Workspace({ expected, searchParams }) {
     throw Error('Workspace records unavailable');
   const requestKey = randomUUID();
   const title = (k) => L(...labels[k]);
+  if (founderPreview) return (
+    <div className="mgmt leadership"><div className="management-content">
+      <nav><Link href="/founder">{title('founder')}</Link> · <Link href="/ceo">{title('ceo')}</Link> · <Link href="/co-founder">{title('co_founder')}</Link></nav>
+      <header><h1>{title(expected)}</h1><p>{L('Read-only view with your Founder account', 'Founder खाते से केवल देखने की सुविधा')}</p></header>
+      <OperationsPanel role={expected} lang={lang} rows={work.data.slice(0,20)} staff={[]} partners={[]} userId={user.id} readOnly />
+    </div></div>
+  );
   const leadership = member.role !== 'employee';
   const destinations = [
+    ...(member.role === 'founder' ? [['/ceo', title('ceo')], ['/co-founder', title('co_founder')]] : []),
     ['#overview', L('Overview', 'सारांश')],
     ['#new-entry', L('New entry', 'नई प्रविष्टि')],
     ['#work', L('Work and approvals', 'कार्य और मंज़ूरी')],
