@@ -80,6 +80,7 @@ export async function Workspace({ expected, searchParams }) {
     <div className="mgmt leadership"><div className="management-content">
       <nav><Link href="/founder">{title('founder')}</Link> · <Link href="/ceo">{title('ceo')}</Link> · <Link href="/co-founder">{title('co_founder')}</Link></nav>
       <header><h1>{title(expected)}</h1><p>{L('Read-only view with your Founder account', 'Founder खाते से केवल देखने की सुविधा')}</p></header>
+      {expected === 'co_founder' && <Link href="/co-founder/cms?t=locations">{L('Preview location matching', 'जगह खोजें और प्रीव्यू देखें')}</Link>}
       <OperationsPanel role={expected} lang={lang} rows={work.data.slice(0,20)} staff={[]} partners={[]} userId={user.id} readOnly />
     </div></div>
   );
