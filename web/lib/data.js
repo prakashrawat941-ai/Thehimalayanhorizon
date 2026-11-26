@@ -2,6 +2,7 @@
 // Everything here is readable by visitors under the database's own security rules.
 import { cache } from 'react';
 import { publicDb } from '@/lib/supabase/server';
+import { homestayPublicationIssues } from '@/lib/publication';
 async function rows(promise) {
     const { data, error } = await promise;
     if (error) {
@@ -37,14 +38,19 @@ export const KINDS = {
     workspace: { table: 'workspaces', route: '/workspaces', nameField: 'name', priceField: 'price_per_day', unit: 'per_day' },
     village_tour: { table: 'village_tours', route: '/village-tours', nameField: 'title', priceField: 'price_per_person', unit: 'per_person' },
 };
-export const getListings = cache((kind, opts = {}) => {
+export const getListings = cache(async (kind, opts = {}) => {
     let q = publicDb().from(KINDS[kind].table).select('*').eq('status', 'approved')
         .order('is_featured', { ascending: false }).order('created_at', { ascending: false });
     if (opts.locationId)
         q = q.eq('location_id', opts.locationId);
-    if (opts.limit)
+    if (opts.limit && kind !== 'homestay')
         q = q.limit(opts.limit);
-    return rows(q);
+    const list = await rows(q);
+    const ready = kind === 'homestay' ? list.filter((h) => !homestayPublicationIssues(h).length) : list;
+    return opts.limit ? ready.slice(0, opts.limit) : ready;
 });
-export const getListing = cache((kind, id) => one(publicDb().from(KINDS[kind].table).select('*').eq('id', id).eq('status', 'approved').maybeSingle()));
+export const getListing = cache(async (kind, id) => {
+    const listing = await one(publicDb().from(KINDS[kind].table).select('*').eq('id', id).eq('status', 'approved').maybeSingle());
+    return kind === 'homestay' && listing && homestayPublicationIssues(listing).length ? null : listing;
+});
 export const getRooms = cache((homestayId) => rows(publicDb().from('homestay_rooms').select('*').eq('homestay_id', homestayId).eq('is_active', true).order('sort').order('base_price')));
