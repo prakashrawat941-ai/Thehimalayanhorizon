@@ -24,7 +24,7 @@ async function loadPlaces() {
     placesCache = list;
     return list;
 }
-export function PlaceSearch({ lang, labels, autoFocus = false, onPick = null, placeholder = null, initial = '' }) {
+export function PlaceSearch({ lang, labels, autoFocus = false, onPick = null, onType = null, placeholder = null, initial = '' }) {
     const listId = useId();
     // Picker mode (Trip Planner): items are buttons that hand the place back instead of links.
     const Item = ({ href, place, children, ...rest }) => (onPick
@@ -133,7 +133,7 @@ export function PlaceSearch({ lang, labels, autoFocus = false, onPick = null, pl
     return (<div className="psearch" ref={boxRef}>
       <div className="psearch-box">
         <Icon name="search" size={20}/>
-        <input type="search" value={q} placeholder={placeholder || labels.search_places} aria-label={placeholder || labels.search_places} autoFocus={autoFocus} enterKeyHint="search" autoComplete="off" role="combobox" aria-expanded={!!showList} aria-controls={listId} onChange={(e) => { setQ(e.target.value); setOpen(true); setNote(''); setNear(null); }} onFocus={() => setOpen(true)} onKeyDown={(e) => { if (e.key === 'Escape')
+        <input type="search" value={q} placeholder={placeholder || labels.search_places} aria-label={placeholder || labels.search_places} autoFocus={autoFocus} enterKeyHint="search" autoComplete="off" role="combobox" aria-expanded={!!showList} aria-controls={listId} onChange={(e) => { setQ(e.target.value); setOpen(true); setNote(''); setNear(null); onType?.(e.target.value); }} onFocus={() => setOpen(true)} onKeyDown={(e) => { if (e.key === 'Escape')
         setOpen(false); }}/>
         <button type="button" className="psearch-loc" onClick={locateMe}><Icon name="locate" size={18}/><span>{labels.use_location}</span></button>
       </div>

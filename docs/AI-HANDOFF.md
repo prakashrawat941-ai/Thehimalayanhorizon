@@ -4,10 +4,11 @@ Owner: Prakash Singh. Frontend and UI: Claude. Backend integration, permissions,
 
 | Item | Value |
 |---|---|
-| Branch | `claude/thh-ui-refresh` (from `main` at `8e6291c`) |
-| Instant Cab code commit | `1f62b603876105b5d41919cb8e67b9a9f935784c` |
-| Pull request | https://github.com/prakashrawat941-ai/Thehimalayanhorizon/pull/14 (opened 26 Nov 2026 at the owner's request; the next areas will be added to the same PR) |
-| Merge or deploy | Not done. Needs the owner's approval. |
+| Branch | `claude/thh-ui-refresh` (main merged in at `b03fe1e`) |
+| Instant Cab | Merged to main in PR #14 (`b2cd6fa`, 26 Nov 2026) at the owner's request |
+| Public pages code commit | `1dc54f6` |
+| Pull requests | #14 Instant Cab (merged). Public pages: new review PR from this branch (link in the PR list). |
+| Merge or deploy | Public pages: not merged. Needs the owner's approval. |
 
 ## Design previews (claude.ai artifacts, private to the owner)
 
@@ -16,11 +17,68 @@ Every value in these previews is demo data, and each preview is labelled as such
 | Area | Preview | Approval |
 |---|---|---|
 | 1. Instant Cab booking | https://claude.ai/artifact/VRH2V9ftq3ZKPLGJx278bp | Approved 26 Nov 2026; implemented (see below) |
-| 2. Homepage and public pages | Not started | — |
+| 2. Homepage and public pages | https://claude.ai/artifact/5J12rL8aEzxvExJgaZT3n5 (layout) and the HD preview at `/design-preview/public-pages.html` on branch `claude/thh-public-preview` | Approved 26 Nov 2026; implemented (see below) |
 | 3. Founder, CEO, Co-founder and Admin dashboards | Not started | — |
 | 4. Trip Planner and Trip Report | Not started | — |
 
 An earlier all-in-one preview (https://claude.ai/artifact/K2uJ3wuzDYM4LBo6qvoYr3) was rejected and is superseded.
+
+## Area 2: Homepage and public pages, as implemented
+
+### Screens and routes
+
+| Route | Change |
+|---|---|
+| `/` | Shorter hero (CMS `home_sections` hero title, subtitle and image still win). Tabbed search card. Four-icon services row. Theme photo cards. Place photo cards. Village-stay band with photo. Workation split with photo. Blue Instant Cab band. Culture (6 cards). Why us. Seasons. Photo closing banner. Photo credits. |
+| `/destinations` | Photo header, filter panel (place search, region, kind, theme pills), result count, empty state with "clear filters" |
+| `/villages` | Photo header, village tours, villages, partner call to action |
+| `/homestays`, `/workspaces`, `/village-tours` | Photo header, filter panel, result count, empty state |
+| `/about`, `/our-story` | Photo header and side photo. CMS text from `site_settings.pages`, or "coming soon" |
+| `/our-office` | Photo header, CMS text if set, contact cards from `site_settings.contact` only, link to `/contact` |
+| `/privacy`, `/terms` | Unchanged (plain layout) |
+
+### Changed and new files
+
+- `web/app/page.jsx`: rewritten around the same CMS blocks (`hero`, `themes`, `destinations`, `villages`, `itineraries`, `stays`, `workspaces`, `cabs`, `partner_cta`, `text`).
+- `web/app/public-refresh.css`: all new styles, prefixed `rf-`.
+- `web/app/destinations/page.jsx`, `web/app/villages/page.jsx`, `web/components/ListingPages.jsx` (`ListingList` only), `web/components/InfoPage.jsx`.
+- New: `web/components/home/HomeSearch.jsx`, `web/components/PageHero.jsx`, `web/components/Photo.jsx`, `web/components/PhotoCredits.jsx`, `web/lib/photos.js`.
+- New images: `web/public/img/thh/*.webp`, supplied by the owner and saved at their native size.
+
+### Search card wiring (client only, existing routes)
+
+| Tab | Asks for | Goes to |
+|---|---|---|
+| Stays | Place (PlaceSearch), guests | `/homestays?district=<place.district>&guests=N`. District is only set for listed places, not OpenStreetMap results. |
+| Cab | From, to, date, seats | `/cab/find?date=&n=&from=<places.id>` or `&fromg=lat,lng|name` (same format as the cab search) |
+| Trip plan | Destination | `/plan?place=<slug>` or `/plan?to=&lat=&lng=` (both already read by the planner) |
+
+There is no Dates field on the Stays tab, because `/homestays` has no date or availability filter.
+
+### Photos
+
+- `web/lib/photos.js` lists every photo.
+  - Wikimedia Commons files are used as remote URLs, with a fallback image from `/img`. Each licence (CC BY-SA 4.0 / 3.0 / 2.0, CC BY 2.0) was read from the Commons file page text via search. Attribution is shown by `<PhotoCredits>` on each page.
+  - THH photos are files the owner supplied in chat.
+- `Photo` switches to the fallback when a remote file fails to load, including when it fails before hydration.
+
+### Data each screen uses (unchanged queries)
+
+`getHomeSections`, `getThemes`, `getLocations`, `getItineraries`, `getListings(kind)`, `getSettings()` (`pages`, `contact`), PlaceSearch (`places`, `locations`). No new tables, columns or RPCs.
+
+### Pending Codex and owner items: public pages
+
+- **P1. Photo rights.** The owner supplied 9 photos (`/img/thh`) and has not yet confirmed rights for public use. A tenth (a thali with another business's logo) was left out. Get confirmation from the owner, or replace the photos.
+- **P2. Self-host the Wikimedia photos (optional).** Download the listed files at the referenced widths into `/img`, keep the credits, and point `src` at the local copies. This removes the dependency on Wikimedia hotlinks.
+- **P3. Homestay date and availability search.** If wanted, `/homestays` needs date filtering against `room_rates` and bookings. Then the Stays tab can add Dates.
+- **P4. Our Office map.** `site_settings.contact` has no coordinates. Add `lat` and `lng` to show an OpenStreetMap pin.
+- **P5. Theme images.** `themes` has no image column, so photos are mapped by slug in `THEME_PHOTO`. Add `image_url` to `themes` if admins should choose them.
+
+### Checks run: public pages
+
+- TypeScript `transpileModule` syntax check on all 10 changed or new JS and JSX files: passed.
+- Vercel preview build for `1dc54f6`: success. This is the real `next build`.
+- **Not run:** browser checks of the live preview from this session (vercel.app is not reachable here), and `npm install` / `next build` locally (no package network access). The same layout was checked at 360px and 1280px in the HD design preview (no horizontal scroll, no broken images, fallbacks work), but the Next.js pages themselves need checking on the Vercel preview.
 
 ## Area 1: Instant Cab, as implemented
 

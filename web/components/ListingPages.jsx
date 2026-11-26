@@ -5,9 +5,12 @@ import { getListing, getListings, getLocations, getRooms, KINDS } from '@/lib/da
 import { idFromSlug, inr, listingSlug } from '@/lib/format';
 import { getSession } from '@/lib/auth';
 import { BookingForm } from './booking/BookingForm';
-import { Chips, Empty, Grid, ListingCard, PageHead, Section } from './Blocks';
+import { Chips, Empty, Grid, ListingCard, Section } from './Blocks';
 import { Cover } from './Cover';
 import { imgUrl } from '@/lib/img';
+import { PageHero } from './PageHero';
+import { PhotoCredits } from './PhotoCredits';
+const HERO_PHOTO = { homestay: 'village', workspace: 'workBalcony', village_tour: 'walk' };
 const TITLE_KEY = { homestay: 'stays', workspace: 'workspaces', village_tour: 'village_tours' };
 const LEGACY_DETAIL = { homestay: 'stay', workspace: 'workspace', village_tour: 'tour' };
 function intro(kind, tr) {
@@ -25,7 +28,7 @@ export async function listingMeta(kind) {
 /** List page with simple filters (place/district, max price, guests). Filters are links/GET form: no JavaScript needed. */
 export async function ListingList({ kind, sp }) {
     const tr = await getT();
-    const { t, pick, district } = tr;
+    const { t, pick, district, L, lang } = tr;
     const [rows, locs] = await Promise.all([getListings(kind), getLocations()]);
     const k = KINDS[kind];
     const maxPrice = Number(sp.max) || 0;
@@ -37,9 +40,10 @@ export async function ListingList({ kind, sp }) {
         .filter((x) => !guests || kind !== 'homestay' || (x.max_guests ?? 0) >= guests);
     const locName = (x) => { const l = locs.find((y) => y.id === x.location_id); return l ? pick(l, 'name') : undefined; };
     const filtered = !!(sp.district || sp.max || sp.guests);
-    return (<div className="page">
-      <PageHead title={t(TITLE_KEY[kind])} lead={intro(kind, tr)}/>
-      {rows.length ? (<form className="listing-filters" method="get" action={k.route}>
+    return (<div className="rf-page">
+      <PageHero lang={lang} photo={HERO_PHOTO[kind]} title={t(TITLE_KEY[kind])} lead={intro(kind, tr)}/>
+      <div className="wrap">
+      {rows.length ? (<div className="rf-panel"><form className="listing-filters" method="get" action={k.route}>
           <label className="field"><span className="field-label">{t('district')}</span>
             <select className="input" name="district" defaultValue={sp.district || ''}>
               <option value="">{t('any')}</option>{districts.map((d) => <option key={d} value={d}>{district(d)}</option>)}
@@ -50,9 +54,14 @@ export async function ListingList({ kind, sp }) {
               <input className="input" name="guests" type="number" min={1} max={50} inputMode="numeric" defaultValue={sp.guests || ''}/></label>) : null}
           <button className="btn" type="submit">{t('filter')}</button>
           {filtered ? <Link className="link" href={k.route}>{t('clear_filters')}</Link> : null}
-        </form>) : null}
+        </form></div>) : null}
+      {rows.length ? <p className="rf-count">{shown.length} {t('results')}</p> : null}
+      <div className={rows.length ? '' : 'rf-body'}>
       {shown.length ? <Grid>{shown.map((x) => <ListingCard key={x.id} kind={kind} x={x} tr={tr} locName={locName(x)}/>)}</Grid>
-            : <Empty icon="house" text={rows.length ? t('nothing_here') : t('no_listings')} action={!rows.length ? <Link className="btn btn-ghost" href="/partner/join">{t('become_partner')}</Link> : undefined}/>}
+            : <Empty icon="house" text={rows.length ? t('nothing_here') : t('no_listings')} action={rows.length ? (filtered ? <Link className="btn btn-ghost" href={k.route}>{t('clear_filters')}</Link> : undefined) : <Link className="btn btn-ghost" href="/partner/join">{t('become_partner')}</Link>}/>}
+      </div>
+      </div>
+      <PhotoCredits names={[HERO_PHOTO[kind]]} L={L}/>
     </div>);
 }
 export async function loadListing(kind, slug) {

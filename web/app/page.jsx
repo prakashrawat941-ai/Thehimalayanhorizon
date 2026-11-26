@@ -4,12 +4,16 @@ import { getSession } from '@/lib/auth';
 import { getHomeSections, getItineraries, getListings, getLocations, getThemes } from '@/lib/data';
 import { Icon } from '@/components/Icon';
 import { Cover } from '@/components/Cover';
-import { imgUrl } from '@/lib/img';
+import { Photo } from '@/components/Photo';
+import { PhotoCredits } from '@/components/PhotoCredits';
+import { HomeSearch } from '@/components/home/HomeSearch';
+import { PLACE_PHOTO, THEME_PHOTO } from '@/lib/photos';
 import { Grid, ItineraryCard, ListingCard, PlaceCard } from '@/components/Blocks';
-import { PlaceSearch } from '@/components/PlaceSearch';
 import { searchLabels } from '@/lib/searchLabels';
+import './public-refresh.css';
+
 // Old database links used "#/x"; the new site uses real paths.
-const LEGACY_PATHS = { stays: '/homestays', tours: '/village-tours', explore: '/destinations', 'partner/join': '/partner/join' };
+const LEGACY_PATHS = { stays: '/homestays', tours: '/village-tours', explore: '/destinations', 'partner/join': '/partner/join', cabs: '/cab' };
 function href(url, fallback) {
     if (!url)
         return fallback;
@@ -19,229 +23,230 @@ function href(url, fallback) {
     }
     return url;
 }
-const Arrow = () => <span className="arrow-c"><Icon name="arrow" size={14}/></span>;
 function Head({ eyebrow, title, note, link, label }) {
-    return (<div className="hs-head">
-      <div>{eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}<h2>{title}</h2></div>
-      {note || link ? (<div className="hs-head-side">
-          {note ? <p className="muted">{note}</p> : null}
-          {link ? <Link className="link-more" href={link}>{label}<Icon name="arrow" size={14}/></Link> : null}
-        </div>) : null}
+    return (<div className="rf-head">
+      <div>{eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}<h2>{title}</h2>{note ? <p className="muted">{note}</p> : null}</div>
+      {link ? <Link className="rf-more" href={link}>{label}<Icon name="arrow" size={14}/></Link> : null}
     </div>);
 }
-function Feature({ icon, title, sub }) {
-    return <div className="feature"><span className="ring"><Icon name={icon} size={24}/></span><span><strong>{title}</strong><span className="muted">{sub}</span></span></div>;
-}
-function PhotoCard({ link, img, seed, title, sub, tag }) {
-    return (<Link className="pcard" href={link}>
-      <span className="pcard-media"><Cover url={img} seed={seed} className=""/>{tag ? <span className="pcard-tag">{tag}</span> : null}</span>
-      <span className="pcard-body"><span className="pcard-text"><span className="pcard-title">{title}</span>{sub ? <span className="pcard-sub">{sub}</span> : null}</span><Arrow /></span>
+// Photo tile: a CMS image, a bundled/licensed photo, or generated art when neither exists.
+function Tile({ link, cms, photo, seed, title, sub, tag, lang, className = 'rf-tile' }) {
+    return (<Link className={className} href={link}>
+      {photo && !cms ? <Photo name={photo} lang={lang} alt=""/> : <Cover url={cms || null} seed={seed} className="rf-art"/>}
+      {tag ? <span className="rf-tag">{tag}</span> : null}
+      <span className="rf-tile-b"><b>{title}</b>{sub ? <span>{sub}</span> : null}</span>
     </Link>);
 }
+function Feature({ icon, title, sub }) {
+    return <div className="rf-feat"><i><Icon name={icon} size={20}/></i><span><b>{title}</b><span>{sub}</span></span></div>;
+}
+
 export default async function Home() {
     const tr = await getT();
-    const { t, pick, L } = tr;
+    const { t, pick, L, lang } = tr;
     const [sections, session] = await Promise.all([getHomeSections(), getSession()]);
     const signedIn = !!session.user;
+    const used = new Set();
+    const notePhoto = (n) => { if (n) used.add(n); return n; };
     const sTitle = (s) => pick(s, 'title');
     const sSub = (s) => pick(s, 'subtitle');
     const cta = (s, fb) => pick(s, 'cta_label') || fb || t('explore');
+    const searchText = {
+        search_label: L('Search', 'खोजें'), tab_stays: L('Stays', 'होमस्टे'), tab_cab: L('Cab', 'कैब'), tab_plan: L('Trip plan', 'ट्रिप प्लान'),
+        where: L('Where to? Village, town…', 'कहाँ जाना है? गाँव, कस्बा…'), plan_where: L('Where do you want to go?', 'कहाँ घूमना है?'),
+        from: L('From', 'कहाँ से'), to: L('To', 'कहाँ तक'), date: L('Date', 'तारीख़'),
+        guests: L('Guests', 'मेहमान'), guest: L('guest', 'मेहमान'), guests_unit: L('guests', 'मेहमान'),
+        seats: L('Seats', 'सीटें'), seat: L('seat', 'सीट'), seats_unit: L('seats', 'सीटें'),
+        go_stays: L('Search stays', 'होमस्टे खोजें'), go_cab: L('Find rides', 'राइड खोजें'), go_plan: L('Plan my trip', 'मेरा ट्रिप प्लान करें'),
+        err_route: L('Choose where you start and where you are going.', 'कहाँ से और कहाँ तक, दोनों चुनें।'),
+    };
     const blocks = {
-        hero: (s) => (<section className="hx" key={s.id}>
-        <div className="hx-media">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className="hx-img" src={imgUrl(s.image_url) || '/img/home/hero.jpg'} alt="" fetchPriority="high"/>
-          <p className="hx-script" aria-hidden="true">{t('hero_script').split('\n').map((l, i) => <span key={i}>{i ? <br /> : null}{l}</span>)}</p>
-        </div>
-        <div className="wrap hx-inner">
-          <div className="hx-text">
+        hero: (s) => (<div key={s.id}>
+        <section className="rf-hero">
+          {s.image_url ? <Cover url={s.image_url} seed="hero" eager className="rf-hero-img"/>
+                : <Photo name={notePhoto('hero')} lang={lang} eager className="rf-hero-img"/>}
+          <div className="wrap rf-hero-in">
             <p className="eyebrow">{t('tagline')}</p>
-            <h1>{sTitle(s)}</h1>
-            {sSub(s) ? <p className="hx-sub">{sSub(s)}</p> : null}
-            <div className="hx-actions">
-              <Link className="btn btn-lg" href="/villages">{t('nav_villages')}<Icon name="arrow" size={16}/></Link>
-              <Link className="btn btn-lg btn-ghost hx-ghost" href={href(s.cta_url, '/plan')}>{cta(s, t('plan'))}</Link>
-            </div>
-            <div className="hero-search"><PlaceSearch lang={tr.lang} labels={searchLabels(tr)}/></div>
+            <h1>{sTitle(s) || L('Real villages. Real people.', 'असली गाँव। असली लोग।')}</h1>
+            {sSub(s) ? <p className="rf-hero-sub">{sSub(s)}</p> : null}
           </div>
-        </div>
-      </section>),
+        </section>
+        <div className="wrap"><HomeSearch lang={lang} labels={searchLabels(tr)} text={searchText}/></div>
+        <Services tr={tr}/>
+      </div>),
         themes: async (s) => {
             const list = await getThemes();
-            return (<section className="wrap hs" key={s.id}>
+            if (!list.length) return null;
+            return (<section className="wrap rf-sec" key={s.id}>
           <Head title={sTitle(s)} note={sSub(s)} link="/experiences" label={t('view_all')}/>
-          <div className="theme-row">
-            {list.map((th) => <Link key={th.id} className="theme-pill" href={`/experiences/${th.slug}`}><span className="theme-icon">{th.icon}</span><span>{pick(th, 'name')}</span></Link>)}
+          <div className="rf-themes">
+            {list.map((th) => <Tile key={th.id} className="rf-tile rf-theme" link={`/experiences/${th.slug}`} photo={notePhoto(THEME_PHOTO[th.slug])} seed={th.slug} lang={lang} title={pick(th, 'name')}/>)}
           </div>
         </section>);
         },
         destinations: async (s) => {
             const [list, themes] = await Promise.all([getLocations(), getThemes()]);
-            const LOCAL = new Set(['almora', 'jageshwar', 'binsar', 'munsiyari']);
-            const hasPhoto = (l) => (l.image_url || LOCAL.has(l.slug) ? 1 : 0);
+            const hasPhoto = (l) => (l.image_url || PLACE_PHOTO[l.slug] ? 1 : 0);
             const shown = list.filter((l) => l.kind === 'destination').sort((a, b) => hasPhoto(b) - hasPhoto(a) || Number(b.is_featured) - Number(a.is_featured)).slice(0, 4);
             const themeName = (l) => { const th = themes.find((x) => x.slug === l.theme_slugs?.[0]); return th ? pick(th, 'name') : null; };
-            return (<section className="wrap hs" key={s.id}>
+            return (<section className="wrap rf-sec" key={s.id}>
           <Head eyebrow={t('places_eyebrow')} title={sTitle(s)} note={t('places_note')} link="/destinations" label={t('view_all')}/>
-          <div className="pgrid pgrid-4">
-            {shown.map((l) => <PhotoCard key={l.id} link={`/destinations/${l.slug}`} img={l.image_url} seed={l.slug} title={pick(l, 'name')} sub={pick(l, 'summary')} tag={themeName(l)}/>)}
-          </div>
+          {shown.length ? <div className="rf-places">
+            {shown.map((l) => <Tile key={l.id} link={`/destinations/${l.slug}`} cms={l.image_url} photo={l.image_url ? null : notePhoto(PLACE_PHOTO[l.slug])} seed={l.slug} lang={lang} title={pick(l, 'name')} sub={pick(l, 'summary')} tag={themeName(l)}/>)}
+          </div> : <p className="rf-soft">{L('Places are being added. Check back soon.', 'जगहें जोड़ी जा रही हैं। जल्द देखिए।')}</p>}
         </section>);
         },
         villages: async (s) => {
             const vs = (await getLocations()).filter((l) => l.kind === 'village').slice(0, 6);
-            return (<section className="stay-band" key={s.id}>
-          <div className="wrap stay-inner">
-            <div className="stay-text">
+            return (<section className="rf-band" key={s.id}>
+          <div className="wrap rf-split">
+            <div>
               <p className="eyebrow">{sTitle(s)}</p>
               <h2>{t('stay_h1')}<br /><em>{t('stay_h2')}</em></h2>
               <p className="lead">{sSub(s) || t('stay_text')}</p>
+              <div className="rf-feats">
+                <Feature icon="house" title={t('f_homestay')} sub={t('f_homestay_sub')}/>
+                <Feature icon="wifi" title={t('f_internet')} sub={t('f_internet_sub')}/>
+                <Feature icon="leaf" title={t('f_food')} sub={t('f_food_sub')}/>
+                <Feature icon="people" title={t('f_meaning')} sub={t('f_meaning_sub')}/>
+              </div>
               <Link className="btn" href="/villages">{cta(s, t('nav_villages'))}<Icon name="arrow" size={16}/></Link>
             </div>
-            <div className="feature-grid">
-              <Feature icon="house" title={t('f_homestay')} sub={t('f_homestay_sub')}/>
-              <Feature icon="wifi" title={t('f_internet')} sub={t('f_internet_sub')}/>
-              <Feature icon="leaf" title={t('f_food')} sub={t('f_food_sub')}/>
-              <Feature icon="people" title={t('f_meaning')} sub={t('f_meaning_sub')}/>
-            </div>
+            <div className="rf-split-img"><Photo name={notePhoto('village')} lang={lang}/></div>
           </div>
-          {vs.length ? <div className="wrap"><div className="hscroll">{vs.map((l) => <PlaceCard key={l.id} l={l} tr={tr}/>)}</div></div> : null}
+          {vs.length ? <div className="wrap"><div className="rf-scroll">{vs.map((l) => <PlaceCard key={l.id} l={l} tr={tr}/>)}</div></div> : null}
         </section>);
         },
         itineraries: async (s) => {
             const list = (await getItineraries()).slice(0, 6);
-            return (<section className="wrap hs" key={s.id}>
+            return (<section className="wrap rf-sec" key={s.id}>
           <Head title={sTitle(s)} note={sSub(s)} link="/itineraries" label={cta(s)}/>
-          {list.length ? <Grid>{list.map((it) => <ItineraryCard key={it.id} it={it} tr={tr}/>)}</Grid> : <div className="soft-note">{t('coming_soon')}</div>}
+          {list.length ? <Grid>{list.map((it) => <ItineraryCard key={it.id} it={it} tr={tr}/>)}</Grid> : <p className="rf-soft">{t('coming_soon')}</p>}
         </section>);
         },
         stays: (s) => listingBlock(s, 'homestay', '/homestays'),
         workspaces: async (s) => {
             const list = await getListings('workspace', { limit: 3 });
-            return (<section className="wrap hs" key={s.id}>
-          <div className="split">
-            <div className="split-text">
+            return (<section className="wrap rf-sec" key={s.id}>
+          <div className="rf-split">
+            <div className="rf-split-img"><Photo name={notePhoto('workBalcony')} lang={lang} alt={L('A laptop on a wooden balcony desk facing Himalayan valleys', 'हिमालय की घाटियों की ओर लकड़ी की बालकनी डेस्क पर लैपटॉप')}/></div>
+            <div>
               <p className="eyebrow">{t('work_eyebrow')}</p>
               <h2>{sTitle(s) || t('work_h')}</h2>
               <p className="lead">{sSub(s) || t('work_text')}</p>
-              <div className="mini-features">
-                <div><Icon name="wifi" size={28}/><span><strong>{t('w_wifi')}</strong><span className="muted">{t('w_wifi_sub')}</span></span></div>
-                <div><Icon name="desk" size={28}/><span><strong>{t('w_desk')}</strong><span className="muted">{t('w_desk_sub')}</span></span></div>
-                <div><Icon name="leaf" size={28}/><span><strong>{t('w_calm')}</strong><span className="muted">{t('w_calm_sub')}</span></span></div>
+              <div className="rf-feats">
+                <Feature icon="wifi" title={t('w_wifi')} sub={t('w_wifi_sub')}/>
+                <Feature icon="desk" title={t('w_desk')} sub={t('w_desk_sub')}/>
+                <Feature icon="leaf" title={t('w_calm')} sub={t('w_calm_sub')}/>
               </div>
               <Link className="btn btn-ghost" href="/workspaces">{cta(s, t('workspaces'))}<Icon name="arrow" size={16}/></Link>
             </div>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <div className="split-media"><img src="/img/home/work.jpg" alt="" loading="lazy"/></div>
           </div>
           {list.length ? <div className="mt"><Grid>{list.map((x) => <ListingCard key={x.id} kind="workspace" x={x} tr={tr}/>)}</Grid></div> : null}
         </section>);
         },
-        cabs: (s) => (<section className="wrap hs" key={s.id}>
-        <div className="cab-band">
+        cabs: (s) => (<section className="wrap rf-sec" key={s.id}>
+        <div className="rf-cab">
           <div>
-            <p className="eyebrow">{t('nav_cab')}</p><h2>{sTitle(s)}</h2><p>{sSub(s)}</p>
-            <ol className="steps">
+            <p className="eyebrow">{t('nav_cab')}</p><h2>{sTitle(s)}</h2>{sSub(s) ? <p>{sSub(s)}</p> : null}
+            <ol>
               <li>{L('Drivers publish a ride with route, vehicle and seats', 'ड्राइवर अपने रूट, गाड़ी और सीटों के साथ राइड डालते हैं')}</li>
-              <li>{L('You pick your route and date', 'आप अपना रूट और तारीख़ चुनते हैं')}</li>
-              <li>{L('Book seats; the fare is paid to the driver directly', 'सीट बुक करें; किराया सीधे ड्राइवर को दें')}</li>
+              <li>{L('You pick your route, date and exact seat', 'आप रूट, तारीख़ और अपनी सीट चुनते हैं')}</li>
+              <li>{L('Pay your share to the driver directly', 'अपने हिस्से का किराया सीधे ड्राइवर को दें')}</li>
             </ol>
+            <Link className="btn btn-light" href={href(s.cta_url, '/cab')}>{cta(s, t('cabs'))}<Icon name="arrow" size={16}/></Link>
           </div>
-          <Link className="btn btn-lg btn-light" href="/cab">{cta(s, t('cabs'))}<Icon name="arrow" size={16}/></Link>
+          <div className="rf-cab-seats" aria-hidden="true"><i/><i className="gap"/><i className="drv"/><i className="sel"/><i/><i className="sel"/><i/><i className="gap"/><i/></div>
         </div>
       </section>),
-        partner_cta: (s) => (<section className="wrap hs" key={s.id}>
-        <div className="partner-cta">
-          <div><h2>{sTitle(s)}</h2><p className="muted">{sSub(s)}</p></div>
-          <Link className="btn btn-lg" href="/partner/join">{cta(s, t('become_partner'))}</Link>
+        partner_cta: (s) => (<section className="wrap rf-sec" key={s.id}>
+        <div className="rf-partner">
+          <div><h2>{sTitle(s)}</h2>{sSub(s) ? <p>{sSub(s)}</p> : null}</div>
+          <Link className="btn btn-lg" href={href(s.cta_url, '/partner/join')}>{cta(s, t('become_partner'))}</Link>
         </div>
       </section>),
-        text: (s) => (<section className="wrap hs" key={s.id}>
+        text: (s) => (<section className="wrap rf-sec" key={s.id}>
         <Head title={sTitle(s)}/>
         <p className="prose">{sSub(s)}</p>
-        {s.cta_url ? <Link className="link-more" href={href(s.cta_url, '/')}>{cta(s)}<Icon name="arrow" size={14}/></Link> : null}
+        {s.cta_url ? <Link className="rf-more" href={href(s.cta_url, '/')}>{cta(s)}<Icon name="arrow" size={14}/></Link> : null}
       </section>),
     };
     async function listingBlock(s, kind, route) {
         const list = await getListings(kind, { limit: 6 });
-        return (<section className="wrap hs" key={s.id}>
+        return (<section className="wrap rf-sec" key={s.id}>
         <Head title={sTitle(s)} note={sSub(s)} link={route} label={cta(s)}/>
         {list.length ? <Grid>{list.map((x) => <ListingCard key={x.id} kind={kind} x={x} tr={tr}/>)}</Grid>
-                : <div className="soft-note">{t('no_listings')} <Link href="/partner/join">{t('become_partner')}</Link></div>}
+                : <p className="rf-soft">{t('no_listings')} <Link href="/partner/join">{t('become_partner')}</Link></p>}
       </section>);
     }
     const rendered = await Promise.all(sections.map(async (s) => (blocks[s.kind] ? blocks[s.kind](s) : null)));
     const hasHero = sections.some((s) => s.kind === 'hero');
-    return (<div className="home">
-      {!hasHero ? blocks.hero({ id: 'fallback-hero', title: 'The Himalayan Horizon', title_hi: 'द हिमालयन होराइज़न' }) : null}
-      {rendered.slice(0, 1)}
-      <QuickActions tr={tr}/>
-      {rendered.slice(1)}
+    ['thali', 'aipan', 'doli', 'bells', 'aipanPlate', 'walk', 'spring', 'summer', 'monsoon', 'autumn', 'winter', 'kumaon'].forEach(notePhoto);
+    return (<div className="home rf-home">
+      {!hasHero ? blocks.hero({ id: 'fallback-hero', title: '', title_hi: '' }) : null}
+      {rendered}
       <Culture tr={tr}/>
       <WhyUs tr={tr}/>
       <Seasons tr={tr}/>
-      <section className="wrap hs">
-        <div className="closing">
+      <section className="wrap rf-sec">
+        <div className="rf-closing">
+          <Photo name="kumaon" lang={lang} alt=""/>
           <div><p className="eyebrow">{t('cta_eyebrow')}</p><h2>{t('cta_h')}</h2><p>{t('cta_text')}</p></div>
           <Link className="btn btn-lg btn-light" href={signedIn ? '/plan' : '/login?next=/plan'}>{t('plan_your_trip')}<Icon name="arrow" size={16}/></Link>
         </div>
       </section>
+      <PhotoCredits names={[...used]} L={L}/>
     </div>);
 }
-function QuickActions({ tr }) {
-    const { t } = tr;
-    const item = (link, img, ic, title, sub) => (<Link className="qa" href={link} key={link}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <span className="qa-img"><img src={img} alt="" loading="lazy"/></span>
-      <span className="qa-body"><span className="qa-title"><Icon name={ic} size={19}/>{title}</span><span className="qa-sub">{sub}</span></span>
-      <Arrow />
-    </Link>);
-    return (<section className="wrap qa-row">
-      {item('/cab', '/img/home/q-cab.jpg', 'car', t('nav_cab'), t('q_cab_sub'))}
-      {item('/plan', '/img/home/q-plan.jpg', 'map', t('nav_planner'), t('q_plan_sub'))}
-      {item('/villages', '/img/home/q-village.jpg', 'mountain', t('nav_villages'), t('q_village_sub'))}
-    </section>);
+function Services({ tr }) {
+    const { L } = tr;
+    const item = (link, ic, tone, title) => (<Link href={link} key={link}><i className={`rf-tone-${tone}`}><Icon name={ic} size={26}/></i>{title}</Link>);
+    return (<nav className="wrap rf-svc" aria-label={L('Services', 'सेवाएँ')}>
+      {item('/cab', 'car', 'blue', L('Instant Cab', 'इंस्टेंट कैब'))}
+      {item('/plan', 'map', 'green', L('Trip Planner', 'ट्रिप प्लानर'))}
+      {item('/homestays', 'house', 'amber', L('Homestays', 'होमस्टे'))}
+      {item('/workspaces', 'desk', 'violet', L('Workations', 'वर्केशन'))}
+    </nav>);
 }
 function Culture({ tr }) {
-    const { t } = tr;
-    return (<section className="wrap hs">
-      <div className="split split-culture">
-        <div className="split-text">
-          <p className="eyebrow">{t('culture_eyebrow')}</p><h2>{t('culture_h')}</h2><p className="lead">{t('culture_text')}</p>
-          <Link className="btn btn-ghost" href="/village-tours">{t('culture_btn')}<Icon name="arrow" size={16}/></Link>
-        </div>
-        <div className="pgrid pgrid-3">
-          <PhotoCard link="/village-tours" img="/img/home/c-food.jpg" seed="food" title={t('c_food')} sub={t('c_food_sub')}/>
-          <PhotoCard link="/village-tours" img="/img/home/c-walk.jpg" seed="walk" title={t('c_walk')} sub={t('c_walk_sub')}/>
-          <PhotoCard link="/village-tours" img="/img/home/c-craft.jpg" seed="craft" title={t('c_craft')} sub={t('c_craft_sub')}/>
-        </div>
+    const { t, L, lang } = tr;
+    const cards = [
+        ['thali', L('Pahadi kitchens', 'पहाड़ी रसोई'), L('Mandua roti, bhatt and local greens', 'मंडुए की रोटी, भट्ट और पहाड़ी साग')],
+        ['aipan', L('Aipan art', 'ऐपण कला'), L('Kumaon’s red-and-white folk art', 'कुमाऊँ की लाल-सफ़ेद लोक कला')],
+        ['doli', L('Devta doli and fairs', 'देवता की डोली और मेले'), L('Village festivals and processions', 'गाँव के त्योहार और यात्राएँ')],
+        ['bells', L('Temple traditions', 'मंदिर परंपराएँ'), L('Bells, prayers and old shrines', 'घंटियाँ, प्रार्थना और पुराने मंदिर')],
+        ['aipanPlate', L('Aipan crafts', 'ऐपण हस्तकला'), L('Painted by local artists', 'स्थानीय कलाकारों की बनाई')],
+        ['walk', L('Village walks', 'गाँव की सैर'), L('Paths, fields and old houses', 'पगडंडियाँ, खेत और पुराने घर')],
+    ];
+    return (<section className="wrap rf-sec">
+      <Head eyebrow={t('culture_eyebrow')} title={t('culture_h')} link="/village-tours" label={t('culture_btn')}/>
+      <div className="rf-culture">
+        {cards.map(([p, title, sub]) => <Tile key={p} link="/village-tours" photo={p} lang={lang} title={title} sub={sub}/>)}
       </div>
     </section>);
 }
 function WhyUs({ tr }) {
     const { t } = tr;
-    const item = (ic, title, sub) => (<div className="why-item" key={ic}><span className="ring"><Icon name={ic} size={24}/></span><strong>{title}</strong><span className="muted">{sub}</span></div>);
-    return (<section className="why-band">
-      <div className="wrap why-inner">
-        <div><p className="eyebrow">{t('why_eyebrow')}</p><h2>{t('why_h1')}<br /><span className="green">{t('why_h2')}</span></h2><p className="muted">{t('why_text')}</p></div>
-        <div className="why-grid">
-          {item('mountain', t('y_trust'), t('y_trust_sub'))}{item('leaf', t('y_resp'), t('y_resp_sub'))}
-          {item('people', t('y_cur'), t('y_cur_sub'))}{item('shield', t('y_safe'), t('y_safe_sub'))}
-        </div>
+    const item = (ic, title, sub) => (<div key={ic}><i><Icon name={ic} size={22}/></i><b>{title}</b><span>{sub}</span></div>);
+    return (<section className="wrap rf-sec">
+      <Head eyebrow={t('why_eyebrow')} title={<>{t('why_h1')} <span className="green">{t('why_h2')}</span></>}/>
+      <div className="rf-why">
+        {item('mountain', t('y_trust'), t('y_trust_sub'))}{item('leaf', t('y_resp'), t('y_resp_sub'))}
+        {item('people', t('y_cur'), t('y_cur_sub'))}{item('shield', t('y_safe'), t('y_safe_sub'))}
       </div>
     </section>);
 }
 function Seasons({ tr }) {
-    const { t } = tr;
-    const s = (key, img) => (<Link className="season" href="/destinations" key={key}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={`/img/home/${img}.jpg`} alt="" loading="lazy"/>
-      <span className="season-label"><strong>{t(key)}</strong><span>{t(`${key}_sub`)}</span></span>
+    const { t, L, lang } = tr;
+    const subs = { spring: L('Fresh pine forests', 'चीड़ के ताज़ा जंगल'), monsoon: L('Valley of Flowers', 'फूलों की घाटी') };
+    const s = (key, photo) => (<Link className="rf-season" href="/destinations" key={key}>
+      <Photo name={photo} lang={lang} alt=""/>
+      <span><b>{t(key)}</b>{subs[photo] || t(`${key}_sub`)}</span>
     </Link>);
-    return (<section className="wrap hs seasons">
+    return (<section className="wrap rf-sec">
       <p className="eyebrow">{t('seasons_eyebrow')}</p>
-      <div className="season-row">
-        {s('s_spring', 's-spring')}{s('s_summer', 's-summer')}{s('s_monsoon', 's-monsoon')}{s('s_autumn', 's-autumn')}{s('s_winter', 's-winter')}
+      <div className="rf-seasons">
+        {s('s_spring', 'spring')}{s('s_summer', 'summer')}{s('s_monsoon', 'monsoon')}{s('s_autumn', 'autumn')}{s('s_winter', 'winter')}
       </div>
     </section>);
 }
