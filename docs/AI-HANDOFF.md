@@ -6,7 +6,7 @@ Owner: Prakash Singh. Frontend and UI: Claude. Backend integration, permissions,
 |---|---|
 | Branch | `claude/thh-ui-refresh` (from `main` at `8e6291c`) |
 | Instant Cab code commit | `1f62b603876105b5d41919cb8e67b9a9f935784c` |
-| Pull request | Not opened yet. One review PR is opened after all four approved areas are on this branch. |
+| Pull request | https://github.com/prakashrawat941-ai/Thehimalayanhorizon/pull/14 (opened 26 Nov 2026 at the owner's request; the next areas will be added to the same PR) |
 | Merge or deploy | Not done. Needs the owner's approval. |
 
 ## Design previews (claude.ai artifacts, private to the owner)
