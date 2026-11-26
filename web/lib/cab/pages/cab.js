@@ -780,8 +780,17 @@ function vehicleCabin(rows, { body, documented, seat }) {
       if (no === null) return h('span', { class: 'cab-cabin-aisle', 'aria-hidden': 'true' });
       return seat(no);
     }))));
+  // Columns that are empty in every row are an aisle and get a narrow track, so wide
+  // illustrative layouts (5 columns) still fit a 360px screen.
+  const columns = rows[0]?.length || 3;
+  const aisles = Array.from({ length: columns }, (_, i) => rows.every((row) => row[i] === null));
+  const aisleCount = aisles.filter(Boolean).length;
+  const tracks = aisles.map((aisle) => (aisle ? 'var(--aisle-w)' : 'var(--seat-w)')).join(' ');
+  for (const row of grid.children) row.style.gridTemplateColumns = tracks;
   // h() assigns style objects with Object.assign, which ignores CSS custom properties.
-  grid.style.setProperty('--cabin-columns', String(rows[0]?.length || 3));
+  grid.style.setProperty('--cabin-columns', String(columns));
+  grid.style.setProperty('--seat-columns', String(columns - aisleCount));
+  grid.style.setProperty('--aisle-columns', String(aisleCount));
   return h('div', { class: 'cab-cabin-wrap' },
     h('span', { class: 'cab-cabin-end' }, '▲ ', L('Front of vehicle', 'गाड़ी का अगला हिस्सा')),
     h('div', { class: `cab-cabin cab-cabin-${body}` },

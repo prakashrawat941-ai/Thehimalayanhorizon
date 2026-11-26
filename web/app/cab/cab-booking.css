@@ -62,11 +62,13 @@
 .cab-seat-illustrative { margin: 12px 0 0; font-size: .78rem; font-weight: 650; color: var(--seat-amber); }
 
 /* ---------- Top-view vehicle ---------- */
+.cab-seat-screen .cab-seat-panel { container-type: inline-size; }
 .cab-cabin-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 14px 0 4px; }
 .cab-cabin-end { font-size: .7rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-weight: 650; }
 .cab-cabin {
+  --cab-pad: clamp(10px, 5cqi, 20px);
   position: relative; display: inline-block; max-width: 100%;
-  padding: 84px 20px 34px; border: 2.5px solid #9fb0c0;
+  padding: 84px var(--cab-pad) 34px; border: 2.5px solid #9fb0c0;
   background: linear-gradient(90deg, #dfe6ed 0, #f4f7fa 12%, #f4f7fa 88%, #dfe6ed 100%);
 }
 .cab-cabin-car { border-radius: 44% 44% 22% 22% / 16% 16% 7% 7%; }
@@ -90,12 +92,20 @@
 .cab-cabin-mirror { position: absolute; top: 70px; width: 12px; height: 16px; border-radius: 4px; background: #9fb0c0; }
 .cab-cabin-mirror.l { left: -12px; } .cab-cabin-mirror.r { right: -12px; }
 .cab-cabin-van .cab-cabin-mirror { top: 62px; }
-.cab-cabin-grid { display: grid; gap: 10px; }
-.cab-cabin-row { display: grid; grid-template-columns: repeat(var(--cabin-columns), auto); gap: 8px; justify-content: center; }
-.cab-cabin-aisle { width: 52px; height: 58px; }
+.cab-cabin-grid {
+  /* Seat size follows the panel width: the cabin padding, borders and wheels (≈30px), the gaps
+     and any aisle track are taken off first, then the rest is shared by the seat columns. */
+  --seat-max: 52px; --aisle-w: 20px; --cabin-gap: 8px;
+  --seat-w: min(var(--seat-max), calc((100cqi - 2 * clamp(10px, 5cqi, 20px) - 30px
+    - var(--aisle-columns, 0) * var(--aisle-w) - (var(--cabin-columns) - 1) * var(--cabin-gap)) / var(--seat-columns, var(--cabin-columns))));
+  --seat-h: calc(var(--seat-w) * 1.12);
+  display: grid; gap: 10px;
+}
+.cab-cabin-row { display: grid; grid-template-columns: repeat(var(--cabin-columns), var(--seat-w)); gap: var(--cabin-gap); justify-content: center; }
+.cab-cabin-aisle { width: 100%; height: var(--seat-h); }
 
 .cab-seat, .cab-cabin-driver {
-  position: relative; width: 52px; height: 58px; border-radius: 12px 12px 8px 8px; box-sizing: border-box;
+  position: relative; width: var(--seat-w, 52px); height: var(--seat-h, 58px); border-radius: 12px 12px 8px 8px; box-sizing: border-box;
 }
 .cab-seat {
   display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 1px;
@@ -120,10 +130,6 @@
   background: #26333e; color: #fff; font-size: .62rem; font-weight: 650;
 }
 .cab-cabin-driver svg { width: 24px; height: 24px; }
-@media (max-width: 359px) {
-  .cab-seat, .cab-cabin-driver, .cab-cabin-aisle { width: 46px; height: 54px; }
-  .cab-cabin { padding-inline: 14px; }
-}
 @media (prefers-reduced-motion: reduce) { .cab-seat { transition: none; } }
 
 /* ---------- Desktop: seat map beside the summary ---------- */
@@ -134,9 +140,10 @@
     position: sticky; top: 96px; bottom: auto; flex-direction: column; align-items: stretch; gap: 14px; padding: 18px;
   }
   .cab-seat-screen .cab-seat-action .btn { width: 100%; }
-  .cab-seat, .cab-cabin-driver, .cab-cabin-aisle { width: 60px; height: 66px; }
+  .app-page.ride-page:has(> .cab-seat-screen) { max-width: 1012px; }
+  .cab-cabin-grid { --seat-max: 62px; }
   .cab-seat { font-size: 1.05rem; padding-top: 12px; }
-  .cab-cabin { padding: 96px 28px 40px; }
+  .cab-cabin { padding-top: 96px; padding-bottom: 40px; }
 }
 
 /* ---------- Receipt: driver contact after confirmation ---------- */
@@ -144,3 +151,4 @@
 .cab-receipt-contact h3 { font: 700 .92rem var(--font); margin: 0 0 6px; }
 .cab-receipt-contact p { margin: 0; }
 .cab-receipt-contact .cele-rows { margin: 0; background: transparent; border: 0; padding: 0; }
+.cab-seat-screen .cab-seat-panel { padding-inline: clamp(8px, 3vw, 22px); }

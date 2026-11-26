@@ -105,14 +105,15 @@ The popup still opens only after `request_cab_ride_idempotent` returns a booking
 - `node --check` on `web/lib/cab/pages/cab.js`: passed.
 - **Browser harness:**
   - Setup: the real `cab.js`, `ui.js`, `i18n.js`, `seat-layouts.js` and the three stylesheets, loaded in Chrome through a local static server. Supabase, the store, places and the vehicle catalogue were replaced with test stubs.
-  - Rides tested: Ertiga 7-seater, Urbania 12+D and Bolero (no documented layout).
+  - Rides tested: Ertiga 7-seater, Urbania 12+D, Bolero (no documented layout) and a 9-seat Force Traveller (no documented layout, 5-column illustrative cabin).
   - Server replies tested: confirmed, pending, seat taken (`23505`) and timeout.
-  - Result: 54 of 54 checks passed at 360px and 1280px. The checks covered:
+  - Result: 66 of 66 checks passed at 360px and 1280px. The checks covered:
     - seats placed from the layout rows, with the correct column count;
     - the driver cell;
     - disabled booked seats;
     - the selection limit message;
     - the total fare;
+    - wide cabins staying inside the seat panel, not overlapping the summary, with seats at least 44px wide;
     - no horizontal scroll;
     - Booking ID and Ride ID in the popup;
     - contact shown only for confirmed bookings;
@@ -126,6 +127,8 @@ The popup still opens only after `request_cab_ride_idempotent` returns a booking
   - Codex should run the build and the cab regression suite (`tests/db`) on this branch.
 
 ### Known issues
+
+- **Fixed after Codex review (PR #14):** 5-column illustrative cabins overflowed at 360px and overlapped the summary on desktop. Seat size now follows the panel width (container query units), aisle-only columns get a 20px track, and the desktop ride page is widened to 1012px for the seat step.
 
 - **Pre-existing, fixed for the new cabin only:** `h()` in `web/lib/cab/ui.js` assigns `style` objects with `Object.assign`, which ignores CSS custom properties. The old schematic seat grid's `--cabin-tracks` and `--cabin-columns` were never applied. The new cabin sets its variable with `style.setProperty`. Other callers that pass `--*` in `style` are unchanged.
 - **Hindi:** new labels use the existing `L(en, hi)` helper. Hindi wording should be reviewed by a native speaker.
