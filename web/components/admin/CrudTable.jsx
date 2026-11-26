@@ -1,5 +1,6 @@
 'use client';
-import { useState } from 'react';
+import { PlaceSearch } from '@/components/PlaceSearch';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { browserDb } from '@/lib/supabase/client';
 
@@ -7,7 +8,7 @@ import { browserDb } from '@/lib/supabase/client';
  * Simple editor for a content table (admin only; the database checks it too).
  * fields: [{ name, label, type: text|textarea|number|bool|select|list|json|image, options, required }]
  */
-export function CrudTable({ lang, table, rows, fields, titleField, subField, defaults = {}, idField = 'id', userId }) {
+export function CrudTable({ lang, table, rows, fields, titleField, subField, defaults = {}, idField = 'id', userId, placeLabels, previewOnly = false }) {
   const L = (en, hi) => (lang === 'hi' ? hi : en);
   const router = useRouter();
   const [edit, setEdit] = useState(null); // row being edited (or {} for new)
@@ -16,8 +17,43 @@ export function CrudTable({ lang, table, rows, fields, titleField, subField, def
   const toForm = (r) => Object.fromEntries(fields.map((f) => [f.name,
     f.type === 'list' ? (r[f.name] || []).join(', ') : f.type === 'json' ? JSON.stringify(r[f.name] ?? (f.empty ?? null), null, 2) : r[f.name] ?? (f.type === 'bool' ? false : '')]));
   const [v, setV] = useState({});
-  const open = (r) => { setErr(''); setEdit(r); setV(toForm(r || defaults)); };
+  const [picked, setPicked] = useState(null);
+  const [weather, setWeather] = useState('');
+  useEffect(() => {
+    if (!picked || picked.lat == null || picked.lng == null) return;
+    const controller = new AbortController();
+    const params = new URLSearchParams({ latitude: picked.lat, longitude: picked.lng, current: 'temperature_2m', timezone: 'Asia/Kolkata' });
+    fetch('https://api.open-meteo.com/v1/forecast?' + params, {signal: controller.signal})
+      .then(response => response.ok ? response.json() : null)
+      .then(data => {
+        if (controller.signal.aborted) return;
+        const current = data?.current;
+        setWeather(current?.temperature_2m != null ? current.temperature_2m + ' °C · ' + current.time.replace('T',' ') + ' IST · Open-Meteo' : '—');
+      }).catch(() => { if (!controller.signal.aborted) setWeather('—'); });
+    return () => controller.abort();
+  }, [picked]);
+  function pickLocation(place) {
+    const known = rows.find(row => row.id === place.location_id || (place.slug && row.slug === place.slug) ||
+      (row.lat != null && row.lng != null && place.lat != null && place.lng != null &&
+       row.name.trim().toLowerCase() === place.name.trim().toLowerCase() &&
+       Math.abs(row.lat-place.lat)<0.001 && Math.abs(row.lng-place.lng)<0.001));
+    setWeather('');
+    if (known) {
+      open(known);
+    } else {
+      const district = place.district || '';
+      const districtKey = district.toLowerCase().replace(/\s+district$/, '').trim();
+      const regions = {almora:'Kumaon', bageshwar:'Kumaon', champawat:'Kumaon', nainital:'Kumaon', pithoragarh:'Kumaon', 'udham singh nagar':'Kumaon', chamoli:'Garhwal', dehradun:'Garhwal', haridwar:'Garhwal', 'pauri garhwal':'Garhwal', rudraprayag:'Garhwal', 'tehri garhwal':'Garhwal', uttarkashi:'Garhwal'};
+      const slug = place.name.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,80);
+      setV(previous => ({...previous, name:place.name, name_hi:place.name_hi || previous.name_hi, slug:previous.slug || slug, district, region:regions[districtKey] || '', lat:place.lat ?? '', lng:place.lng ?? '',
+        kind: ['town','village','transport_hub'].includes(place.kind) ? place.kind : previous.kind || 'destination',
+        summary:previous.summary || [place.name,district,place.state].filter(Boolean).join(', ')}));
+    }
+    setPicked(place);
+  }
+  const open = (r) => { setPicked(null); setWeather(''); setErr(''); setEdit(r); setV(toForm({...defaults, ...r})); };
   async function upload(name, file) {
+    if (previewOnly) return;
     if (!file) return;
     if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size > 5 * 1024 * 1024) return setErr(L('JPG, PNG or WebP under 5 MB.', 'JPG, PNG या WebP, 5 MB से कम।'));
     const db = browserDb();
@@ -27,6 +63,7 @@ export function CrudTable({ lang, table, rows, fields, titleField, subField, def
     setV((c) => ({ ...c, [name]: db.storage.from('media').getPublicUrl(path).data.publicUrl }));
   }
   async function save() {
+    if (previewOnly) return;
     setErr('');
     const row = {};
     for (const f of fields) {
@@ -48,6 +85,7 @@ export function CrudTable({ lang, table, rows, fields, titleField, subField, def
     setEdit(null); router.refresh();
   }
   async function remove() {
+    if (previewOnly) return;
     if (!window.confirm(L('Delete this item? This cannot be undone.', 'यह आइटम हटाएँ? यह वापस नहीं होगा।'))) return;
     setBusy(true);
     const { error } = await browserDb().from(table).delete().eq(idField, edit[idField]);
@@ -60,11 +98,11 @@ export function CrudTable({ lang, table, rows, fields, titleField, subField, def
     const on = (e) => setV({ ...v, [f.name]: f.type === 'bool' ? e.target.checked : e.target.value });
     if (f.type === 'bool') return <label className="check"><input type="checkbox" checked={!!val} onChange={on} /> {f.label}</label>;
     const control = f.type === 'textarea' || f.type === 'json' ? <textarea className="input mono-area" rows={f.type === 'json' ? 8 : 4} value={val} onChange={on} />
-      : f.type === 'select' ? <select className="input" value={val} onChange={on}>{f.options.map(([k, label]) => <option key={k} value={k}>{label}</option>)}</select>
+      : f.type === 'select' ? <select className="input" value={val} onChange={on}>{placeLabels && f.name === 'region' && !val && <option value="">{L('Select region','क्षेत्र चुनें')}</option>}{f.options.map(([k, label]) => <option key={k} value={k}>{label}</option>)}</select>
         : <input className="input" type={f.type === 'number' ? 'number' : 'text'} step="any" value={val} onChange={on} />;
     return (
       <label className="field"><span className="field-label">{f.label}{f.required ? ' *' : ''}</span>{control}
-        {f.type === 'image' ? <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => upload(f.name, e.target.files?.[0])} /> : null}
+        {!previewOnly && f.type === 'image' ? <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => upload(f.name, e.target.files?.[0])} /> : null}
         {f.hint ? <small className="muted">{f.hint}</small> : null}</label>
     );
   };
@@ -73,12 +111,14 @@ export function CrudTable({ lang, table, rows, fields, titleField, subField, def
       {edit ? (
         <section className="ds-panel stack">
           <h2>{edit[idField] ? L('Edit', 'बदलें') : L('Add new', 'नया जोड़ें')}</h2>
+          {placeLabels && !edit[idField] && !picked && <PlaceSearch lang={lang} labels={placeLabels} onPick={pickLocation} placeholder={L('Search for the new location','नई जगह खोजें')} />}
+          {placeLabels && picked && <p role="status">{picked.ext ? '© OpenStreetMap contributors' : L('THH catalogue','THH सूची')} · {picked.name} {weather && <> · {L('Current weather','वर्तमान मौसम')}: {weather}</>}</p>}
           <div className="form-grid">{fields.map((f) => <div key={f.name} className={f.wide || f.type === 'textarea' || f.type === 'json' ? 'span-2' : ''}>{input(f)}</div>)}</div>
           {err ? <p className="form-err" role="alert">{err}</p> : null}
           <div className="row-actions">
-            <button type="button" className="btn" disabled={busy} onClick={save}>{L('Save', 'सेव करें')}</button>
+            <button type="button" className="btn" disabled={busy || previewOnly} onClick={save}>{L('Save', 'सेव करें')}</button>
             <button type="button" className="btn btn-ghost" onClick={() => setEdit(null)}>{L('Cancel', 'रद्द')}</button>
-            {edit[idField] ? <button type="button" className="btn btn-ghost" disabled={busy} onClick={remove}>{L('Delete', 'हटाएँ')}</button> : null}
+            {!previewOnly && edit[idField] ? <button type="button" className="btn btn-ghost" disabled={busy} onClick={remove}>{L('Delete', 'हटाएँ')}</button> : null}
           </div>
         </section>
       ) : <button type="button" className="btn" onClick={() => open({})}>+ {L('Add new', 'नया जोड़ें')}</button>}

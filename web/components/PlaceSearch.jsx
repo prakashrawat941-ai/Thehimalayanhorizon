@@ -90,19 +90,21 @@ export function PlaceSearch({ lang, labels, autoFocus = false, onPick = null, pl
             setOsm([]);
             return;
         }
+        setOsm([]);
         const ctrl = new AbortController();
         const timer = setTimeout(() => {
             fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(n)}&limit=6&lang=${lang === 'hi' ? 'default' : 'en'}&bbox=68.1,6.5,97.4,35.7`, { signal: ctrl.signal })
                 .then((r) => (r.ok ? r.json() : { features: [] }))
                 .then((j) => {
-                const hits = (j.features || []).filter((f) => (f.properties.country || '').match(/India|भारत/i) || f.properties.countrycode === 'IN')
+                const hits = (j.features || []).filter((f) => (f.properties.country || '').match(/India|भारत/i) || String(f.properties.countrycode).toUpperCase() === 'IN')
                     .map((f) => ({
                     key: `${f.properties.osm_type}${f.properties.osm_id}`,
                     name: f.properties.name || n,
+                    district: f.properties.county || f.properties.district || '', state: f.properties.state || '', kind: f.properties.osm_value,
                     sub: [f.properties.county || f.properties.district || f.properties.city, f.properties.state].filter(Boolean).join(', '),
                     lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0],
                 }));
-                setOsm(hits);
+                if (!ctrl.signal.aborted) setOsm(hits);
             }).catch(() => { });
         }, 350);
         return () => { clearTimeout(timer); ctrl.abort(); };
@@ -133,7 +135,7 @@ export function PlaceSearch({ lang, labels, autoFocus = false, onPick = null, pl
     return (<div className="psearch" ref={boxRef}>
       <div className="psearch-box">
         <Icon name="search" size={20}/>
-        <input type="search" value={q} placeholder={placeholder || labels.search_places} aria-label={placeholder || labels.search_places} autoFocus={autoFocus} enterKeyHint="search" autoComplete="off" role="combobox" aria-expanded={!!showList} aria-controls={listId} onChange={(e) => { setQ(e.target.value); setOpen(true); setNote(''); setNear(null); }} onFocus={() => setOpen(true)} onKeyDown={(e) => { if (e.key === 'Escape')
+        <input type="search" value={q} placeholder={placeholder || labels.search_places} aria-label={placeholder || labels.search_places} autoFocus={autoFocus} enterKeyHint="search" autoComplete="off" role="combobox" aria-expanded={!!showList} aria-controls={listId} onChange={(e) => { setQ(e.target.value); setOsm([]); setOpen(true); setNote(''); setNear(null); }} onFocus={() => setOpen(true)} onKeyDown={(e) => { if (e.key === 'Escape')
         setOpen(false); }}/>
         <button type="button" className="psearch-loc" onClick={locateMe}><Icon name="locate" size={18}/><span>{labels.use_location}</span></button>
       </div>
@@ -151,7 +153,7 @@ export function PlaceSearch({ lang, labels, autoFocus = false, onPick = null, pl
             </Item>))}
           {!matches.length && suggestion ? (<p className="psearch-dym">{labels.did_you_mean} <button type="button" onClick={() => setQ(suggestion.name)}>{label(suggestion)}</button>?</p>) : null}
           {osmFiltered.length ? <h4>{labels.more_places}</h4> : null}
-          {osmFiltered.map((o) => (<Item key={o.key} href={`/plan?to=${encodeURIComponent(o.name)}&lat=${o.lat}&lng=${o.lng}`} place={{ name: o.name, lat: o.lat, lng: o.lng, district: o.sub, ext: true }} role="option" aria-selected={false}>
+          {osmFiltered.map((o) => (<Item key={o.key} href={`/plan?to=${encodeURIComponent(o.name)}&lat=${o.lat}&lng=${o.lng}`} place={{ name: o.name, lat: o.lat, lng: o.lng, district: o.district, state: o.state, kind: o.kind, ext: true }} role="option" aria-selected={false}>
               <Icon name="pin" size={18}/><span>{o.name}<small>{[o.sub, labels.no_page_yet].filter(Boolean).join(' · ')}</small></span>
             </Item>))}
           {q.trim().length >= 2 && !matches.length && !suggestion && !osmFiltered.length && !note ? <p className="psearch-note">{labels.nothing_here}</p> : null}

@@ -44,7 +44,7 @@ self.addEventListener('fetch', (e) => {
   // Pages: network first so updates show at once; saved copy when offline.
   if (req.mode === 'navigate') {
     e.respondWith(fetch(req).then((res) => {
-      if (res.ok && !/^\/(account|cab|drive|admin|partner|trips|login|t)(\/|$)/.test(url.pathname)) { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(req, copy)); }
+      if (res.ok && !/^\/(management|founder|co-founder|ceo|employee|account|cab|drive|admin|partner|trips|login|t)(\/|$)/.test(url.pathname)) { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(req, copy)); }
       return res;
     }).catch(() => caches.match(req).then((hit) => hit || caches.match(OFFLINE_URL))));
   }

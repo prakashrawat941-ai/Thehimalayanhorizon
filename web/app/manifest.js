@@ -1,7 +1,11 @@
-export default function manifest() {
+import { publicDb } from '@/lib/supabase/server';
+export const revalidate = 300;
+export default async function manifest() {
+    const {data} = await publicDb().from('site_settings').select('value').eq('key','pwa_icon').maybeSingle();
+    const prefix = data?.value === 'classic' ? '' : 'signature-';
     return {
-        name: 'The Himalayan Horizon',
-        short_name: 'Himalayan Horizon',
+        name: process.env.NEXT_PUBLIC_THH_STAGING === '1' ? 'The Himalayan Horizon · Staging' : 'The Himalayan Horizon',
+        short_name: process.env.NEXT_PUBLIC_THH_STAGING === '1' ? 'THH Staging' : 'Himalayan Horizon',
         description: 'Discover the Himalayas Beyond the Ordinary. Villages, homestays, trip planner and shared cabs in Uttarakhand.',
         id: '/',
         start_url: '/?source=pwa',
@@ -13,9 +17,9 @@ export default function manifest() {
         lang: 'hi',
         categories: ['travel', 'lifestyle'],
         icons: [
-            { src: '/icons/signature-icon-192.png', sizes: '192x192', type: 'image/png' },
-            { src: '/icons/signature-icon-512.png', sizes: '512x512', type: 'image/png' },
-            { src: '/icons/signature-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+            { src: `/icons/${prefix}icon-192.png`, sizes: '192x192', type: 'image/png' },
+            { src: `/icons/${prefix}icon-512.png`, sizes: '512x512', type: 'image/png' },
+            { src: `/icons/${prefix}maskable-512.png`, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
         shortcuts: [
             { name: 'Plan a trip', url: '/plan' },
