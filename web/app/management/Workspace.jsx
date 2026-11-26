@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { workspaceForRole } from '@/lib/management/permissions';
 import { getT } from '@/lib/i18n/server';
 import { requireUser } from '@/lib/account';
 import { labels, decisions } from '@/lib/management/catalog';
@@ -11,7 +11,7 @@ import OperationsPanel from './OperationsPanel';
 import Mfa from './Mfa';
 import './workspace.css';
 export async function Workspace({ expected, searchParams }) {
-  const { db, user } = await requireUser('/management');
+  const { db, user } = await requireUser(workspaceForRole(expected) || '/management');
   const { lang, L } = await getT();
   const { data: member, error } = await db
     .from('management_members')
@@ -20,7 +20,7 @@ export async function Workspace({ expected, searchParams }) {
     .maybeSingle();
   if (error) throw Error('Management directory unavailable');
   const sp = (await searchParams) || {};
-  if (!member && !expected) return (
+  if (!member) return (
     <div className="mgmt"><section>
       <h1>{L('Leadership invitation', 'नेतृत्व आमंत्रण')}</h1>
       <p>{L('Sign in with your invited email and accept your invitation.', 'आमंत्रित ईमेल से प्रवेश करके आमंत्रण स्वीकार करें।')}</p>
@@ -28,7 +28,13 @@ export async function Workspace({ expected, searchParams }) {
       <form action={acceptLeadershipInvitation}><button>{L('Accept invitation', 'आमंत्रण स्वीकार करें')}</button></form>
     </section></div>
   );
-  if (!member || (expected && expected !== member.role)) notFound();
+  if (expected && expected !== member.role) return (
+    <div className="mgmt"><section>
+      <h1>{L('This dashboard needs a different role', 'इस डैशबोर्ड के लिए अलग भूमिका चाहिए')}</h1>
+      <p>{L('Sign in with the account assigned to this dashboard, or open your own workspace.', 'इस डैशबोर्ड के लिए नियुक्त खाते से लॉगिन करें या अपना डैशबोर्ड खोलें।')}</p>
+      <Link href="/management">{L('Open my dashboard', 'अपना डैशबोर्ड खोलें')}</Link>
+    </section></div>
+  );
   const assurance = await db.auth.mfa.getAuthenticatorAssuranceLevel();
   if (assurance.data?.currentLevel !== 'aal2') return <Mfa lang={lang} />;
   const page = Math.max(0, Math.min(100000, parseInt(sp.page, 10) || 0));
