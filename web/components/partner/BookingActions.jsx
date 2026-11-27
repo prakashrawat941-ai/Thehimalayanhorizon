@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { browserDb } from '@/lib/supabase/client';
 import { inr } from '@/lib/format';
@@ -22,9 +23,20 @@ export function BookingActions({ lang, b, today }) {
     if (!dialog) return undefined;
     const prev = document.activeElement;
     box.current?.querySelector('textarea, button')?.focus();
-    const esc = (e) => { if (e.key === 'Escape' && !busy) setDialog(''); };
+    const esc = (e) => {
+      if (e.key === 'Escape' && !busy) setDialog('');
+      if (e.key === 'Tab' && box.current) { // keep focus inside the dialog
+        const els = [...box.current.querySelectorAll('button:not([disabled]), textarea:not([disabled])')];
+        if (!els.length) { e.preventDefault(); return; }
+        const first = els[0], last = els[els.length - 1];
+        if (e.shiftKey && (document.activeElement === first || !box.current.contains(document.activeElement))) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && (document.activeElement === last || !box.current.contains(document.activeElement))) { e.preventDefault(); first.focus(); }
+      }
+    };
     document.addEventListener('keydown', esc);
-    return () => { document.removeEventListener('keydown', esc); prev?.focus?.(); };
+    const page = document.querySelector('.ds');
+    page?.setAttribute('inert', '');
+    return () => { document.removeEventListener('keydown', esc); page?.removeAttribute('inert'); prev?.focus?.(); };
   }, [dialog, busy]);
 
   async function go(status, note = '') {
@@ -54,7 +66,7 @@ export function BookingActions({ lang, b, today }) {
         {err && !dialog ? <small className="warn-text" role="alert">{err}</small> : null}
       </div>
 
-      {dialog ? (
+      {dialog && typeof document !== 'undefined' ? createPortal(
         <div className="pp-ov" onClick={() => { if (!busy) setDialog(''); }}>
           <div className="pp-md" role="dialog" aria-modal="true" aria-labelledby={`bk-dlg-${b.id}`} ref={box} onClick={(e) => e.stopPropagation()}>
             {dialog === 'confirm' ? <>
@@ -77,7 +89,7 @@ export function BookingActions({ lang, b, today }) {
                 : <button type="button" className="btn btn-danger" disabled={busy} onClick={() => go('declined', reason.trim())}>{busy ? L('Declining…', 'मना हो रहा है…') : L('Decline', 'मना करें')}</button>}
             </div>
           </div>
-        </div>
+        </div>, document.body,
       ) : null}
     </>
   );
