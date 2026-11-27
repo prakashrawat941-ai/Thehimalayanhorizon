@@ -8,7 +8,7 @@ Owner: Prakash Singh. Frontend and UI: Claude. Backend integration, permissions,
 | Public pages | Merged to main in PR #15 (`b11baa9`, 26 Nov 2026) at the owner's request |
 | Homepage extras (area 5) | Branch `claude/thh-home-extras` from main `01d2928`. Code commit `d5366c3`. Review PR: https://github.com/prakashrawat941-ai/Thehimalayanhorizon/pull/22. Not merged; needs the owner's approval. |
 | Trip Planner (area 4) | Merged to main in PR #19 (`01d2928`, 27 Nov 2026) at the owner's request. Was branch `claude/thh-trip-planner`. Code commit `691339c`. Review PR: https://github.com/prakashrawat941-ai/Thehimalayanhorizon/pull/19 (base `main`). Not merged; needs the owner's approval. |
-| Partner portal (area 7) | Branch `claude/thh-partner-portal` from main `934b126`. Review PR: see the PR list (opened with this commit). Not merged; needs the owner's approval. |
+| Partner portal (area 7) | Branch `claude/thh-partner-portal` from main `934b126`. Review PR: https://github.com/prakashrawat941-ai/Thehimalayanhorizon/pull/24. Not merged; needs the owner's approval. |
 | Dashboards (area 3) | Merged to main in PR #17 (`a303710`, 27 Nov 2026) at the owner's request, after fixing 4 Codex review findings (booking route order, room counts for tours/workspaces, homestay-only check-in KPI, homestay-only onboarding queue). |
 
 ## Design previews (claude.ai artifacts, private to the owner)
