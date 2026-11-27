@@ -1,9 +1,28 @@
 'use client';
 import Link from 'next/link';
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { browserDb } from '@/lib/supabase/client';
 import { acceptInvite } from '../dashboard-actions';
+
+async function establishInvitationSession() {
+  const url = new URL(window.location.href);
+  const fragment = new URLSearchParams(url.hash.slice(1));
+  const hasError = url.searchParams.has('error') || fragment.has('error');
+  const accessToken = fragment.get('access_token');
+  const refreshToken = fragment.get('refresh_token');
+  if (url.hash && (hasError || accessToken || refreshToken)) {
+    window.history.replaceState(window.history.state, '', url.pathname + url.search);
+  }
+  if (hasError || !!accessToken !== !!refreshToken) return 'invalid';
+
+  const auth = browserDb().auth;
+  // Email invites may deliver implicit tokens to the app's normal PKCE browser client.
+  const { data, error } = accessToken
+    ? await auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+    : await auth.getSession();
+  return error ? 'invalid' : data.session ? 'ready' : 'signed_out';
+}
 
 export default function InviteAccept({ lang }) {
   const L = (en, hi) => lang === 'hi' ? hi : en;
@@ -12,14 +31,12 @@ export default function InviteAccept({ lang }) {
   const [busy, start] = useTransition();
   const router = useRouter();
 
+  const sessionCheck = useRef(null);
   useEffect(() => {
     let active = true;
-    const url = new URL(window.location.href);
-    const fragment = new URLSearchParams(url.hash.slice(1));
-    const badLink = url.searchParams.has('error') || fragment.has('error');
-    // Supabase Auth initializes from the email link and persists the session in cookies.
-    browserDb().auth.getSession().then(({ data, error }) => {
-      if (active) setState(badLink || error ? 'invalid' : data.session ? 'ready' : 'signed_out');
+    sessionCheck.current ??= establishInvitationSession();
+    sessionCheck.current.then((status) => {
+      if (active) setState(status);
     }).catch(() => { if (active) setState('invalid'); });
     return () => { active = false; };
   }, []);
