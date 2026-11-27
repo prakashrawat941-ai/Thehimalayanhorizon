@@ -6,7 +6,7 @@ Owner: Prakash Singh. Frontend and UI: Claude. Backend integration, permissions,
 |---|---|
 | Instant Cab | Merged to main in PR #14 (`b2cd6fa`, 26 Nov 2026) at the owner's request |
 | Public pages | Merged to main in PR #15 (`b11baa9`, 26 Nov 2026) at the owner's request |
-| Trip Planner (area 4) | Branch `claude/thh-trip-planner`, stacked on `claude/thh-dashboards` (PR #17). Review PR: see "Area 4" below. Not merged; needs the owner's approval. |
+| Trip Planner (area 4) | Branch `claude/thh-trip-planner`, stacked on `claude/thh-dashboards` (PR #17). Code commit `691339c`. Review PR: https://github.com/prakashrawat941-ai/Thehimalayanhorizon/pull/19 (base `claude/thh-dashboards`). Not merged; needs the owner's approval. |
 | Dashboards (area 3) | Branch `claude/thh-dashboards`, cut from main `b11baa9`. Code commits `8b40d27` (switcher, booking monitor, components) and `7341296` (Founder, CEO, Co-founder routes). Review PR: https://github.com/prakashrawat941-ai/Thehimalayanhorizon/pull/17. Not merged; needs the owner's approval. |
 
 ## Design previews (claude.ai artifacts, private to the owner)
