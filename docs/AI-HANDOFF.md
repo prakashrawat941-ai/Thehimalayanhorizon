@@ -17,7 +17,7 @@ Every value in these previews is demo data, and each preview is labelled as such
 | 1. Instant Cab booking | https://claude.ai/artifact/VRH2V9ftq3ZKPLGJx278bp | Approved 26 Nov 2026; implemented (see below) |
 | 2. Homepage and public pages | https://claude.ai/artifact/5J12rL8aEzxvExJgaZT3n5 (layout) and the HD preview at `/design-preview/public-pages.html` on branch `claude/thh-public-preview` | Approved 26 Nov 2026; implemented (see below) |
 | 3. Founder, CEO, Co-founder and Admin dashboards | https://claude.ai/artifact/7N3W4hcriB1nS2MBwniViw | Approved 27 Nov 2026; implemented (see below) |
-| 4. Trip Planner and Trip Report | Not started | — |
+| 4. Trip Planner and Trip Report | https://claude.ai/artifact/TjyUeTJMSW1ueGfotfDR6G | Waiting for the owner's approval (27 Nov 2026) |
 
 An earlier all-in-one preview (https://claude.ai/artifact/K2uJ3wuzDYM4LBo6qvoYr3) was rejected and is superseded.
 
