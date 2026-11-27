@@ -6,7 +6,8 @@ Owner: Prakash Singh. Frontend and UI: Claude. Backend integration, permissions,
 |---|---|
 | Instant Cab | Merged to main in PR #14 (`b2cd6fa`, 26 Nov 2026) at the owner's request |
 | Public pages | Merged to main in PR #15 (`b11baa9`, 26 Nov 2026) at the owner's request |
-| Trip Planner (area 4) | Branch `claude/thh-trip-planner`, now based on main after PR #17. Code commit `691339c`. Review PR: https://github.com/prakashrawat941-ai/Thehimalayanhorizon/pull/19 (base `main`). Not merged; needs the owner's approval. |
+| Homepage extras (area 5) | Branch `claude/thh-home-extras` from main `01d2928`. Code commit `d5366c3`. Review PR: https://github.com/prakashrawat941-ai/Thehimalayanhorizon/pull/22. Not merged; needs the owner's approval. |
+| Trip Planner (area 4) | Merged to main in PR #19 (`01d2928`, 27 Nov 2026) at the owner's request. Was branch `claude/thh-trip-planner`. Code commit `691339c`. Review PR: https://github.com/prakashrawat941-ai/Thehimalayanhorizon/pull/19 (base `main`). Not merged; needs the owner's approval. |
 | Dashboards (area 3) | Merged to main in PR #17 (`a303710`, 27 Nov 2026) at the owner's request, after fixing 4 Codex review findings (booking route order, room counts for tours/workspaces, homestay-only check-in KPI, homestay-only onboarding queue). |
 
 ## Design previews (claude.ai artifacts, private to the owner)
@@ -18,9 +19,46 @@ Every value in these previews is demo data, and each preview is labelled as such
 | 1. Instant Cab booking | https://claude.ai/artifact/VRH2V9ftq3ZKPLGJx278bp | Approved 26 Nov 2026; implemented (see below) |
 | 2. Homepage and public pages | https://claude.ai/artifact/5J12rL8aEzxvExJgaZT3n5 (layout) and the HD preview at `/design-preview/public-pages.html` on branch `claude/thh-public-preview` | Approved 26 Nov 2026; implemented (see below) |
 | 3. Founder, CEO, Co-founder and Admin dashboards | https://claude.ai/artifact/7N3W4hcriB1nS2MBwniViw | Approved 27 Nov 2026; implemented (see below) |
+| 5. Homepage extras | https://claude.ai/artifact/VA4FfYixRRFmus7uhsima7 | Approved 27 Nov 2026; implemented (see below) |
 | 4. Trip Planner and Trip Report | https://claude.ai/artifact/TjyUeTJMSW1ueGfotfDR6G (v2) | v1 changed at the owner's request; v2 approved 27 Nov 2026 with price option B (paid fuel-price API); implemented (see below) |
 
 An earlier all-in-one preview (https://claude.ai/artifact/K2uJ3wuzDYM4LBo6qvoYr3) was rejected and is superseded.
+
+## Area 5: Homepage extras, as implemented
+
+Six additions to `/`. Each uses real data only and shows a clear empty state.
+
+| Block | Where | Data | Empty / error |
+|---|---|---|---|
+| Trust strip | Under the search card | Static. Every line describes how the site already works: listings approved by the team, OSRM road times with labelled estimates, SOS in cab rides, Hindi/English. | — |
+| Go this season | After the CMS blocks | `locations` (published, not `transport_hub`) whose free-text `best_season` covers the current IST month. Parsed by `lib/home/season.js` (English and Hindi month names, ranges such as "Oct–Mar" or "अक्टूबर से मार्च", season words, "all year"). Uses the site's 5 seasons, so it is autumn in Oct–Nov. General season tips are written text, not data. | "No places tagged for … yet" with a Browse button |
+| Explore on the map | After season | Published locations with lat/lng, plus approved homestays placed at their location's coordinates (homestays have no lat/lng column). Leaflet + OSM. Filter chips appear only for kinds that exist. | The block is hidden when there are no points. If the map fails to load, it falls back to a list. |
+| Sample trip plan | After map | First published itinerary (`getItineraries()`, featured first) → `/plan?from=slug` | Hidden when there are no itineraries |
+| Shared rides today | After sample plan | `cab_rides` with status open, not test, departing from now to the end of the IST day, seats left > 0 (public read policy). Links to `/cab/ride/<id>`. | "No shared rides leaving today" with Search / Offer a ride. Error: "Couldn't load today's rides". |
+| WhatsApp button | Floating, above the tab bar | `site_settings.contact.whatsapp`. Four prefilled `wa.me` messages. | **Not shown** until a WhatsApp number (with country code) is saved in Admin → Settings. On 27 Nov 2026 it is empty; only `phone` is set, and we do not assume that phone number is on WhatsApp. |
+
+Files:
+- `web/lib/home/season.js`, `web/lib/home/rides.js`
+- `web/components/home/Extras.jsx`, `ExploreMap.jsx`, `WhatsAppButton.jsx`
+- `web/app/home-extras.css`
+- `web/app/page.jsx` (wiring)
+
+Pending for content and Codex:
+- H1 (owner/admin): add destinations with `best_season`, lat/lng and photos. Only 1 location is published today.
+- H2 (owner): save the WhatsApp number in Settings.
+- H3 (Codex, optional): make `best_season` a structured month list so the season match does not depend on text parsing.
+- H4 (Codex, optional): give homestays their own coordinates for exact map pins.
+
+Checks run:
+- Transpile check: OK.
+- Season parser unit run: 11 sample strings, including Hindi and wrap-around ranges, gave the expected months.
+- Harness (real components, invented rows, Leaflet stubbed) at 360px and 1280px, in English and Hindi, in the data, empty and error states:
+  - No visible overflow. The only flagged nodes were clipped SVG art inside the cards.
+  - The map filter switches the card to the filtered kind. A bug where the card kept showing a filtered-out place was found and fixed.
+  - WhatsApp links are `https://wa.me/<digits>?text=…`. Escape closes the sheet. With no number, there is no button.
+  - The ride card links to `/cab/ride/<id>`.
+- Review fixes (Codex on PR #22): homestays are placed only when their location has both lat and lng. Items at the same spot share one pin with a count, and the card shows "Also here:" so each one stays selectable (harness: 2 stays at one spot, switching works both ways).
+- `next build`, CI and the Vercel preview are the build evidence.
 
 ## Area 4: Trip Planner and Trip Report, as implemented
 
