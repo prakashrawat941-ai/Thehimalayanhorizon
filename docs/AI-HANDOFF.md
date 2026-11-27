@@ -660,3 +660,62 @@ The popup still opens only after `request_cab_ride_idempotent` returns a booking
 - **Pre-existing, fixed for the new cabin only:** `h()` in `web/lib/cab/ui.js` assigns `style` objects with `Object.assign`, which ignores CSS custom properties. The old schematic seat grid's `--cabin-tracks` and `--cabin-columns` were never applied. The new cabin sets its variable with `style.setProperty`. Other callers that pass `--*` in `style` are unchanged.
 - **Hindi:** new labels use the existing `L(en, hi)` helper. Hindi wording should be reviewed by a native speaker.
 - **Popup checkmark:** in the harness screenshots the receipt popup's check mark looked empty. The popup's `cele-mark` styling and animation were not changed in this work. Check it on a real device.
+
+---
+
+## THH Work: Task Management slice (leadership dashboards)
+
+**Branch:** `claude/thh-leadership-tasks` (from `claude/thh-phase-1-ui`, PR #30). Not merged. `main` not touched.
+**Status:** Frontend only, running on sample data. Not connected to any backend.
+
+### Scope
+
+Founder, CEO and Co-Founder each get a `/work` page with the same workspace: Board, List and Activity tabs; filters for scope (mine, created, review), status, priority and search; a create dialog; and a detail dialog with the actions allowed for the current actor.
+
+- Routes: `web/app/founder/work/page.jsx`, `web/app/ceo/work/page.jsx`, `web/app/co-founder/work/page.jsx` (each calls `requireAdmin`).
+- Nav items added in `web/components/dash/ManagementFrame.jsx`.
+- Demo: `web/app/ui-kit/work/` (gated by `ENABLE_UI_KIT=1` and not production).
+- Components: `web/components/work/` (`WorkWorkspace.jsx`, `TaskViews.jsx`, `TaskForm.jsx`, `ActionDialog.jsx`, `i18n.js`).
+- Model: `web/lib/work/task-model.js` (state machine, relations, review gate, version checks; UI mirror only, the server must enforce all of it), `web/lib/work/sample-tasks.js` (fictional people and tasks, labelled as sample data).
+- Shared fixes: `Dialog.jsx` Escape now uses a document-level stacked listener, so only the top dialog closes.
+- Styles: THH Work block appended to `web/styles/ui.css`.
+- Tests: `web/test/work-model.test.js`.
+
+### Contracts
+
+See `docs/DATA-CONTRACTS.md`. It lists the entities, the status model, the action table, the error codes, the adapter interface and the proposed tables for Codex.
+
+### Codex requirements
+
+1. Tables: `work_tasks` and `work_task_events` (append-only), plus the people/relation source (Codex to decide).
+2. One RPC per action, each checking relation, `expectedVersion`, status, input and review gate in one transaction, and writing the event.
+3. Idempotency on (actor, idempotencyKey).
+4. RLS: read only for creator, assignee, reviewer or an allowed dashboard role; no direct writes.
+5. Notifications on each state change.
+6. Middleware protection for `/founder/work`, `/ceo/work`, `/co-founder/work`.
+7. Service worker must not cache task responses or management pages.
+8. Decide what counts as a sensitive task for Founder final approval.
+9. Decide what to do with the existing `management_work` table (not compatible; see DATA-CONTRACTS section 10).
+
+### Blockers
+
+- **No staging deploy.** Codex deploys. Nothing has been deployed.
+- **No package install.** Network access for packages is off in this session. The tests run on a stand-in runner, not real Vitest.
+- **No real Vitest or axe run.** Accessibility checks were manual and in the browser harness only.
+- **No `next build`.** Codex should run build and the Playwright spec against `next dev` or a preview.
+- **No backend.** The UI shows a "not connected" state when `source` is null, and sample data when it is `'demo'`.
+
+### Checks actually run (stand-in harness)
+
+- Unit: 138 of 138 passed (stand-in runner).
+- UI kit browser checks: 59 of 59 passed.
+- Work flow browser checks: 31 of 31 passed. These cover desktop light and mobile dark board views, and the create, act and reset flow.
+- Screenshots: `docs/ui-previews/task-slice/`.
+
+### Phase-order note
+
+The master spec places THH Work (Module 07) after the Phase 3 gate, and says Phase 0 is read-only. The Founder approved this Task slice explicitly on 2026-11-28, so it proceeds. The sample-data state is clearly labelled, and nothing is saved.
+
+### Next slice
+
+Awaiting approval. Proposed next: Task and project management (per the approved sequence), or Activity Center if preferred.

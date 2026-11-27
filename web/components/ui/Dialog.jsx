@@ -12,6 +12,9 @@ const FOCUSABLE = 'a[href],button:not([disabled]),textarea:not([disabled]),input
  * focus returns to the opener, and the page behind does not scroll. `side` makes it a left drawer (mobile menu).
  * Bottom sheet on phones, centred card on larger screens. Renders nothing while closed.
  */
+// Stack of open dismissible dialogs: Escape closes only the top one, even when focus has left the dialog.
+const dismissStack = [];
+
 export function Dialog({
   open, onClose, title, description, children, footer, size = 'md', side = false,
   dismissible = true, closeLabel = 'Close', className,
@@ -24,6 +27,26 @@ export function Dialog({
   const [surface, setSurface] = useState(null);
 
   useEffect(() => { setMounted(true); }, []);
+
+  // Escape works even when focus has moved to <body> (for example after the focused button was removed).
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    if (!open || !mounted || !dismissible) return undefined;
+    const token = {};
+    dismissStack.push(token);
+    function onEsc(event) {
+      if (event.key !== 'Escape' || dismissStack[dismissStack.length - 1] !== token) return;
+      event.stopPropagation();
+      closeRef.current?.();
+    }
+    document.addEventListener('keydown', onEsc);
+    return () => {
+      document.removeEventListener('keydown', onEsc);
+      const i = dismissStack.indexOf(token);
+      if (i >= 0) dismissStack.splice(i, 1);
+    };
+  }, [open, mounted, dismissible]);
 
   useEffect(() => {
     if (!open || !mounted) return undefined;
@@ -44,11 +67,6 @@ export function Dialog({
   if (!open || !mounted) return null;
 
   function onKeyDown(event) {
-    if (event.key === 'Escape' && dismissible) {
-      event.stopPropagation();
-      onClose?.();
-      return;
-    }
     if (event.key !== 'Tab') return;
     const items = [...ref.current.querySelectorAll(FOCUSABLE)].filter((el) => el.offsetParent !== null || el === document.activeElement);
     if (!items.length) {
