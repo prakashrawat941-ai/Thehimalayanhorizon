@@ -107,9 +107,13 @@ async function del(btn, table, id) {
 async function requests() {
   const rows = await q(sb.from('booking_requests').select('*, homestays(name), village_tours(title), workspaces(name), partners(business_name)').order('created_at', { ascending: false }).limit(300));
   if (!rows.length) return empty();
+  const hidden = rows.filter((row) => !row.guest_phone).map((row) => row.id);
+  const { data: contacts } = hidden.length ? await sb.rpc('booking_guest_phones', { p_ids: hidden }) : { data: [] };
+  const phones = new Map((contacts ?? []).map((row) => [row.booking_id, row.guest_phone]));
   const statuses = ['requested', 'confirmed', 'declined', 'cancelled', 'completed'];
   return h('div', { class: 'table-wrap' }, h('table', { class: 'table' },
     h('tbody', {}, rows.map((r) => {
+      const phone = r.guest_phone || phones.get(r.id);
       const sel = select(statuses.map((s) => [s, s]), r.status, { 'aria-label': t('status') });
       sel.addEventListener('change', async () => {
         try { await q(sb.rpc('set_booking_status', { p_id: r.id, p_status: sel.value, p_note: '' })); toast(t('saved')); }
@@ -117,7 +121,7 @@ async function requests() {
       });
       return h('tr', {},
         h('td', {}, h('strong', {}, r.homestays?.name || r.village_tours?.title || r.workspaces?.name), h('div', { class: 'muted small' }, r.partners?.business_name)),
-        h('td', {}, r.guest_name, h('div', {}, h('a', { href: `tel:${r.guest_phone}` }, r.guest_phone))),
+        h('td', {}, r.guest_name, phone ? h('div', {}, h('a', { href: `tel:${phone}` }, phone)) : null),
         h('td', {}, fmtDate(r.start_date), h('div', { class: 'muted small' }, `${r.guests} ${t('guests')}`)),
         h('td', {}, sel));
     }))));
