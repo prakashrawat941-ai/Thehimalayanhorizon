@@ -1,6 +1,6 @@
 import { getT } from '@/lib/i18n/server';
 import { requireUser, rows } from '@/lib/account';
-import { Empty } from '@/components/Blocks';
+import { Icon } from '@/components/Icon';
 import { MarkRead } from '@/components/account/MarkRead';
 
 export async function generateMetadata() {
@@ -22,27 +22,30 @@ export default async function Notifications() {
   const list = await rows(db.from('notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(50));
   const unread = list.filter((n) => !n.read_at).map((n) => n.id);
   const when = (iso) => new Date(iso).toLocaleString(lang === 'hi' ? 'hi-IN' : 'en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' });
+  const todayKey = new Date(Date.now() + 5.5 * 3600e3).toISOString().slice(0, 10);
+  const dayKey = (iso) => new Date(new Date(iso).getTime() + 5.5 * 3600e3).toISOString().slice(0, 10);
+  const groups = [[L('Today', 'आज'), list.filter((n) => dayKey(n.created_at) === todayKey)], [L('Earlier', 'पहले'), list.filter((n) => dayKey(n.created_at) !== todayKey)]].filter(([, g]) => g.length);
   return (
     <>
-      <div className="ds-head"><div className="grow"><h1>{t('notifications')}</h1>
-        <p className="muted">{L('In-app messages about your bookings and rides.', 'आपकी बुकिंग और राइड के बारे में ऐप के अंदर के संदेश।')}</p></div></div>
+      <div className="ac-head"><div><h1>{t('notifications')}</h1>
+        <p>{L('Messages about your bookings and rides. New ones are marked read after you open this page.', 'आपकी बुकिंग और राइड के संदेश। यह पेज खोलने के बाद नए संदेश पढ़े हुए मान लिए जाते हैं।')}</p></div></div>
       <MarkRead ids={unread} />
-      {list.length ? (
-        <section className="ds-panel">
-          <div className="ds-rows">
-            {list.map((n) => {
-              const inner = (
-                <>
-                  <span className="grow"><strong>{n.title}</strong><span>{n.body}</span><span>{when(n.created_at)}</span></span>
-                  {!n.read_at ? <span className="badge badge-new">{L('New', 'नया')}</span> : null}
-                </>
-              );
-              const h = href(n.link);
-              return h ? <a key={n.id} className="ds-row" href={h}>{inner}</a> : <div key={n.id} className="ds-row">{inner}</div>;
-            })}
-          </div>
+      {list.length ? groups.map(([label, g]) => (
+        <section key={label}>
+          <p className="ac-ng">{label}</p>
+          {g.map((n) => {
+            const inner = (
+              <>
+                <span className="ac-ic"><Icon name="bell" size={18} /></span>
+                <span className="ac-tx"><b>{n.title}</b>{n.body ? <small>{n.body}</small> : null}<small>{when(n.created_at)}</small></span>
+                {!n.read_at ? <span className="ac-dot" aria-label={L('New', 'नया')} /> : null}
+              </>
+            );
+            const h = href(n.link);
+            return h ? <a key={n.id} className={`ac-nt${n.read_at ? '' : ' new'}`} href={h}>{inner}</a> : <div key={n.id} className={`ac-nt${n.read_at ? '' : ' new'}`}>{inner}</div>;
+          })}
         </section>
-      ) : <Empty icon="bell" text={L('No notifications yet.', 'अभी कोई सूचना नहीं।')} />}
+      )) : <div className="ac-state"><Icon name="bell" size={30} /><h2>{L('No notifications yet', 'अभी कोई सूचना नहीं')}</h2><p>{L('Booking and ride updates will show up here.', 'बुकिंग और राइड की ख़बरें यहाँ दिखेंगी।')}</p></div>}
     </>
   );
 }
