@@ -4,11 +4,9 @@ Owner: Prakash Singh. Frontend and UI: Claude. Backend integration, permissions,
 
 | Item | Value |
 |---|---|
-| Branch | `claude/thh-ui-refresh` (main merged in at `b03fe1e`) |
 | Instant Cab | Merged to main in PR #14 (`b2cd6fa`, 26 Nov 2026) at the owner's request |
-| Public pages code commit | `1dc54f6` |
-| Pull requests | #14 Instant Cab (merged). Public pages: new review PR from this branch (link in the PR list). |
-| Merge or deploy | Public pages: not merged. Needs the owner's approval. |
+| Public pages | Merged to main in PR #15 (`b11baa9`, 26 Nov 2026) at the owner's request |
+| Dashboards (area 3) | Branch `claude/thh-dashboards`, cut from main `b11baa9`. Code commits `8b40d27` (switcher, booking monitor, components) and `7341296` (Founder, CEO, Co-founder routes). Review PR: https://github.com/prakashrawat941-ai/Thehimalayanhorizon/pull/17. Not merged; needs the owner's approval. |
 
 ## Design previews (claude.ai artifacts, private to the owner)
 
@@ -18,10 +16,127 @@ Every value in these previews is demo data, and each preview is labelled as such
 |---|---|---|
 | 1. Instant Cab booking | https://claude.ai/artifact/VRH2V9ftq3ZKPLGJx278bp | Approved 26 Nov 2026; implemented (see below) |
 | 2. Homepage and public pages | https://claude.ai/artifact/5J12rL8aEzxvExJgaZT3n5 (layout) and the HD preview at `/design-preview/public-pages.html` on branch `claude/thh-public-preview` | Approved 26 Nov 2026; implemented (see below) |
-| 3. Founder, CEO, Co-founder and Admin dashboards | Not started | — |
-| 4. Trip Planner and Trip Report | Not started | — |
+| 3. Founder, CEO, Co-founder and Admin dashboards | https://claude.ai/artifact/7N3W4hcriB1nS2MBwniViw | Approved 27 Nov 2026; implemented (see below) |
+| 4. Trip Planner and Trip Report | https://claude.ai/artifact/TjyUeTJMSW1ueGfotfDR6G | Waiting for the owner's approval (27 Nov 2026) |
 
 An earlier all-in-one preview (https://claude.ai/artifact/K2uJ3wuzDYM4LBo6qvoYr3) was rejected and is superseded.
+
+## Area 3: Dashboards, as implemented
+
+### What is live on this branch and what is not
+
+- **Admin (live data, existing guard).** `/admin` gets the dashboard switcher and a new **Booking monitor** at `/admin/bookings`. These use only existing tables, read through the admin's own session, so the current admin policies decide what is visible.
+- **Founder, CEO and Co-founder (routes added, owner view, 27 Nov 2026 at the owner's request).**
+  - New routes: `/founder` (+ `/access`, `/approvals`, `/audit`), `/ceo` (+ `/tasks`, `/reviews`, `/requests`) and `/co-founder` (+ `/locations`, `/onboarding`, `/releases`).
+  - **Temporary guard:** `requireAdmin`. Only the owner-set admin role can open them, and every page shows an "Owner view" note. `ADMIN_OPENS_MANAGEMENT = true` in `web/lib/dashboards.js` adds these three to an admin's switcher.
+  - **Live data, existing tables only:**
+    - Founder overview: `admin_homestay_stats` (homestay booking value and commission, labelled "records").
+    - Access: admin profiles, read-only, with no add or edit.
+    - Audit: latest 30 rows of `audit_log`.
+    - CEO operations: check-ins today, rides today, live seat holds, open SOS; alerts for stay requests waiting over 12 h and support tickets open over 24 h.
+    - Co-founder website: `home_sections`.
+    - Onboarding: steps derived from `partners`, `homestays`, `homestay_rooms` and `partner_kyc`, with links to admin approvals.
+    - Releases: `APP_VERSION`.
+  - **"Not connected yet"** (no sample rows): team members and MFA, every work queue (approvals, tasks, reviews, sent requests, releases), village offices, and location matching.
+  - Loaders: `web/lib/dash/management-data.js`. Each one returns `{ data, error }`; on error the page shows the error state with retry.
+  - **Conflict note:** Codex's branch `feature/thh-management-security-foundation` also creates `web/app/founder|ceo|co-founder/page.jsx` (rendering `Workspace`). When it lands, keep these pages and feed them from `management_*` + MFA. Then switch the guard to the management guard, set `ADMIN_OPENS_MANAGEMENT = false`, and pass `managementRole` into `DashLayout` (D1).
+  - Codex's `management_*` tables, MFA and RPCs are still not in production (no `management%` tables in prod as of 27 Nov 2026).
+- **Unchanged:** authentication, schema, RLS, role permissions and booking transactions. There are no new tables, RPCs or migrations.
+
+### Changed and new files
+
+| File | What |
+|---|---|
+| `web/lib/dashboards.js` | Dashboard registry. `authorisedDashboards({ roles, managementRole })` and `switcherItems()`. Today it offers Admin (`profiles.role = 'admin'`) and My account only. |
+| `web/components/dash/DashSwitcher.jsx` | Client menu of authorised dashboards (Esc and outside-click close it). It grants nothing; every target route re-checks access. |
+| `web/components/dash/DashLayout.jsx` | Shared frame: the existing `AccountNav` sidebar and phone chips, plus the switcher on top. |
+| `web/components/dash/DashStates.jsx` | `DashSkeleton`, `DashEmpty`, `DashError` (retry = `router.refresh()`), `DashNotConnected`, `DashMfaNeeded`. |
+| `web/components/dash/parts.jsx` | `Tag`, `Kpi`, `KpiRow`, `Panel`, `ListRow`, `FilterChips` (filters are links, so they live in the URL). |
+| `web/components/dash/BookingMonitor.jsx` | Table on laptops, cards on phones. Live hold countdown via the existing `Countdown`. |
+| `web/lib/dash/bookings.js` | `parseFeedQuery`, `loadBookingFeed`, `normaliseStay`, `normaliseCab`, `feedTone`. |
+| `web/app/admin/bookings/page.jsx`, `loading.jsx` | Booking monitor route and skeleton. |
+| `web/app/admin/layout.jsx` | Uses `DashLayout`. Adds the nav item "Booking monitor". The admin guard is unchanged. |
+| `web/app/admin/page.jsx` | Adds a "Bookings waiting" stat (`booking_requests.status = requested` + `cab_bookings.status = pending`). |
+| `web/lib/dash/management-data.js` | Server loaders for the three role dashboards (existing tables only). |
+| `web/components/dash/ManagementFrame.jsx` | Frame + temporary `requireAdmin` guard + owner note + nav for `/founder`, `/ceo`, `/co-founder`. |
+| `web/app/founder/**`, `web/app/ceo/**`, `web/app/co-founder/**` | Role dashboard routes (layout, loading, pages). |
+| `web/components/account/AccountNav.jsx` | Optional `exact` on nav items so "Overview" is only highlighted on its own page (also fixes `/admin`). |
+| `web/components/dash/management/*` | `AccessManagement`, `WorkQueue`, `LocationReview`, `FounderOverview`, `OpsToday`, `CmsSections`, `OnboardingQueue`, `NoteDialog`, helpers in `ui.js`. |
+| `web/app/dash.css` | All `dsx-` styles. Also a phone-only fix so the section chips keep their height on short dashboard pages (scoped to dashboards). |
+
+### Booking monitor data (live)
+
+- **Reads:**
+  - `booking_requests`: `id, kind, booking_code, status, created_at, start_date, end_date, guests, rooms_booked, guest_name`, plus `homestays(name)`, `village_tours(title)` and `workspaces(name)`.
+  - `cab_bookings`: `id, booking_code, booking_ref, seats, status, created_at, hold_expires_at, pickup_geo, drop_geo`, plus booking and ride place names through the existing FK names (`cab_bookings_from_place_id_fkey`, `cab_rides_from_place_id_fkey`, `cab_rides_from_location_id_fkey`, and the matching `to_` keys).
+- **Ordering and limits:** each table is ordered by `created_at desc, id desc` and limited to `limit + 1`, then the two lists are merged. `?limit=` accepts 25, 50, 100 or 200.
+- **Filters:** `?type=all|stay|cab` and `?status=all|waiting|confirmed|done|closed`.
+
+  | Group | Stay statuses | Cab statuses |
+  |---|---|---|
+  | waiting | requested | pending |
+  | confirmed | confirmed, checked_in | confirmed |
+  | done | completed | completed |
+  | closed | declined, cancelled | declined, cancelled, expired |
+
+- **"Held":** a cab booking whose `status = pending` and whose `hold_expires_at` is in the future. This is a UI reading of existing columns only. Codex should confirm it matches the booking rules (see C1).
+- **Failures:** on any query error the page shows the error state with retry. It never shows partial or sample rows.
+
+### Founder / CEO / Co-founder: data contract for Codex
+
+All props are plain, serialisable values loaded on the server after the management guard (role + `aal2`). Actions are server actions that **must re-validate** and return `{ ok: true }` or `{ ok: false, message }`. The UI only shows success after `ok: true`.
+
+| Screen (component) | Props it needs | Source |
+|---|---|---|
+| Founder overview (`FounderOverview`) | `finance: { booking_value, commission }` or `null`, `waiting`, `mfaReady`, `teamSize` | `management_finance()` (branch); count of open critical/finance/expense work; MFA factor status per member (**new, server only**) |
+| Access management (`AccessManagement`) | `members: [{ userId, name, role, office, mfa: 'verified'\|'not_set'\|null, lastActive }]`, `currentUserId`, `setMember(formData)`, `connected` | `management_members` + `profiles.role = 'admin'` rows (shown read-only). **New action:** `setMember` gets `user_id` or `email`, `role` (`ceo`/`co_founder`/`employee`/`none`), `office`, `note` (1–500 characters). It must be Founder-only, require MFA and be audited; it must block changes to the Founder's own role and to admin rows; for `email` it invites. |
+| Founder approvals, CEO reviews, CEO "sent to Founder", team tasks (`WorkQueue`) | `items: [{ id, kind, subject, from, amount, when, status, actions }]`, `decide(formData{ id, decision, note })`, `connected` | `management_work` + `management_events`. `actions` must come from `catalog.decisions()` on the server. `decide` maps to `management_decide(id, approved\|returned\|completed, note)`. |
+| CEO operations (`OpsToday`) | `counts: { checkins, rides, holds, sos }`, `alerts: [{ id, icon, tone, title, sub, href, action }]`, `offices`, `officesConnected` | Existing `booking_requests`, `cab_rides`, `cab_bookings` (pending + live hold), `sos_incidents`, `support_tickets` (IST day). Offices: `management_members` role employee + attendance work (branch). |
+| Co-founder website (`CmsSections`) | `sections: [{ id, title, enabled, position, note }]` | `home_sections` (existing) |
+| Co-founder onboarding (`OnboardingQueue`) | `partners: [{ id, name, sub, done: ['basic','rooms','photos','policies','kyc','review'], href }]`, `sendAction(formData{ partner_id })` | Derived from `partners`, `homestays`, `homestay_rooms`, `partner_kyc`. Send = `management_submit(partner, …)` (branch). |
+| Co-founder add location (`LocationReview`) | `districts: [{ value, label }]`, `findMatches(formData{ name, district })`, `saveDraft(formData)`, `publish(formData)` | **New, Codex owns matching and autofill.** See below. |
+
+**`findMatches` result.** It returns either:
+
+```
+{ status: 'ok',
+  matches: [{ id, score: 0–100, name, sub, distanceKm|null, lat|null, lng|null,
+              fields: { [key]: { value, source } } }],
+  duplicate: { name, distanceKm|null } | null }
+```
+
+or `{ status: 'not_connected' }`.
+
+- **Field keys:** `name, name_hi, district, region, kind, lat_lng, nearest_town, altitude_m, best_season, image_url`.
+- **Sources:** `places | locations | osm | derived | suggested`. A field the person edits becomes `manual`.
+- **What the UI sends** to `saveDraft` and `publish`: every field value, `field_sources` (JSON), `match_id`, and for publish `show_on_home` and `featured`.
+- **Storing it:** there is no `field_sources` column today; it needs a schema decision. `publish` writes `locations` + `home_sections` and logs it via `management_cms_event` (branch).
+
+### Pending Codex items: dashboards
+
+- D1. Replace the temporary `requireAdmin` guard in `ManagementFrame` (and each role page) with the management guard (`management_members` role + `aal2`). Wire `authorisedDashboards({ managementRole })` from that read and set `ADMIN_OPENS_MANAGEMENT = false`. Feed the "Not connected yet" parts from `management_*`.
+- D2. Add the Founder-only `setMember` action and invite flow, plus the server-side MFA factor and last-sign-in read for the people list.
+- D3. Location matching (`findMatches`), field-source storage, `saveDraft` and `publish`.
+- D4. Confirm the "held" reading in the Booking monitor (pending + future `hold_expires_at`) against the booking rules.
+- D5. Optional: a realtime refresh for `/admin/bookings`. Today it is server-rendered; the hold countdown refreshes the page when a hold ends.
+- D6. Codex's branch also edits `web/app/admin/cms/page.jsx` and `web/lib/admin.js`; expect small merge conflicts with `web/app/admin/layout.jsx` (now uses `DashLayout`).
+
+### Checks run: dashboards
+
+- TypeScript transpile check of every new or changed JSX/JS file: all OK.
+- Loader test (tsx, mock database): onboarding steps derive correctly (a pending stay with a room, 3 photos, rules and KYC gives 6/6; a draft gives basic only; a partner without a stay gives basic). Any query error returns `{ error: true }` with no rows. The IST day range for 08:00 IST is 26 Nov 18:30Z – 27 Nov 18:30Z.
+- Harness, owner-view screens at 360px and 1280px in English and Hindi: no overflow. Access has no add or edit buttons when the action is not connected. Onboarding shows "Open in Approvals" for complete listings and "Help finish" otherwise.
+- Local browser harness (not committed). The real components were bundled with esbuild, using stubs for `next/link` and `next/navigation` and invented test rows. It was run in Chrome via Playwright at 360px and 1280px, in English and Hindi, across 15 screens. Results:
+  - No horizontal page overflow on any screen.
+  - The switcher lists only allowed dashboards, and Esc or an outside click closes it.
+  - An empty reason or note is blocked with an error.
+  - When the server action returns `ok: false`, its message is shown and the dialog stays open.
+  - The dialog closes and the page refreshes only after `ok: true`.
+  - Founder and admin rows have no edit button.
+  - Location flow: "Use this" stays disabled until a match is picked; missing fields are marked "needs you"; an edited field's chip changes to "entered by you"; draft and publish messages appear only after `ok: true`; "create new" starts with 9 empty fields.
+  - The only console errors were the brand image and fonts, which do not exist in the harness.
+- Not run here: `next build` (no packages in this sandbox). The GitHub "Web build check" and the Vercel preview on the PR are the build evidence.
+- The admin pages need an admin sign-in, so they were not opened on the Vercel preview by me.
 
 ## Area 2: Homepage and public pages, as implemented
 

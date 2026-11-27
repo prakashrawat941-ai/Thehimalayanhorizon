@@ -8,13 +8,15 @@ export default async function AdminOverview() {
   const { db } = await requireAdmin('/admin');
   const { L } = await getT();
   const h = { count: 'exact', head: true };
-  const [users, partners, bookings, cabBookings, sos, stats] = await Promise.all([
+  const [users, partners, bookings, cabBookings, sos, stats, waitingStays, waitingCabs] = await Promise.all([
     count(db.from('profiles').select('id', h)),
     count(db.from('partners').select('id', h).eq('status', 'approved')),
     count(db.from('booking_requests').select('id', h)),
     count(db.from('cab_bookings').select('id', h)),
     count(db.from('sos_incidents').select('id', h).in('status', ['open', 'acknowledged'])),
     db.rpc('admin_homestay_stats').then((r) => r.data || {}),
+    count(db.from('booking_requests').select('id', h).eq('status', 'requested')),
+    count(db.from('cab_bookings').select('id', h).eq('status', 'pending')),
   ]);
   const stat = (href, icon, label, n, urgent) => <Link className={`ds-stat${urgent ? ' urgent' : ''}`} href={href}><span className="ds-stat-l"><Icon name={icon} size={16} />{label}</span><span className="ds-stat-n">{n}</span></Link>;
   return (
@@ -30,6 +32,7 @@ export default async function AdminOverview() {
         {stat('/admin/homestays', 'layers', L('Homestay GMV (records)', 'होमस्टे GMV (रिकॉर्ड)'), inr(stats.gmv || 0))}
         {stat('/admin/homestays', 'layers', L('Commission (records)', 'कमीशन (रिकॉर्ड)'), inr(stats.commission || 0))}
         {stat('/admin/approvals', 'bell', L('Pending approvals', 'बाकी मंज़ूरी'), (stats.pending_properties || 0) + (stats.pending_kyc || 0) + (stats.pending_partners || 0), true)}
+        {stat('/admin/bookings?status=waiting', 'calendar', L('Bookings waiting', 'इंतज़ार में बुकिंग'), waitingStays + waitingCabs, waitingStays + waitingCabs > 0)}
         {stat('/admin/payouts', 'layers', L('Pending payouts', 'बाकी पेआउट'), stats.pending_payouts || 0, (stats.pending_payouts || 0) > 0)}
       </div>
     </>

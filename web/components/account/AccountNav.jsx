@@ -6,9 +6,9 @@ import { Icon } from '../Icon';
 // Sidebar on laptops, scrollable chips on phones (same design-system shell as the current app).
 export function AccountNav({ items, title }) {
   const path = usePathname() || '/account';
-  const on = (href) => (href === '/account' ? path === '/account' : path === href || path.startsWith(href + '/'));
+  const on = (href, exact) => (exact || href === '/account' ? path === href : path === href || path.startsWith(href + '/'));
   const link = (it, cls) => (
-    <Link key={it.href} href={it.href} className={`${cls}${on(it.href) ? ' on' : ''}`} aria-current={on(it.href) ? 'page' : undefined}>
+    <Link key={it.href} href={it.href} className={`${cls}${on(it.href, it.exact) ? ' on' : ''}`} aria-current={on(it.href, it.exact) ? 'page' : undefined}>
       <Icon name={it.icon} size={18} /><span>{it.label}</span>
       {it.count ? <span className="ds-count" aria-label={`${it.count}`}>{it.count}</span> : null}
     </Link>
