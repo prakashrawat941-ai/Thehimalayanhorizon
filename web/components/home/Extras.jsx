@@ -33,13 +33,13 @@ const SEASON_TEXT = {
 };
 
 /** "Go this season": general tips for the current season + destinations whose best season matches. */
-export function SeasonNow({ season, places, L, lang, pick }) {
+export function SeasonNow({ season, places, L, lang, pick, title = null, note = null }) {
   const [name, span, tips] = SEASON_TEXT[season];
   const mo = monthsOf(season);
   return (
     <section className="wrap rf-sec">
-      <div className="rf-head"><div><p className="eyebrow">{L('Go this season', 'इस मौसम में जाएँ')}</p><h2>{L(`${name[0]} in Uttarakhand`, `उत्तराखंड में ${name[1]}`)}</h2>
-        <p className="muted">{L(`Places whose best season includes ${span[0]}. This changes by itself every month.`, `वे जगहें जिनका सबसे अच्छा मौसम ${span[1]} है। यह हर महीने अपने आप बदलता है।`)}</p></div>
+      <div className="rf-head"><div><p className="eyebrow">{L('Go this season', 'इस मौसम में जाएँ')}</p><h2>{title || L(`${name[0]} in Uttarakhand`, `उत्तराखंड में ${name[1]}`)}</h2>
+        <p className="muted">{note || L(`Places whose best season includes ${span[0]}. This changes by itself every month.`, `वे जगहें जिनका सबसे अच्छा मौसम ${span[1]} है। यह हर महीने अपने आप बदलता है।`)}</p></div>
         <Link className="rf-more" href="/destinations">{L('All destinations', 'सभी जगहें')}<Icon name="arrow" size={14} /></Link></div>
       <div className="hx-season">
         <div className="hx-season-card">
@@ -68,16 +68,16 @@ export function SeasonNow({ season, places, L, lang, pick }) {
 }
 
 /** One ready-made itinerary, opened straight in the Trip Planner (/plan?from=slug). */
-export function SamplePlan({ it, L, pick, lang }) {
+export function SamplePlan({ it, L, pick, lang, eyebrow = null, note = null }) {
   if (!it) return null;
   const days = (Array.isArray(it.days) ? it.days : []).slice(0, 5);
   return (
     <section className="wrap rf-sec">
       <div className="hx-plan">
         <div>
-          <p className="eyebrow">{L('Sample trip plan', 'नमूना ट्रिप प्लान')}</p>
+          <p className="eyebrow">{eyebrow || L('Sample trip plan', 'नमूना ट्रिप प्लान')}</p>
           <h3>{pick(it, 'title')}</h3>
-          <p className="muted">{L('Open it in the Trip Planner to change dates, people and car — the route and cost work themselves out.', 'ट्रिप प्लानर में खोलें और तारीख़, लोग और गाड़ी बदलें — रास्ता और ख़र्च अपने आप बनेंगे।')}</p>
+          <p className="muted">{note || L('Open it in the Trip Planner to change dates, people and car — the route and cost work themselves out.', 'ट्रिप प्लानर में खोलें और तारीख़, लोग और गाड़ी बदलें — रास्ता और ख़र्च अपने आप बनेंगे।')}</p>
           <div className="hx-meta">{it.days_count ? <span>{it.days_count} {L('days', 'दिन')}</span> : null}{it.best_season ? <span>{it.best_season}</span> : null}</div>
           <div className="hx-acts"><Link className="btn" href={`/plan?from=${encodeURIComponent(it.slug)}`}>{L('Open in Trip Planner', 'ट्रिप प्लानर में खोलें')}</Link>
             <Link className="btn btn-ghost" href="/itineraries">{L('See all plans', 'सभी प्लान')}</Link></div>
@@ -99,7 +99,7 @@ const endName = (r, side, pick) => {
 };
 
 /** Instant Cab rides leaving today. Seats and price come from each ride. */
-export function TodayRides({ rides, L, lang, pick, inr }) {
+export function TodayRides({ rides, L, lang, pick, inr, title = null, note = null }) {
   const body = rides.error ? (
     <div className="hx-state" role="status"><span aria-hidden="true">⚠</span><h3>{L('Couldn’t load today’s rides', 'आज की राइड लोड नहीं हुईं')}</h3><p>{L('Search rides instead — the rest of the page still works.', 'राइड खोजें — बाक़ी पेज चल रहा है।')}</p><Link className="btn btn-ghost btn-sm" href="/cab">{L('Search rides', 'राइड खोजें')}</Link></div>
   ) : !rides.rows.length ? (
@@ -122,8 +122,8 @@ export function TodayRides({ rides, L, lang, pick, inr }) {
   return (
     <section className="hx-rides-band">
       <div className="wrap rf-sec">
-        <div className="rf-head"><div><p className="eyebrow">{L('Instant Cab · leaving today', 'इंस्टेंट कैब · आज निकलने वाली')}</p><h2>{L('Shared rides today', 'आज की शेयर राइड')}</h2>
-          <p className="muted">{L('Live from Instant Cab. Seats and prices come from each ride.', 'इंस्टेंट कैब से लाइव। सीट और दाम हर राइड से आते हैं।')}</p></div>
+        <div className="rf-head"><div><p className="eyebrow">{L('Instant Cab · leaving today', 'इंस्टेंट कैब · आज निकलने वाली')}</p><h2>{title || L('Shared rides today', 'आज की शेयर राइड')}</h2>
+          <p className="muted">{note || L('Live from Instant Cab. Seats and prices come from each ride.', 'इंस्टेंट कैब से लाइव। सीट और दाम हर राइड से आते हैं।')}</p></div>
           <Link className="rf-more" href="/cab">{L('All rides', 'सभी राइड')}<Icon name="arrow" size={14} /></Link></div>
         {body}
       </div>

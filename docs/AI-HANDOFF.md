@@ -43,6 +43,17 @@ Files:
 - `web/app/home-extras.css`
 - `web/app/page.jsx` (wiring)
 
+Editable in the CMS (follow-up branch `claude/thh-home-cms`, owner request 27 Nov 2026):
+- The five extras can become `home_sections` kinds: `trust`, `season`, `map`, `sample_plan`, `today_rides`. Admin (and the Co-founder through the `management_cms` policy from PR #18) can then show or hide them, change their order, and set an optional title/subtitle (EN/HI). Their content still fills itself from live data.
+- **Switch:** `site_settings.home_layout.extras_in_cms = true`. Until it is set, the site keeps the current fixed placement, so merging the code changes nothing on its own.
+- **Migration** `supabase/migrations/20261127060000_home_extras_sections.sql` (**not applied**):
+  - widens `home_sections_kind_check`
+  - inserts the 5 rows, with trust at position 2 and the other four after every existing section, shifting existing rows from position 2 by one
+  - sets the switch
+  - Dry run on staging inside `begin … rollback` gave hero:1, trust:2, themes:3 … partner_cta:10, season:11, map:12, sample_plan:13, today_rides:14. Nothing was kept.
+- **CMS editor:** `web/app/admin/cms/page.jsx` lists the new kinds with labels and a hint. CODEX: PR #18 moves this list into `web/components/admin/CmsEditor.jsx`; carry the new options over there when merging.
+- Apply the migration with the PR #18/#21 production release (staging first, owner approval).
+
 Pending for content and Codex:
 - H1 (owner/admin): add destinations with `best_season`, lat/lng and photos. Only 1 location is published today.
 - H2 (owner): save the WhatsApp number in Settings.
