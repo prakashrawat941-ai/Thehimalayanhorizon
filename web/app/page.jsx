@@ -46,6 +46,7 @@ export default async function Home() {
     const { t, pick, L, lang } = tr;
     const [sections, session] = await Promise.all([getHomeSections(), getSession()]);
     const signedIn = !!session.user;
+    const hiddenHome = sections.find((s) => s.kind === 'destinations')?.data?.hidden_location_ids || [];
     const used = new Set();
     const notePhoto = (n) => { if (n) used.add(n); return n; };
     const sTitle = (s) => pick(s, 'title');
@@ -87,7 +88,7 @@ export default async function Home() {
         destinations: async (s) => {
             const [list, themes] = await Promise.all([getLocations(), getThemes()]);
             const hasPhoto = (l) => (l.image_url || PLACE_PHOTO[l.slug] ? 1 : 0);
-            const shown = list.filter((l) => l.kind === 'destination').sort((a, b) => hasPhoto(b) - hasPhoto(a) || Number(b.is_featured) - Number(a.is_featured)).slice(0, 4);
+            const shown = list.filter((l) => l.kind === 'destination' && !hiddenHome.includes(l.id)).sort((a, b) => hasPhoto(b) - hasPhoto(a) || Number(b.is_featured) - Number(a.is_featured)).slice(0, 4);
             const themeName = (l) => { const th = themes.find((x) => x.slug === l.theme_slugs?.[0]); return th ? pick(th, 'name') : null; };
             return (<section className="wrap rf-sec" key={s.id}>
           <Head eyebrow={t('places_eyebrow')} title={sTitle(s)} note={t('places_note')} link="/destinations" label={t('view_all')}/>
@@ -97,7 +98,7 @@ export default async function Home() {
         </section>);
         },
         villages: async (s) => {
-            const vs = (await getLocations()).filter((l) => l.kind === 'village').slice(0, 6);
+            const vs = (await getLocations()).filter((l) => l.kind === 'village' && !hiddenHome.includes(l.id)).slice(0, 6);
             return (<section className="rf-band" key={s.id}>
           <div className="wrap rf-split">
             <div>

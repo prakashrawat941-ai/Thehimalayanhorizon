@@ -425,7 +425,7 @@ export async function ride({ params, query }) {
   async function loadTaken() {
     const version = ++availabilityVersion;
     try {
-      const taken = await q(sb.rpc('cab_ride_taken_seats', { p_ride: r.id }));
+      const taken = await q(sb.rpc('cab_ride_seat_status', { p_ride: r.id }));
       if (version !== availabilityVersion) return;
       const parsed = takenSeats(taken);
       st.taken = parsed.taken;
@@ -519,7 +519,7 @@ export async function ride({ params, query }) {
     const legendHeld = h('span', { 'data-state': 'held', hidden: true }, L('Held', 'होल्ड'));
     const legendTaken = h('span', { 'data-state': 'booked' }, L('Booked or held', 'बुक या होल्ड'));
     const status = h('p', { class: 'small muted', role: 'status' }, L('Loading seats…', 'सीटें लोड हो रही हैं…'));
-    q(sb.rpc('cab_ride_taken_seats', { p_ride: r.id })).then((reply) => {
+    q(sb.rpc('cab_ride_seat_status', { p_ride: r.id })).then((reply) => {
       const { taken, held, holdInfo } = takenSeats(reply);
       for (const [no, el] of seats) {
         const isTaken = taken.includes(no);
@@ -782,7 +782,7 @@ function receiptContact(booking, pending) {
   return box;
 }
 
-// cab_ride_taken_seats returns integer[] today (booked and held seats together).
+// cab_ride_seat_status returns numbered seats with held/confirmed status.
 // If the server later returns [{ seat_no, status }], held seats are shown separately.
 function takenSeats(reply) {
   const list = Array.isArray(reply) ? reply : [];

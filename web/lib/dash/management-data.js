@@ -69,7 +69,7 @@ export const loadOnboarding = (db) => safe('onboarding', async () => {
   const [partners, stays, kyc] = await Promise.all([
     all(db.from('partners').select('id, business_name, village, status, created_at').eq('status', 'pending').order('created_at')),
     all(db.from('homestays').select('id, partner_id, name, village, images, house_rules, status, updated_at, partners(business_name)').in('status', ['draft', 'pending']).order('updated_at')),
-    all(db.from('partner_kyc').select('partner_id, status')),
+    all(db.rpc('management_onboarding_kyc')),
   ]);
   const rooms = stays.length ? await all(db.from('homestay_rooms').select('homestay_id').eq('is_active', true).in('homestay_id', stays.map((s) => s.id))) : [];
   const kycOk = (pid) => kyc.some((k) => k.partner_id === pid && ['pending', 'verified'].includes(k.status));

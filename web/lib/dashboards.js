@@ -13,7 +13,7 @@ export const DASHBOARDS = Object.freeze({
  * Founder, CEO and Co-founder dashboards. Those routes are guarded by requireAdmin and show
  * only existing-table data. CODEX: set this to false once management_members + MFA guard them.
  */
-export const ADMIN_OPENS_MANAGEMENT = true;
+export const ADMIN_OPENS_MANAGEMENT = false;
 
 /**
  * Keys of the dashboards this user may open, in display order.

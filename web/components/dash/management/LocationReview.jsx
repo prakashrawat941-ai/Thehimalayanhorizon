@@ -97,6 +97,7 @@ export function LocationReview({ lang, districts = [], findMatches = null, saveD
       {head(L('Review matches', 'मिलान देखें'), L('Pick the place you mean. The score combines name and distance.', 'जिस जगह की बात है उसे चुनें। स्कोर नाम और दूरी से बनता है।'))}
       {stepBar}
       {result.duplicate ? <p className="soft-note warn" role="alert">{L(`Possible duplicate: “${result.duplicate.name}” is already published${result.duplicate.distanceKm != null ? ` ${result.duplicate.distanceKm} km away` : ''}.`, `संभावित दोहराव: “${result.duplicate.name}” पहले से प्रकाशित है${result.duplicate.distanceKm != null ? ` (${result.duplicate.distanceKm} किमी दूर)` : ''}।`)}</p> : null}
+      {result.osmAvailable === false ? <p className="soft-note warn" role="status">{L('OpenStreetMap search is unavailable. Review local matches carefully before publishing.', 'OpenStreetMap खोज उपलब्ध नहीं है। प्रकाशित करने से पहले स्थानीय मिलान ध्यान से जाँचें।')}</p> : null}
       <section className="dsx-card">
         <h2 className="dsx-card-h"><span>{L('Suggested matches', 'सुझाए गए मिलान')}</span></h2>
         <div style={{ display: 'grid', gap: 8 }}>
@@ -114,6 +115,7 @@ export function LocationReview({ lang, districts = [], findMatches = null, saveD
         {chosen?.lat != null && chosen?.lng != null ? (
           <p className="dsx-note"><a href={`https://www.openstreetmap.org/?mlat=${chosen.lat}&mlon=${chosen.lng}#map=13/${chosen.lat}/${chosen.lng}`} target="_blank" rel="noopener noreferrer">{L('See this match on OpenStreetMap', 'यह मिलान OpenStreetMap पर देखें')}</a></p>
         ) : null}
+        <p className="dsx-note">{L('Map data:', 'मानचित्र डेटा:')} <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a></p>
         <div className="dsx-acts" style={{ justifyContent: 'flex-start' }}>
           <button type="button" className="btn btn-ghost" onClick={() => setStep(1)}>{L('Back', 'वापस')}</button>
           <button type="button" className="btn" disabled={!pick} onClick={choose}>{pick === 'new' ? L('Start empty', 'खाली से शुरू') : L('Use this', 'यही इस्तेमाल करें')}</button>

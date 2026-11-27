@@ -1,4 +1,7 @@
+'use client';
 import Link from 'next/link';
+import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { Kpi, KpiRow, ListRow, Panel, Tag } from '../parts';
 import { DashEmpty, DashNotConnected } from '../DashStates';
 import { Icon } from '@/components/Icon';
@@ -35,10 +38,10 @@ export function OpsToday({ lang, counts, alerts, offices, officesConnected = tru
       <div className="ds-head"><div className="grow"><p className="eyebrow">{L('CEO', 'मुख्य कार्यकारी')}</p><h1>{L('Operations today', 'आज का संचालन')}</h1>
         <p className="muted">{L('Live from bookings and rides. Times in IST.', 'बुकिंग और राइड से लाइव। समय IST में।')}</p></div></div>
       <KpiRow>
-        <Kpi label={L('Homestay check-ins', 'होमस्टे चेक-इन')} value={n(counts?.checkins)} href="/admin/bookings?type=stay&status=confirmed" />
-        <Kpi label={L('Cab rides today', 'आज की कैब राइड')} value={n(counts?.rides)} href="/admin/cab?tab=rides" />
-        <Kpi label={L('Seat holds now', 'अभी सीट होल्ड')} value={n(counts?.holds)} href="/admin/bookings?type=cab&status=waiting" />
-        <Kpi label={L('Open SOS', 'खुले SOS')} value={n(counts?.sos)} href="/admin/cab?tab=sos" />
+        <Kpi label={L('Homestay check-ins', 'होमस्टे चेक-इन')} value={n(counts?.checkins)}  />
+        <Kpi label={L('Cab rides today', 'आज की कैब राइड')} value={n(counts?.rides)}  />
+        <Kpi label={L('Seat holds now', 'अभी सीट होल्ड')} value={n(counts?.holds)}  />
+        <Kpi label={L('Open SOS', 'खुले SOS')} value={n(counts?.sos)}  />
       </KpiRow>
       <div className="dsx-grid2">
         <Panel title={L('Needs action', 'कार्रवाई ज़रूरी')} count={alerts.length}>
@@ -98,7 +101,7 @@ export function OnboardingQueue({ lang, partners, connected = true, sendAction =
             </span>
             <span className="dsx-row-act">
               {ready && sendAction
-                ? <form action={sendAction}><input type="hidden" name="partner_id" value={p.id} /><button className="btn btn-sm">{L('Send for approval', 'मंज़ूरी के लिए भेजें')}</button></form>
+                ? <SendPartner id={p.id} action={sendAction} L={L} />
                 : p.href ? <Link className="btn btn-ghost btn-sm" href={p.href}>{ready ? L('Open in Approvals', 'मंज़ूरी में खोलें') : L('Help finish', 'पूरा करने में मदद')}</Link> : null}
             </span>
           </div>
@@ -107,4 +110,18 @@ export function OnboardingQueue({ lang, partners, connected = true, sendAction =
       <p className="dsx-note">{L('Admin sets commission and gives final approval.', 'कमीशन और अंतिम मंज़ूरी एडमिन देते हैं।')}</p>
     </Panel>
   );
+}
+
+function SendPartner({ id, action, L }) {
+  const [busy, start] = useTransition();
+  const [message, setMessage] = useState('');
+  const router = useRouter();
+  return <><button type="button" className="btn btn-sm" disabled={busy} onClick={() => start(async () => {
+    const form = new FormData(); form.set('partner_id', id);
+    try {
+      const result = await action(form);
+      setMessage(result.ok ? L('Sent for approval.', 'मंज़ूरी के लिए भेजा।') : result.message);
+      if (result.ok) router.refresh();
+    } catch { setMessage(L('Could not send. Try again.', 'भेज नहीं सके। फिर कोशिश करें।')); }
+  })}>{L('Send for approval', 'मंज़ूरी के लिए भेजें')}</button>{message ? <small role="status">{message}</small> : null}</>;
 }
