@@ -123,6 +123,27 @@ How the UI uses these values:
 - **T4.** Verify the toll total, the shown fuel price and the remaining cost calculations (engine `computeBudget`) against the chosen data. Optionally place fuel and toll stops into the day plan items (the v2 design shows them on the right day).
 - **T5.** Optional: a stay estimate from approved listings near each night stop when there is no admin default.
 
+### Trip live-data integration
+
+- T1: Server-only SSR Innovation Lab adapter caches successful prices by state, district and IST date. Configure `TRIP_FUEL_API_URL`, `TRIP_FUEL_API_KEY`, and an approved HTTPS `TRIP_REVERSE_GEOCODER_URL` with a Nominatim-compatible response. The provider must specify the observation date and confirm coverage in the target districts. Its public example has no price date, so that response is deliberately rejected. Missing configuration returns `not_connected`; no placeholder price is displayed.
+- T2: `/api/trip/route-pois` queries OpenStreetMap through Overpass for bounded route geometries, snaps and deduplicates the results, and flags stretches over 50 km with no **mapped** fuel stop. Set `TRIP_OVERPASS_URL` to a suitable hosted instance if needed. In `TRIP_TOLL_RATES_JSON`, each entry is keyed by OSM element ID (such as `node/123`) and contains `date`, `source` and `classes`, using the `car`, `motorcycle` and `bus` keys. Populate entries only from checked one-way tariffs. Missing rates remain unknown. The toll total uses known rates only and retains the count of unknown rates.
+- T3–T4: Body and fuel type set a typical mileage estimate. CNG uses km/kg, private fares are kept separate from bus/train, incomplete road routes cannot produce a fuel total, and user rate overrides still take precedence.
+- T5: Deferred. No room estimate is inferred from list prices without checking availability.
+- Verified: `node tests/web/trip-live.mjs` passed the dated district parser, bounded route and POI logic, tariff class and deduplication, fuel gap and CNG budget tests. The paid key, dated district response and actual toll tariff catalogue remain staging dependencies.
+
+- Staging-oriented local HTTP smoke: the credential-free fuel endpoint returned `not_connected`, invalid route input returned HTTP 400, and a valid route returned HTTP 502 when the Overpass upstream was not reachable. The live provider and POI network path still require staging acceptance. The fallback admin price matches the selected fuel only.
+
+- Review fixes before merge (Claude, PR #20, 27 Nov 2026), for the 3 Codex review findings:
+  - A successful "Try missing parts again" now refetches POIs, because leg availability is part of the request identity.
+  - Repeated endpoints with different chosen roads (A → B → A → B) get their own result key (`poiLegKey`, `key@index`) and go in separate requests, so the server no longer rejects them.
+  - Long itineraries are split into batches (at most 3 legs and 2,000 points per request). Any failed batch fails the whole lookup, so tolls are never silently undercounted.
+  - Unit run against the real `validateRoute`/`snapRoutePois`: the repeat case gave 2 requests with 0 rejected; 9 legs × 350 points gave 3 requests with 0 rejected; a batch failure returned `error`. The planner harness still passes.
+
+**Provider shortlist (27 Nov 2026).** SSR Innovation Lab is the first district-level option to trial. It advertises petrol, diesel and CNG for Uttarakhand districts, but a monthly quote and a dated response for Almora, Nainital and Pithoragarh are needed before purchase. API Express advertises daily city or PIN-code data and lists Growth at ₹4,999/month, or a free sandbox. Energy API advertises daily city data on Professional at US$49.99/month. Neither alternative has verified district-wide prices for those districts. Do not substitute a city or statewide price silently.
+
+
+- Overpass failover uses one bounded alternate request on a network error, timeout, 5xx or incomplete response. It stops on 4xx, returns HTTP 502 if both providers fail, and does not invent POIs. Set `TRIP_OVERPASS_FALLBACK_URL` explicitly when `TRIP_OVERPASS_URL` is configured. `node tests/web/trip-overpass.mjs` passed the failure-path tests with controlled upstream responses.
+
 ### Changed and new files (area 4)
 
 | File | What |
