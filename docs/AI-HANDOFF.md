@@ -95,6 +95,12 @@ How the UI uses these values:
 
 - Staging-oriented local HTTP smoke: the credential-free fuel endpoint returned `not_connected`, invalid route input returned HTTP 400, and a valid route returned HTTP 502 when the Overpass upstream was not reachable. The live provider and POI network path still require staging acceptance. The fallback admin price matches the selected fuel only.
 
+- Review fixes before merge (Claude, PR #20, 27 Nov 2026), for the 3 Codex review findings:
+  - A successful "Try missing parts again" now refetches POIs, because leg availability is part of the request identity.
+  - Repeated endpoints with different chosen roads (A → B → A → B) get their own result key (`poiLegKey`, `key@index`) and go in separate requests, so the server no longer rejects them.
+  - Long itineraries are split into batches (at most 3 legs and 2,000 points per request). Any failed batch fails the whole lookup, so tolls are never silently undercounted.
+  - Unit run against the real `validateRoute`/`snapRoutePois`: the repeat case gave 2 requests with 0 rejected; 9 legs × 350 points gave 3 requests with 0 rejected; a batch failure returned `error`. The planner harness still passes.
+
 **Provider shortlist (27 Nov 2026).** SSR Innovation Lab is the first district-level option to trial. It advertises petrol, diesel and CNG for Uttarakhand districts, but a monthly quote and a dated response for Almora, Nainital and Pithoragarh are needed before purchase. API Express advertises daily city or PIN-code data and lists Growth at ₹4,999/month, or a free sandbox. Energy API advertises daily city data on Professional at US$49.99/month. Neither alternative has verified district-wide prices for those districts. Do not substitute a city or statewide price silently.
 
 

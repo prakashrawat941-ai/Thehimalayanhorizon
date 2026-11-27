@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { fetchRoute, routeIsFresh, routeKey, buildItinerary, computeBudget, defaultAssumptions, adminFuelRateKey, pickLeg, tripPoints, legPairs, distanceKm } from '@/lib/trip/engine';
 import { PREFS, PACES, MODES, STATUSES, MAX_DESTS, WHO, WHO_KEYS, whoOf, VEHICLES, FUELS, blank, loadDraft, saveDraft, dropDraft, slim, placeLabel, tripDays, validate, prefThemes, todayISO } from '@/lib/trip/common';
 import { saveTrip, shareLink, deleteTrip } from '@/lib/trip/save';
-import { fetchFuelPrices, fetchRoutePois } from '@/lib/trip/live';
+import { fetchFuelPrices, fetchRoutePois, poiLegKey } from '@/lib/trip/live';
 import { inr } from '@/lib/format';
 import { PlaceSearch } from '@/components/PlaceSearch';
 import { Icon } from '@/components/Icon';
@@ -76,7 +76,8 @@ export function Planner({ lang, places, locations, listings, defaults, searchLab
     return () => { alive = false; };
   }, [startKey]);
   const vehicleClass = d ? (d.mode === 'car' || d.mode === 'taxi' ? d.assumptions?.vehicle || d.mode : d.mode) : '';
-  const chosenKey = d?.route ? `${d.route.key}|${d.route.legs.map((l) => l.chosen || 0).join(',')}|${vehicleClass}|${rk}` : '';
+  // Leg availability is part of the identity so a successful "try missing parts again" refetches POIs.
+  const chosenKey = d?.route ? `${d.route.key}|${d.route.legs.map((l) => (l.error ? 'x' : l.chosen || 0)).join(',')}|${vehicleClass}|${rk}` : '';
   useEffect(() => {
     if (!chosenKey || !routeIsFresh(latest.current)) return undefined;
     let alive = true;
@@ -108,7 +109,7 @@ export function Planner({ lang, places, locations, listings, defaults, searchLab
     const fp = live.fuel?.status === 'ok' ? live.fuel.prices?.[ft] : null;
     if (fp?.price) { a.fuel_price = fp.price; a.fuelInfo = { area: live.fuel.area, date: fp.date }; }
     if (live.pois?.status === 'ok' && d.route && ['car', 'taxi', 'bike'].includes(d.mode)) {
-      const tolls = d.route.legs.flatMap((l) => (live.pois.legs?.[l.key] || []).filter((p) => p.kind === 'toll'));
+      const tolls = d.route.legs.flatMap((l, i) => (l.error ? [] : live.pois.legs?.[poiLegKey(d.route, i)] || []).filter((p) => p.kind === 'toll'));
       a.tollInfo = { count: tolls.length, unknown: tolls.filter((p) => p.rate == null).length };
       if (tolls.some((p) => p.rate != null)) a.tolls = tolls.reduce((s, p) => s + (p.rate ?? 0), 0);
     }
@@ -128,7 +129,7 @@ export function Planner({ lang, places, locations, listings, defaults, searchLab
     if (!d) return [];
     const list = [];
     if (live.pois?.status === 'ok' && d.route) {
-      d.route.legs.forEach((l, li) => (live.pois.legs?.[l.key] || []).forEach((p) => list.push({ ...p, leg: li + 1, sub: p.kind === 'toll' ? (p.rate != null ? `${inr(p.rate)} · ${L('one way', 'एक तरफ़')}` : L('Rate not known', 'रेट पता नहीं')) : p.brand || '' })));
+      d.route.legs.forEach((l, li) => (l.error ? [] : live.pois.legs?.[poiLegKey(d.route, li)] || []).forEach((p) => list.push({ ...p, leg: li + 1, sub: p.kind === 'toll' ? (p.rate != null ? `${inr(p.rate)} · ${L('one way', 'एक तरफ़')}` : L('Rate not known', 'रेट पता नहीं')) : p.brand || '' })));
     }
     const dests = d.dests.filter(Boolean);
     listings.filter((s) => s.lat != null && dests.some((p) => distanceKm(p, s) <= 25))

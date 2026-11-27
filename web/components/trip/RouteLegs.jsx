@@ -3,6 +3,7 @@ import { legPairs, pickLeg, summarise } from '@/lib/trip/engine';
 import { placeLabel } from '@/lib/trip/common';
 import { inr } from '@/lib/format';
 import { km, dur } from './bits';
+import { poiLegKey } from '@/lib/trip/live';
 
 const fmtDate = (iso, lang) => (iso ? new Date(`${iso}T12:00:00+05:30`).toLocaleDateString(lang === 'hi' ? 'hi-IN' : 'en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 
@@ -31,8 +32,9 @@ export function RouteLegs({ d, lang, pois, busy, progress, onRoute, onRetry }) {
       {route.legs.map((leg, i) => {
         const pr = pairs[i] || {};
         const l = pickLeg(leg);
-        const list = live ? (pois.legs?.[leg.key] || []) : [];
-        const gaps = live ? (pois.gaps?.[leg.key] || []) : [];
+        const pk = poiLegKey(route, i);
+        const list = live ? (pois.legs?.[pk] || []) : [];
+        const gaps = live ? (pois.gaps?.[pk] || []) : [];
         const tolls = list.filter((p) => p.kind === 'toll');
         const fuel = list.filter((p) => p.kind === 'fuel');
         return (
