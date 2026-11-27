@@ -6,8 +6,8 @@ Owner: Prakash Singh. Frontend and UI: Claude. Backend integration, permissions,
 |---|---|
 | Instant Cab | Merged to main in PR #14 (`b2cd6fa`, 26 Nov 2026) at the owner's request |
 | Public pages | Merged to main in PR #15 (`b11baa9`, 26 Nov 2026) at the owner's request |
-| Trip Planner (area 4) | Branch `claude/thh-trip-planner`, stacked on `claude/thh-dashboards` (PR #17). Code commit `691339c`. Review PR: https://github.com/prakashrawat941-ai/Thehimalayanhorizon/pull/19 (base `claude/thh-dashboards`). Not merged; needs the owner's approval. |
-| Dashboards (area 3) | Branch `claude/thh-dashboards`, cut from main `b11baa9`. Code commits `8b40d27` (switcher, booking monitor, components) and `7341296` (Founder, CEO, Co-founder routes). Review PR: https://github.com/prakashrawat941-ai/Thehimalayanhorizon/pull/17. Not merged; needs the owner's approval. |
+| Trip Planner (area 4) | Branch `claude/thh-trip-planner`, now based on main after PR #17. Code commit `691339c`. Review PR: https://github.com/prakashrawat941-ai/Thehimalayanhorizon/pull/19 (base `main`). Not merged; needs the owner's approval. |
+| Dashboards (area 3) | Merged to main in PR #17 (`a303710`, 27 Nov 2026) at the owner's request, after fixing 4 Codex review findings (booking route order, room counts for tours/workspaces, homestay-only check-in KPI, homestay-only onboarding queue). |
 
 ## Design previews (claude.ai artifacts, private to the owner)
 
@@ -114,6 +114,7 @@ How the UI uses these values:
   - A blank trip shows 5 validation errors.
   - A failed OSRM route shows the per-leg error.
   - No page errors.
+- Review fixes (Codex on PR #19): save writes the resolved rates (a cleared override no longer saves `''`), and only a map drag counts as a manual pin move, so later GPS readings never replace a moved pin.
 - Not run here: `next build` (no packages in this sandbox). Real Leaflet tiles and real GPS were not exercised (sandbox blocks the network). CI and the Vercel preview are the build evidence.
 
 ## Area 3: Dashboards, as implemented

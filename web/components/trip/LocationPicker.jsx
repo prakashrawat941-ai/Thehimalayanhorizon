@@ -32,7 +32,8 @@ export function LocationPicker({ lang, initial = null, onPick, onCancel }) {
       if (!alive || !box.current || map.current) return;
       const m = Lf.map(box.current, { zoomControl: true }).setView(initial ? [initial.lat, initial.lng] : [29.9, 79.5], initial ? 15 : 8);
       Lf.tileLayer(TILE, { attribution: ATTR, maxZoom: 19 }).addTo(m);
-      m.on('movestart', () => { moved.current = true; });
+      // Only a person dragging the map counts as a manual move (setView from GPS does not).
+      m.on('dragstart', () => { moved.current = true; });
       m.on('moveend', () => { const c = m.getCenter(); setCenter({ lat: +c.lat.toFixed(6), lng: +c.lng.toFixed(6) }); });
       map.current = m;
       setTimeout(() => m.invalidateSize(), 60);
@@ -80,8 +81,7 @@ export function LocationPicker({ lang, initial = null, onPick, onCancel }) {
       if (best && p.accuracy >= best.accuracy) return;
       best = p; setFix(p); drawFix(p);
       if (!moved.current && map.current) map.current.setView([p.lat, p.lng], p.accuracy <= 30 ? 17 : p.accuracy <= 200 ? 15 : 12);
-      if (!map.current) setCenter({ lat: p.lat, lng: p.lng }); // map failed to load: GPS still works
-      moved.current = false;
+      if (!map.current && !moved.current) setCenter({ lat: p.lat, lng: p.lng }); // map failed to load: GPS still works
       if (p.accuracy <= 15) stop();
     }, (e) => { setGps(e.code === 1 ? 'denied' : 'unavailable'); stop(); }, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
     setTimeout(stop, 12000);

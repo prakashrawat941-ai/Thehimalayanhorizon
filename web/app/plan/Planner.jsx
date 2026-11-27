@@ -159,7 +159,8 @@ export function Planner({ lang, places, locations, listings, defaults, searchLab
     if (!signedIn) { saveDraft(d); router.push('/login?next=/plan'); return null; }
     setBusy('save');
     try {
-      const id = await saveTrip({ ...d, ...extra, assumptions: { ...effective, ...(d.assumptions || {}), auto_sources: { fuel: auto.fuelInfo || null, tolls: auto.tollInfo || null } } });
+      // Save the resolved rates (cleared overrides already fall back to the auto value in `effective`).
+      const id = await saveTrip({ ...d, ...extra, assumptions: { ...effective, auto_sources: { fuel: auto.fuelInfo || null, tolls: auto.tollInfo || null } } });
       update({ ...extra, tripId: id });
       flash(L('Trip saved', 'ट्रिप सेव हो गई'));
       return id;
