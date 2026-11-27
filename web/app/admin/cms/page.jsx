@@ -45,7 +45,7 @@ export default async function Cms({ searchParams }) {
       ] },
     itineraries: { label: L('Itineraries', 'तैयार प्लान'), order: 'position', title: 'title', sub: ['days_count', 'region'], defaults: { region: 'Kumaon', difficulty: 'easy', days_count: 3, is_published: false, position: 99, days: [] },
       fields: [
-        { name: 'title', label: L('Title', 'शीर्षक'), required: true }, { name: 'title_hi', label: L('Title (Hindi)', 'शीर्षक (हिंदी)'), keepEmpty: true }, { name: 'slug', label: 'Slug', required: true },
+        { name: 'title', label: L('Title', 'शीर्षक'), required: true }, { name: 'title_hi', label: L('Title (Hindi)', 'शीर्षक (हिंदी)') }, { name: 'slug', label: 'Slug', required: true },
         { name: 'region', label: L('Region', 'क्षेत्र'), type: 'select', options: REGIONS }, { name: 'days_count', label: L('Days', 'दिन'), type: 'number', required: true },
         { name: 'difficulty', label: L('Difficulty', 'कठिनाई'), type: 'select', options: [['easy', 'Easy'], ['moderate', 'Moderate'], ['challenging', 'Challenging']] },
         { name: 'budget_min', label: L('Budget from (₹, approx.)', 'बजट से (₹, लगभग)'), type: 'number' }, { name: 'budget_max', label: L('Budget to (₹, approx.)', 'बजट तक (₹, लगभग)'), type: 'number' },
