@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { browserDb } from '@/lib/supabase/client';
 import { GoogleButton } from '@/components/GoogleButton';
+import { signInWithEmployeeId } from './employee-actions';
 export function LoginForm({ next, text, initialMode, heading }) {
     const router = useRouter();
     const [mode, setMode] = useState(initialMode);
@@ -46,9 +47,13 @@ export function LoginForm({ next, text, initialMode, heading }) {
                 }
             }
             else {
-                const { error } = await db.auth.signInWithPassword({ email, password });
-                if (error)
-                    throw error;
+                if (email.includes('@')) {
+                    const { error } = await db.auth.signInWithPassword({ email, password });
+                    if (error) throw error;
+                } else {
+                    const result = await signInWithEmployeeId(email, password);
+                    if (!result.ok) throw new Error(text.invalid_credentials);
+                }
                 router.replace(next);
                 router.refresh();
             }
@@ -75,8 +80,8 @@ export function LoginForm({ next, text, initialMode, heading }) {
         </>) : null}
       {mode === 'signup' ? (<label className="field"><span className="field-label">{text.name}</span>
           <input className="input" name="full_name" required minLength={2} maxLength={120} autoComplete="name"/></label>) : null}
-      <label className="field"><span className="field-label">{text.email}</span>
-        <input className="input" name="email" type="email" required autoComplete="email" inputMode="email"/></label>
+      <label className="field"><span className="field-label">{mode === 'signin' ? text.email_or_employee_id : text.email}</span>
+        <input className="input" name="email" type={mode === 'signin' ? 'text' : 'email'} required autoComplete={mode === 'signin' ? 'username' : 'email'} autoCapitalize="none"/></label>
       {mode === 'signup' ? (<label className="field"><span className="field-label">{text.phone}</span>
           <input className="input" name="phone" type="tel" autoComplete="tel" pattern="[0-9+\s-]{7,20}" maxLength={20}/></label>) : null}
       {mode !== 'forgot' ? (<label className="field"><span className="field-label">{text.password}</span>

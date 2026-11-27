@@ -623,3 +623,13 @@ The popup still opens only after `request_cab_ride_idempotent` returns a booking
 - **Pre-existing, fixed for the new cabin only:** `h()` in `web/lib/cab/ui.js` assigns `style` objects with `Object.assign`, which ignores CSS custom properties. The old schematic seat grid's `--cabin-tracks` and `--cabin-columns` were never applied. The new cabin sets its variable with `style.setProperty`. Other callers that pass `--*` in `style` are unchanged.
 - **Hindi:** new labels use the existing `L(en, hi)` helper. Hindi wording should be reviewed by a native speaker.
 - **Popup checkmark:** in the harness screenshots the receipt popup's check mark looked empty. The popup's `cele-mark` styling and animation were not changed in this work. Check it on a real device.
+
+### Founder-issued Employee ID login
+
+The Founder can assign a unique Employee ID when adding a CEO or Co-founder in Access management. New users verify the invitation email, choose a personal password, and set up MFA. Existing accounts keep their current password. Employee IDs work as sign-in aliases, and email remains the account identity for recovery. Passwords and Auth sessions stay in Supabase.
+
+Staging migration `20261127172011_leadership_employee_login.sql` adds the private alias table with RLS and constrained RPC access. Founder assignment uses the existing audited membership RPC inside the same transaction as alias reservation. The alias-to-email lookup is service-role-only and checks current membership. Removing leadership access disables ID login and reserves the prior ID for that email. Email changes require the Founder to register the ID for the new email after resolving the old reservation. No existing members were assigned IDs by the migration.
+
+The staging preview needs `SUPABASE_SERVICE_ROLE_KEY`, the preview's base URL as `NEXT_PUBLIC_SITE_URL`, and that origin's `/management/invite` in Supabase Auth Redirect URLs. Apply the schema before deploying the feature. To roll back, return the staging alias to the previous Vercel build. The additive schema can remain in place to preserve issued IDs. Keep production changes subject to owner approval.
+
+`tests/db/leadership-employee-login-test.sql` passed all 11 checks before and after staging migration application, with fixtures rolled back. Verify delivery, password setup, and signed-in role/MFA routing with a real test inbox in the configured preview.

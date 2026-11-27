@@ -4,7 +4,15 @@ import { istDayRange } from './management-data';
 function check(result) { if (result.error) throw result.error; return result.data ?? []; }
 const outcome = async (fn) => { try { return { data: await fn(), error: false }; } catch (e) { console.error('[management dashboard]', e?.message); return { data: null, error: true }; } };
 export const loadFinance = (db) => outcome(async () => check(await db.rpc('management_finance'))[0] || { booking_value: 0, commission: 0 });
-export const loadPeople = (db) => outcome(async () => check(await db.rpc('management_people')).map((p) => ({ userId: p.user_id, name: p.display_name, role: p.role, office: p.office, mfa: p.mfa, lastActive: p.last_active ? new Date(p.last_active).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : null })));
+export const loadPeople = (db) => outcome(async () => {
+  const [people, ids] = await Promise.all([db.rpc('management_people'), db.rpc('management_leadership_employee_ids')]);
+  const byUser = new Map(check(ids).map(({ user_id, employee_id }) => [user_id, employee_id]));
+  return check(people).map((p) => ({
+    userId: p.user_id, name: p.display_name, role: p.role, office: p.office, mfa: p.mfa,
+    employeeId: byUser.get(p.user_id),
+    lastActive: p.last_active ? new Date(p.last_active).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : null,
+  }));
+});
 export const loadWork = (db, member, userId, view) => outcome(async () => {
   const actionsFirst = ['founder', 'tasks', 'reviews'].includes(view);
   const query = () => {

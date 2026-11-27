@@ -3,6 +3,7 @@ import { createClient as adminClient } from '@supabase/supabase-js';
 import { requireManagement } from '@/lib/management/guard';
 import { SUPABASE_KEY, SUPABASE_URL } from '@/lib/config';
 import { decisions } from '@/lib/management/catalog';
+import { isEmployeeId } from '@/lib/management/employee-id';
 
 const failure = (e) => ({ ok: false, message: e?.message || 'Request failed. Try again.' });
 const clean = (f,k) => String(f.get(k) ?? '').trim();
@@ -34,13 +35,22 @@ export async function setMember(form) {
   if (mfaNeeded) return failure(new Error('Two-step verification required.'));
   const userId=clean(form,'user_id'),email=clean(form,'email').toLowerCase(),role=clean(form,'role'),office=clean(form,'office'),note=clean(form,'note');
   if ((userId && !uuid(userId)) || (userId && email) || (!userId && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) || !['ceo','co_founder','employee','none'].includes(role) || (role!=='none' && (office.length<1 || office.length>120)) || note.length<1 || note.length>500 || (role==='none' && !userId)) return failure(new Error('Check the person, role, office and 1–500 character reason.'));
+  const employeeId = clean(form, 'employee_id').toUpperCase();
+  const leadershipInvite = !userId && ['ceo', 'co_founder'].includes(role);
+  if (leadershipInvite && !isEmployeeId(employeeId)) return failure(new Error('Enter a valid employee ID.'));
   // An invite must really be sent. Without a configured server secret, report failure before any write.
   let inviteAdmin;
   if (email) {
+    if (process.env.VERCEL_ENV === 'preview' && !process.env.NEXT_PUBLIC_SITE_URL) {
+      return failure(new Error('Configure the preview site URL before sending invitations.'));
+    }
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return failure(new Error('Email invitations are unavailable. Configure the server invitation key.'));
     inviteAdmin=adminClient(SUPABASE_URL,process.env.SUPABASE_SERVICE_ROLE_KEY,{ auth:{ persistSession:false,autoRefreshToken:false } });
   }
-  const result=await db.rpc('management_set_member',{ p_user:userId || null,p_email:email || null,p_role:role,p_office:office,p_note:note });
+  const member = { p_email: email || null, p_role: role, p_office: office, p_note: note };
+  const result = leadershipInvite
+    ? await db.rpc('management_set_leadership_employee_id', { ...member, p_employee_id: employeeId })
+    : await db.rpc('management_set_member', { ...member, p_user: userId || null });
   if (result.error) return failure(result.error);
   if (email) {
     // Existing confirmed accounts receive a role directly; newly invited accounts get a pending record.

@@ -23,6 +23,8 @@ export default async function LoginPage({ searchParams }) {
     };
     const text = {
         signin: t('signin'), signup: t('signup'), name: t('name'), email: t('email'), phone: t('phone'), password: t('password'),
+        email_or_employee_id: L('Email or employee ID', 'ईमेल या कर्मचारी आईडी'),
+        invalid_credentials: L('Invalid employee ID or password.', 'कर्मचारी आईडी या पासवर्ड गलत है।'),
         or_email: t('or_email'), loading: t('loading'), error: t('error'), forgot_password: t('forgot_password'),
         reset_sent: t('reset_sent'), check_email: t('check_email'), become_partner: t('become_partner'),
         title_signin: L('Welcome back', 'फिर से स्वागत है'), title_signup: L('Create your account', 'नया अकाउंट'),
