@@ -1,6 +1,10 @@
 import './launch.css';
 import LaunchScreen from '@/components/LaunchScreen';
 import './globals.css';
+import '@/styles/tokens.css';
+import '@/styles/brand-dark.generated.css';
+import '@/styles/ui.css';
+import { THEME_INIT_SCRIPT } from '@/lib/theme/theme';
 import { getT } from '@/lib/i18n/server';
 import { getSession } from '@/lib/auth';
 import { getSettings } from '@/lib/data';
@@ -34,8 +38,10 @@ export default async function RootLayout({ children }) {
     const brand = settings.brand || {};
     const labels = Object.fromEntries(['home', 'nav_cab', 'nav_planner', 'nav_villages', 'search', 'admin', 'partner', 'account', 'signin', 'plan_your_trip', 'villages', 'plan', 'cabs', 'notifications']
         .map((k) => [k, t(k)]));
-    return (<html lang={lang}>
+    return (<html lang={lang} suppressHydrationWarning>
       <head>
+        {/* Applies the saved light/dark choice before first paint (no flash). Static string, no user input. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}/>
         <link rel="preconnect" href="https://fonts.googleapis.com"/>
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin=""/>
         {/* eslint-disable-next-line @next/next/no-page-custom-font */}

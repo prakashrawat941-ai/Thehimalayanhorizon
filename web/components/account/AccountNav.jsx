@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Icon } from '../Icon';
+import { ThemeToggle } from '../ui/ThemeToggle';
 
 // Sidebar on laptops, scrollable chips on phones (same design-system shell as the current app).
 export function AccountNav({ items, title }) {
@@ -22,6 +23,7 @@ export function AccountNav({ items, title }) {
           <span>{title}</span>
         </div>
         <div className="ds-group">{items.map((it) => link(it, 'ds-link'))}</div>
+        <div style={{ marginTop: 16 }}><ThemeToggle /></div>
       </aside>
       <nav className="ds-strip" aria-label={title}>{items.map((it) => link(it, 'ds-chip'))}</nav>
     </>
