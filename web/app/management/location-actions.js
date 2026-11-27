@@ -2,6 +2,7 @@
 import { requireManagement } from '@/lib/management/guard';
 
 const fields = ['name','name_hi','district','region','kind','lat_lng','nearest_town','altitude_m','best_season','image_url'];
+const localMatchFields = 'name,name_hi,district,region,kind,lat,lng';
 const sources = ['places','locations','osm','derived','suggested','manual'];
 const value = (f,k) => String(f.get(k) ?? '').trim();
 const same = (a,b) => a.toLocaleLowerCase().trim() === b.toLocaleLowerCase().trim();
@@ -69,15 +70,19 @@ async function locationWrite(form,kind) {
   if(match&&!/^(places|locations):[0-9a-f-]{36}$|^osm:[a-z]+:[0-9]+$/i.test(match)) return {ok:false,message:'Invalid match.'};
   // Recheck local provenance: changed values must be recorded as manual.
   if(/^(places|locations):/.test(match)) {
-   const [table,id]=match.split(':');const result=await db.from(table).select('name,name_hi,district,region,kind,lat,lng,best_season,image_url').eq('id',id).maybeSingle();
+   const [table,id]=match.split(':');
+   const projection = table === 'locations' ? localMatchFields + ',best_season,image_url' : localMatchFields;
+   const result=await db.from(table).select(projection).eq('id',id).maybeSingle();
    if(result.error||!result.data) return {ok:false,message:'Matched place is no longer available.'};
    const original=mapped(result.data,table);
    for(const k of fields) if(inputSources[k]===table && input[k]!==String(original[k]?.value||'')) inputSources[k]='manual';
   }
+  const draftId=value(form,'draft_id');
+  if (draftId && !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(draftId)) return {ok:false,message:'Invalid draft.'};
   const result=kind==='draft'
-   ? await db.rpc('management_location_draft',{p_fields:input,p_sources:inputSources,p_match:match||null})
+   ? await db.rpc('management_location_save',{p_id:draftId||null,p_fields:input,p_sources:inputSources,p_match:match||null})
    : await db.rpc('management_location_publish',{p_fields:input,p_sources:inputSources,p_match:match||null,p_home:value(form,'show_on_home')==='true',p_featured:value(form,'featured')==='true'});
-  return result.error ? {ok:false,message:result.error.message} : {ok:true};
+  return result.error ? {ok:false,message:result.error.message} : {ok:true,id:result.data};
  } catch(e) { return {ok:false,message:e?.message||'Could not save the location.'}; }
 }
 export async function saveDraft(form) { return locationWrite(form,'draft'); }

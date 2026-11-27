@@ -1,10 +1,10 @@
 'use client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { fetchRoute, routeIsFresh, routeKey, buildItinerary, computeBudget, defaultAssumptions, pickLeg, tripPoints, legPairs, distanceKm } from '@/lib/trip/engine';
+import { fetchRoute, routeIsFresh, routeKey, buildItinerary, computeBudget, defaultAssumptions, adminFuelRateKey, pickLeg, tripPoints, legPairs, distanceKm } from '@/lib/trip/engine';
 import { PREFS, PACES, MODES, STATUSES, MAX_DESTS, WHO, WHO_KEYS, whoOf, VEHICLES, FUELS, blank, loadDraft, saveDraft, dropDraft, slim, placeLabel, tripDays, validate, prefThemes, todayISO } from '@/lib/trip/common';
 import { saveTrip, shareLink, deleteTrip } from '@/lib/trip/save';
-import { fetchFuelPrices, fetchRoutePois } from '@/lib/trip/live';
+import { fetchFuelPrices, fetchRoutePois, poiLegKey } from '@/lib/trip/live';
 import { inr } from '@/lib/format';
 import { PlaceSearch } from '@/components/PlaceSearch';
 import { Icon } from '@/components/Icon';
@@ -35,7 +35,7 @@ export function Planner({ lang, places, locations, listings, defaults, searchLab
   const [editing, setEditing] = useState(null);
   const [picker, setPicker] = useState(null); // 'start' | destination index
   const [layers, setLayers] = useState({ fuel: true, toll: true, stay: false });
-  const [live, setLive] = useState({ fuel: null, pois: null });
+  const [liveResults, setLive] = useState({ fuel: null, pois: null });
   const latest = useRef(null);
 
   // Load: a trip opened for editing > a prefilled place > the draft on this device > blank.
@@ -72,16 +72,22 @@ export function Planner({ lang, places, locations, listings, defaults, searchLab
   useEffect(() => {
     if (!startKey) return undefined;
     let alive = true;
-    fetchFuelPrices(latest.current.start).then((r) => { if (alive) setLive((s) => ({ ...s, fuel: r })); }).catch(() => { if (alive) setLive((s) => ({ ...s, fuel: { status: 'error' } })); });
+    fetchFuelPrices(latest.current.start).then((r) => { if (alive) setLive((s) => ({ ...s, fuel: { key: startKey, result: r } })); }).catch(() => { if (alive) setLive((s) => ({ ...s, fuel: { key: startKey, result: { status: 'error' } } })); });
     return () => { alive = false; };
   }, [startKey]);
-  const chosenKey = d?.route ? `${d.route.key}|${d.route.legs.map((l) => l.chosen || 0).join('')}|${d.assumptions?.vehicle || ''}` : '';
+  const vehicleClass = d ? (d.mode === 'car' || d.mode === 'taxi' ? d.assumptions?.vehicle || d.mode : d.mode) : '';
+  // Leg availability is part of the identity so a successful "try missing parts again" refetches POIs.
+  const chosenKey = d?.route ? `${d.route.key}|${d.route.legs.map((l) => (l.error ? 'x' : l.chosen || 0)).join(',')}|${vehicleClass}|${rk}` : '';
   useEffect(() => {
     if (!chosenKey || !routeIsFresh(latest.current)) return undefined;
     let alive = true;
-    fetchRoutePois(latest.current.route, latest.current.assumptions?.vehicle || latest.current.mode).then((r) => { if (alive) setLive((s) => ({ ...s, pois: r })); }).catch(() => { if (alive) setLive((s) => ({ ...s, pois: { status: 'error' } })); });
+    fetchRoutePois(latest.current.route, vehicleClass).then((r) => { if (alive) setLive((s) => ({ ...s, pois: { key: chosenKey, result: r } })); }).catch(() => { if (alive) setLive((s) => ({ ...s, pois: { key: chosenKey, result: { status: 'error' } } })); });
     return () => { alive = false; };
-  }, [chosenKey]);
+  }, [chosenKey, vehicleClass]);
+  const live = useMemo(() => ({
+    fuel: liveResults.fuel?.key === startKey ? liveResults.fuel.result : null,
+    pois: liveResults.pois?.key === chosenKey && d && routeIsFresh(d) ? liveResults.pois.result : null,
+  }), [liveResults, startKey, chosenKey, d]);
 
   // ---------- itinerary ----------
   const generate = useCallback((cur, force = false) => {
@@ -102,10 +108,10 @@ export function Planner({ lang, places, locations, listings, defaults, searchLab
     const ft = d.assumptions?.fuel_type || 'petrol';
     const fp = live.fuel?.status === 'ok' ? live.fuel.prices?.[ft] : null;
     if (fp?.price) { a.fuel_price = fp.price; a.fuelInfo = { area: live.fuel.area, date: fp.date }; }
-    if (live.pois?.status === 'ok' && d.route) {
-      const tolls = d.route.legs.flatMap((l) => (live.pois.legs?.[l.key] || []).filter((p) => p.kind === 'toll'));
-      a.tolls = tolls.reduce((s, p) => s + (Number(p.rate) || 0), 0);
+    if (live.pois?.status === 'ok' && d.route && ['car', 'taxi', 'bike'].includes(d.mode)) {
+      const tolls = d.route.legs.flatMap((l, i) => (l.error ? [] : live.pois.legs?.[poiLegKey(d.route, i)] || []).filter((p) => p.kind === 'toll'));
       a.tollInfo = { count: tolls.length, unknown: tolls.filter((p) => p.rate == null).length };
+      if (tolls.some((p) => p.rate != null)) a.tolls = tolls.reduce((s, p) => s + (p.rate ?? 0), 0);
     }
     return a;
   }, [d, live]);
@@ -123,7 +129,7 @@ export function Planner({ lang, places, locations, listings, defaults, searchLab
     if (!d) return [];
     const list = [];
     if (live.pois?.status === 'ok' && d.route) {
-      d.route.legs.forEach((l, li) => (live.pois.legs?.[l.key] || []).forEach((p) => list.push({ ...p, leg: li + 1, sub: p.kind === 'toll' ? (p.rate != null ? `${inr(p.rate)} · ${L('one way', 'एक तरफ़')}` : L('Rate not known', 'रेट पता नहीं')) : p.brand || '' })));
+      d.route.legs.forEach((l, li) => (l.error ? [] : live.pois.legs?.[poiLegKey(d.route, li)] || []).forEach((p) => list.push({ ...p, leg: li + 1, sub: p.kind === 'toll' ? (p.rate != null ? `${inr(p.rate)} · ${L('one way', 'एक तरफ़')}` : L('Rate not known', 'रेट पता नहीं')) : p.brand || '' })));
     }
     const dests = d.dests.filter(Boolean);
     listings.filter((s) => s.lat != null && dests.some((p) => distanceKm(p, s) <= 25))
@@ -311,12 +317,12 @@ export function Planner({ lang, places, locations, listings, defaults, searchLab
                   <>
                     <div className="tp2-seg" role="radiogroup" aria-label={L('Fuel', 'ईंधन')}>{FUELS.map(([k, en, hi, unit]) => {
                       const p = live.fuel?.status === 'ok' ? live.fuel.prices?.[k] : null;
-                      return <button key={k} type="button" role="radio" aria-checked={fuelType === k} onClick={() => setA({ fuel_type: k })}>{lang === 'hi' ? hi : en}{p?.price ? <small>₹{p.price}/{unit}</small> : null}</button>;
+                      return <button key={k} type="button" role="radio" aria-checked={fuelType === k} onClick={() => { if (fuelType !== k) setA({ fuel_type: k, fuel_price: '', mileage: '' }); }}>{lang === 'hi' ? hi : en}{p?.price ? <small>₹{p.price}/{unit}</small> : null}</button>;
                     })}</div>
-                    {live.fuel?.status === 'ok' ? <p className="small muted">{L(`Today's prices for ${live.fuel.area} (${live.fuel.source}).`, `${live.fuel.area} के आज के दाम (${live.fuel.source})।`)}</p>
+                    {live.fuel?.status === 'ok' ? <p className="small muted">{L(`Dated rates for ${live.fuel.area} (${live.fuel.source}).`, `${live.fuel.area} के दर्ज दाम (${live.fuel.source})।`)}</p>
                       : <p className="small muted">{L('Live fuel prices are not connected yet — the cost uses the admin default or your price.', 'लाइव ईंधन दाम अभी जुड़े नहीं — ख़र्च में एडमिन का डिफ़ॉल्ट या आपका दाम लगेगा।')}</p>}
-                    <label className="field"><span className="field-label">{L('Your mileage (km per litre, optional)', 'आपका माइलेज (किमी/लीटर, वैकल्पिक)')}</span>
-                      <input className="input" type="number" min={1} max={100} step={0.5} inputMode="decimal" value={d.assumptions?.mileage ?? ''} placeholder={L(`Empty = typical ${defaultAssumptions(d).mileage} km/l`, `ख़ाली = आम ${defaultAssumptions(d).mileage} किमी/लीटर`)}
+                    <label className="field"><span className="field-label">{(fuelType === 'cng' ? L('Your mileage (km per kg, optional)', 'आपका माइलेज (किमी/किग्रा, वैकल्पिक)') : L('Your mileage (km per litre, optional)', 'आपका माइलेज (किमी/लीटर, वैकल्पिक)'))}</span>
+                      <input className="input" type="number" min={1} max={100} step={0.5} inputMode="decimal" value={d.assumptions?.mileage ?? ''} placeholder={L(`Empty = typical ${defaultAssumptions(d).mileage} ${fuelType === 'cng' ? 'km/kg' : 'km/l'}`, `ख़ाली = आम ${defaultAssumptions(d).mileage} ${fuelType === 'cng' ? 'किमी/किग्रा' : 'किमी/लीटर'}`)}
                         onChange={(e) => setA({ mileage: e.target.value })} /></label>
                   </>
                 ) : null}
@@ -422,7 +428,9 @@ export function Planner({ lang, places, locations, listings, defaults, searchLab
 // Admin-set defaults (Admin → Trip Planner cost assumptions) fill empty rates.
 function defaultsFor(d, defaults = {}) {
   const base = defaultAssumptions(d);
-  ['fuel_price', 'taxi_per_km', 'food_per_person_day', 'stay_per_night'].forEach((k) => { if (defaults?.[k] != null && defaults[k] !== '') base[k] = defaults[k]; });
+  const fuelPrice = defaults?.[adminFuelRateKey(d.assumptions?.fuel_type)];
+  if (fuelPrice != null && fuelPrice !== '') base.fuel_price = fuelPrice;
+  ['taxi_per_km', 'food_per_person_day', 'stay_per_night'].forEach((k) => { if (defaults?.[k] != null && defaults[k] !== '') base[k] = defaults[k]; });
   return base;
 }
 

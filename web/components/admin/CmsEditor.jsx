@@ -15,12 +15,15 @@ export async function CmsEditor({ searchParams, db, user, previewOnly = false, b
   const T = {
     home_sections: { label: L('Home sections', 'होम सेक्शन'), order: 'position', title: 'kind', sub: ['title', 'position'], defaults: { kind: 'text', enabled: true, position: 99 },
       fields: [
-        { name: 'kind', label: L('Section type', 'सेक्शन का प्रकार'), type: 'select', options: ['hero', 'themes', 'destinations', 'villages', 'itineraries', 'stays', 'workspaces', 'cabs', 'partner_cta', 'text'].map((k) => [k, k]), required: true },
+        { name: 'kind', label: L('Section type', 'सेक्शन का प्रकार'), type: 'select', options: [...['hero', 'themes', 'destinations', 'villages', 'itineraries', 'stays', 'workspaces', 'cabs', 'partner_cta', 'text'].map((k) => [k, k]),
+          ['trust', L('trust — promises strip', 'trust — भरोसे की पट्टी')], ['season', L('season — go this season', 'season — इस मौसम में जाएँ')], ['map', L('map — explore on the map', 'map — नक्शे पर देखें')],
+          ['sample_plan', L('sample_plan — sample trip plan', 'sample_plan — नमूना ट्रिप प्लान')], ['today_rides', L('today_rides — shared rides today', 'today_rides — आज की शेयर राइड')]], required: true,
+          hint: L('trust, season, map, sample_plan and today_rides fill themselves from live data; set only order, show/hide and an optional title/subtitle.', 'trust, season, map, sample_plan और today_rides लाइव डेटा से अपने आप भरते हैं; सिर्फ़ क्रम, दिखाना/छिपाना और चाहें तो शीर्षक/उपशीर्षक भरें।') },
         { name: 'position', label: L('Order', 'क्रम'), type: 'number' }, { name: 'enabled', label: L('Show on home page', 'होम पेज पर दिखाएँ'), type: 'bool' },
-        { name: 'title', label: L('Title (English)', 'शीर्षक (अंग्रेज़ी)') }, { name: 'title_hi', label: L('Title (Hindi)', 'शीर्षक (हिंदी)') },
-        { name: 'subtitle', label: L('Subtitle (English)', 'उपशीर्षक (अंग्रेज़ी)'), type: 'textarea' }, { name: 'subtitle_hi', label: L('Subtitle (Hindi)', 'उपशीर्षक (हिंदी)'), type: 'textarea' },
-        { name: 'image_url', label: L('Image', 'फ़ोटो'), type: 'image' }, { name: 'cta_label', label: L('Button text', 'बटन का टेक्स्ट') }, { name: 'cta_label_hi', label: L('Button text (Hindi)', 'बटन (हिंदी)') },
-        { name: 'cta_url', label: L('Button link (e.g. /villages)', 'बटन लिंक (जैसे /villages)') },
+        { name: 'title', label: L('Title (English)', 'शीर्षक (अंग्रेज़ी)'), keepEmpty: true }, { name: 'title_hi', label: L('Title (Hindi)', 'शीर्षक (हिंदी)'), keepEmpty: true },
+        { name: 'subtitle', label: L('Subtitle (English)', 'उपशीर्षक (अंग्रेज़ी)'), type: 'textarea', keepEmpty: true }, { name: 'subtitle_hi', label: L('Subtitle (Hindi)', 'उपशीर्षक (हिंदी)'), type: 'textarea', keepEmpty: true },
+        { name: 'image_url', label: L('Image', 'फ़ोटो'), type: 'image' }, { name: 'cta_label', label: L('Button text', 'बटन का टेक्स्ट'), keepEmpty: true }, { name: 'cta_label_hi', label: L('Button text (Hindi)', 'बटन (हिंदी)'), keepEmpty: true },
+        { name: 'cta_url', label: L('Button link (e.g. /villages)', 'बटन लिंक (जैसे /villages)'), keepEmpty: true },
       ] },
     locations: { label: L('Places / destinations', 'जगहें'), order: 'position', title: 'name', sub: ['kind', 'district', 'region'], defaults: { kind: 'destination', region: 'Kumaon', is_published: false, position: 99 },
       fields: [

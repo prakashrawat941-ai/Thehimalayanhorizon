@@ -1,6 +1,7 @@
 import { getT } from '@/lib/i18n/server';
 import { requireUser } from '@/lib/account';
 import { AccountNav } from '@/components/account/AccountNav';
+import './account.css';
 
 export const metadata = { robots: { index: false } };
 
@@ -12,7 +13,7 @@ export default async function AccountLayout({ children }) {
     db.from('cab_bookings').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'pending'),
   ]);
   const items = [
-    { href: '/account', icon: 'home', label: L('Overview', 'ओवरव्यू') },
+    { href: '/account', icon: 'home', label: L('Overview', 'ओवरव्यू'), exact: true },
     { href: '/account/bookings', icon: 'house', label: L('Stays & tours', 'होमस्टे और टूर') },
     { href: '/account/cab', icon: 'car', label: L('Cab bookings', 'कैब बुकिंग'), count: requests.count || 0 },
     { href: '/account/trips', icon: 'map', label: L('My trips', 'मेरी यात्राएँ') },

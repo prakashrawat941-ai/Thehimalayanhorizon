@@ -1,7 +1,7 @@
 'use server';
 import { createClient as adminClient } from '@supabase/supabase-js';
 import { requireManagement } from '@/lib/management/guard';
-import { SUPABASE_URL } from '@/lib/config';
+import { SUPABASE_KEY, SUPABASE_URL } from '@/lib/config';
 import { decisions } from '@/lib/management/catalog';
 
 const failure = (e) => ({ ok: false, message: e?.message || 'Request failed. Try again.' });
@@ -47,8 +47,13 @@ export async function setMember(form) {
     const { data: pending,error: lookupError }=await db.rpc('management_invitation_pending',{ p_email:email });
     if (lookupError) return failure(lookupError);
     if (pending) {
-      const sent=await inviteAdmin.auth.admin.inviteUserByEmail(email,{ redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://thehimalayanhorizon.netlify.app'}/management/invite` });
-      if (sent.error) return failure(new Error('Invitation was recorded, but email delivery failed. Retry the invite.'));
+      const redirectTo = new URL('/management/invite', process.env.NEXT_PUBLIC_SITE_URL || 'https://thehimalayanhorizon.netlify.app').toString();
+      let { error: deliveryError } = await inviteAdmin.auth.admin.inviteUserByEmail(email, { redirectTo });
+      if (['email_exists', 'user_already_exists'].includes(deliveryError?.code)) {
+        const auth = adminClient(SUPABASE_URL, SUPABASE_KEY, { auth: { flowType: 'implicit', persistSession: false, autoRefreshToken: false } }).auth;
+        ({ error: deliveryError } = await auth.signInWithOtp({ email, options: { shouldCreateUser: false, emailRedirectTo: redirectTo } }));
+      }
+      if (deliveryError) return failure(new Error('Invitation was recorded, but email delivery failed. Retry the invite.'));
     }
   }
   return { ok:true };
@@ -57,12 +62,9 @@ export async function setMember(form) {
 export async function sendOnboarding(form) {
  try {
   const {db,mfaNeeded}=await requireManagement('co_founder','/co-founder/onboarding');
-  const partner=clean(form,'partner_id');
-  if (mfaNeeded || !uuid(partner)) return failure(new Error('Verification and a valid partner are required.'));
-  const { data: rows,error }=await db.rpc('management_partner_queue');
-  if (error || !rows?.some((p)=>p.id===partner)) return failure(new Error('Partner is no longer available.'));
-  const p=rows.find((x)=>x.id===partner);
-  const result=await db.rpc('management_submit',{p_kind:'partner',p_subject:`Partner onboarding: ${p.business_name}`,p_partner:partner});
+  const listing=clean(form,'homestay_id');
+  if (mfaNeeded || !uuid(listing)) return failure(new Error('Verification and a valid homestay are required.'));
+  const result=await db.rpc('management_submit_homestay',{p_homestay:listing});
   return result.error ? failure(result.error) : {ok:true};
  } catch(e) { return failure(e); }
 }
@@ -70,10 +72,10 @@ export async function sendOnboarding(form) {
 export async function acceptInvite() {
  try {
   const { requireUser } = await import('@/lib/account');
-  const {db}=await requireUser('/management/invite');
+  const {db,user}=await requireUser('/management/invite');
   const result=await db.rpc('accept_leadership_invitation');
   if(result.error) return failure(result.error);
-  const {data,error}=await db.from('management_members').select('role').eq('user_id',(await db.auth.getUser()).data.user.id).single();
+  const {data,error}=await db.from('management_members').select('role').eq('user_id',user.id).single();
   if(error) return failure(error);
   return {ok:true,path:{ceo:'/ceo',co_founder:'/co-founder',employee:'/employee'}[data.role]||'/account'};
  } catch(e) { return failure(e); }

@@ -100,8 +100,8 @@ export function OnboardingQueue({ lang, partners, connected = true, sendAction =
               <span className="dsx-bar" role="progressbar" aria-valuemin={0} aria-valuemax={STEPS.length} aria-valuenow={done.length}><i style={{ width: `${(done.length / STEPS.length) * 100}%` }} /></span>
             </span>
             <span className="dsx-row-act">
-              {ready && sendAction
-                ? <SendPartner id={p.id} action={sendAction} L={L} />
+              {next?.[0] === 'review' && p.listingId && sendAction
+                ? <SendHomestay id={p.listingId} action={sendAction} L={L} />
                 : p.href ? <Link className="btn btn-ghost btn-sm" href={p.href}>{ready ? L('Open in Approvals', 'मंज़ूरी में खोलें') : L('Help finish', 'पूरा करने में मदद')}</Link> : null}
             </span>
           </div>
@@ -112,12 +112,12 @@ export function OnboardingQueue({ lang, partners, connected = true, sendAction =
   );
 }
 
-function SendPartner({ id, action, L }) {
+function SendHomestay({ id, action, L }) {
   const [busy, start] = useTransition();
   const [message, setMessage] = useState('');
   const router = useRouter();
   return <><button type="button" className="btn btn-sm" disabled={busy} onClick={() => start(async () => {
-    const form = new FormData(); form.set('partner_id', id);
+    const form = new FormData(); form.set('homestay_id', id);
     try {
       const result = await action(form);
       setMessage(result.ok ? L('Sent for approval.', 'मंज़ूरी के लिए भेजा।') : result.message);
