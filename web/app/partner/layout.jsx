@@ -29,7 +29,7 @@ export default async function PartnerLayout({ children }) {
     { href: '/partner/profile', icon: 'user', label: L('Business profile', 'बिज़नेस प्रोफ़ाइल') },
   ];
   return (
-    <div className="ds pp">
+    <div className="ds pp" data-surface="brand">
       <AccountNav items={items} title={L('Partner portal', 'पार्टनर पोर्टल')} />
       <div className="ds-main">{children}</div>
     </div>

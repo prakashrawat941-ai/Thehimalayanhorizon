@@ -11,7 +11,7 @@ import '@/app/dash.css';
 export function DashLayout({ ctx, managementRole = null, current, title, items, L, children }) {
   const keys = authorisedDashboards({ roles: ctx?.roles, managementRole });
   return (
-    <div className="ds">
+    <div className="ds" data-surface="brand">
       <AccountNav items={items} title={title} />
       <div className="ds-main">
         <div className="dsx-topbar">
