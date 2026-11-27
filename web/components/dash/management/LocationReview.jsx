@@ -1,5 +1,6 @@
 'use client';
 import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { DashError, DashNotConnected } from '../DashStates';
 import { tr } from './ui';
 
@@ -23,13 +24,16 @@ const scoreTone = (s) => (s >= 85 ? 'green' : s >= 60 ? 'blue' : 'gray');
  *   saveDraft(FormData) / publish(FormData) → { ok, message }
  * Nothing is invented here: a field without a value from the match stays empty and is marked "needs you".
  */
-export function LocationReview({ lang, districts = [], findMatches = null, saveDraft = null, publish = null }) {
+export function LocationReview({ lang, districts = [], findMatches = null, saveDraft = null, publish = null, initialDraft = null }) {
   const L = tr(lang);
-  const [step, setStep] = useState(1);
-  const [query, setQuery] = useState({ name: '', district: '' });
+  const router = useRouter();
+  const [draftId, setDraftId] = useState(initialDraft?.id ?? null);
+  const [step, setStep] = useState(initialDraft ? 3 : 1);
+  const [query, setQuery] = useState({ name: initialDraft?.fields.name ?? '', district: initialDraft?.fields.district ?? '' });
   const [result, setResult] = useState(null);
-  const [pick, setPick] = useState(null);
-  const [fields, setFields] = useState({});
+  const [pick, setPick] = useState(initialDraft?.match_id ?? null);
+  const [fields, setFields] = useState(() => Object.fromEntries(Object.entries(initialDraft?.fields ?? {}).map(([key, value]) =>
+    [key, { value, source: initialDraft?.field_sources[key] ?? 'manual' }])));
   const [opts, setOpts] = useState({ show_on_home: true, featured: false });
   const [msg, setMsg] = useState(null);
   const [busy, start] = useTransition();
@@ -47,6 +51,7 @@ export function LocationReview({ lang, districts = [], findMatches = null, saveD
     const f = new FormData();
     Object.entries(fields).forEach(([k, v]) => f.set(k, v.value ?? ''));
     f.set('field_sources', JSON.stringify(Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, v.source || 'manual']))));
+    if (draftId) f.set('draft_id', draftId);
     if (pick && pick !== 'new') f.set('match_id', pick);
     Object.entries(extra).forEach(([k, v]) => f.set(k, String(v)));
     return f;
@@ -148,8 +153,12 @@ export function LocationReview({ lang, districts = [], findMatches = null, saveD
         <p className="dsx-note">{L('Nothing is invented: empty facts stay empty until you add them. Each field’s source is saved with the place.', 'कुछ भी गढ़ा नहीं जाता: खाली जानकारी तब तक खाली रहती है जब तक आप न भरें। हर खाने का स्रोत जगह के साथ सेव होता है।')}</p>
         {status}
         <div className="dsx-acts" style={{ justifyContent: 'flex-start' }}>
-          <button type="button" className="btn btn-ghost" onClick={() => setStep(2)}>{L('Back', 'वापस')}</button>
-          {saveDraft ? <button type="button" className="btn btn-ghost" disabled={busy || !String(fields.name?.value ?? '').trim()} onClick={() => run(() => saveDraft(formOf()), () => setMsg({ text: L('Draft saved. It is not on the website yet.', 'ड्राफ़्ट सेव हुआ। अभी वेबसाइट पर नहीं है।') }))}>{L('Save draft', 'ड्राफ़्ट सेव करें')}</button> : null}
+          <button type="button" className="btn btn-ghost" onClick={() => setStep(result ? 2 : 1)}>{L('Back', 'वापस')}</button>
+          {saveDraft ? <button type="button" className="btn btn-ghost" disabled={busy || !String(fields.name?.value ?? '').trim()} onClick={() => run(() => saveDraft(formOf()), (saved) => {
+            setDraftId(saved.id);
+            setMsg({ text: L('Draft saved. It is not on the website yet.', 'ड्राफ़्ट सेव हुआ। अभी वेबसाइट पर नहीं है।') });
+            router.refresh();
+          })}>{L('Save draft', 'ड्राफ़्ट सेव करें')}</button> : null}
           <button type="button" className="btn" disabled={!String(fields.name?.value ?? '').trim()} onClick={() => { setMsg(null); setStep(4); }}>{L('Continue', 'आगे')}</button>
         </div>
       </section>

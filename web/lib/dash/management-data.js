@@ -80,7 +80,7 @@ export const loadOnboarding = (db) => safe('onboarding', async () => {
     if (String(s.house_rules || '').trim()) done.push('policies');
     if (kycOk(s.partner_id)) done.push('kyc');
     if (s.status === 'pending') done.push('review');
-    return { id: s.id, partnerId: s.partner_id, name: s.name || s.partners?.business_name || '—', village: s.village, partner: s.partners?.business_name, done, at: s.updated_at };
+    return { id: s.id, listingId: s.id, partnerId: s.partner_id, name: s.name || s.partners?.business_name || '—', village: s.village, partner: s.partners?.business_name, done, at: s.updated_at };
   });
   partners.filter((p) => !stays.some((s) => s.partner_id === p.id)).forEach((p) => {
     out.push({ id: p.id, partnerId: p.id, name: p.business_name, village: p.village, partner: null, done: kycOk(p.id) ? ['basic', 'kyc'] : ['basic'], at: p.created_at });

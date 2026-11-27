@@ -402,6 +402,11 @@ or `{ status: 'not_connected' }`.
 - **What the UI sends** to `saveDraft` and `publish`: every field value, `field_sources` (JSON), `match_id`, and for publish `show_on_home` and `featured`.
 - **Storing it:** there is no `field_sources` column today; it needs a schema decision. `publish` writes `locations` + `home_sections` and logs it via `management_cms_event` (branch).
 
+### PR #18 review follow-up
+
+- Apply `20261127160000_management_review_fixes.sql` after #18's existing migrations. Offboarding releases foreign-key assignments and returns an active assigned initiative to Planning. Reinviting updates the existing pending request, and the invitation page establishes the email session before calling the authenticated acceptance action.
+- Location drafts are readable and editable only by their creating Co-founder after MFA. Place provenance uses table-specific columns. The Co-founder can send a completed homestay draft to Admin → Approvals → Homestays. KYC exposes only status within onboarding scope, and older open work is loaded before recent history.
+
 ### Codex backend integration (27 Nov 2026; review branch `codex/management-dashboards-integration`)
 
 - Preserved Claude's role routes and admin layout. The temporary admin guard is replaced with `requireManagement`: member role is checked on every layout and page, and the Supabase authenticator assurance level must be `aal2`. A mismatched role is denied; the MFA gate displays `DashMfaNeeded` and the authenticator form. The admin switcher no longer offers other management roles; legacy admin profiles carrying a management membership cannot open `/admin`.

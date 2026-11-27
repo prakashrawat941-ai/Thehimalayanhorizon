@@ -6,13 +6,28 @@ const outcome = async (fn) => { try { return { data: await fn(), error: false };
 export const loadFinance = (db) => outcome(async () => check(await db.rpc('management_finance'))[0] || { booking_value: 0, commission: 0 });
 export const loadPeople = (db) => outcome(async () => check(await db.rpc('management_people')).map((p) => ({ userId: p.user_id, name: p.display_name, role: p.role, office: p.office, mfa: p.mfa, lastActive: p.last_active ? new Date(p.last_active).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : null })));
 export const loadWork = (db, member, userId, view) => outcome(async () => {
-  let q = db.from('management_work').select('id,kind,subject,owner_id,assignee,amount,status,created_at,management_events(action,note,happened_at)').order('created_at', { ascending: false }).limit(100);
-  if (view === 'founder') q = q.in('kind', ['critical','finance','expense']);
-  if (view === 'tasks') q = q.in('kind', ['task','email','operation']);
-  if (view === 'reviews') q = q.in('kind', ['partner','cms','release']);
-  if (view === 'requests') q = q.in('kind', ['critical','finance']).eq('owner_id', userId);
-  if (view === 'releases') q = q.eq('kind', 'release').eq('owner_id', userId);
-  const rows = check(await q);
+  const actionsFirst = ['founder', 'tasks', 'reviews'].includes(view);
+  const query = () => {
+    let q = db.from('management_work').select('id,kind,subject,owner_id,assignee,amount,status,created_at,management_events(action,note,happened_at)');
+    if (view === 'founder') q = q.in('kind', ['critical','finance','expense']);
+    if (view === 'tasks') q = q.in('kind', ['task','email','operation']);
+    if (view === 'reviews') q = q.in('kind', ['partner','cms','release']);
+    if (view === 'requests') q = q.in('kind', ['critical','finance']).eq('owner_id', userId);
+    if (view === 'releases') q = q.eq('kind', 'release').eq('owner_id', userId);
+    return q.order('created_at', { ascending: false }).order('id', { ascending: false });
+  };
+  const rows = [];
+  if (actionsFirst) {
+    const size = 100;
+    for (let from = 0; ; from += size) {
+      const page = check(await query().eq('status', 'open').range(from, from + size - 1));
+      rows.push(...page);
+      if (page.length < size) break;
+    }
+    rows.push(...check(await query().neq('status', 'open').limit(100)));
+  } else {
+    rows.push(...check(await query().limit(100)));
+  }
   return rows.map((w) => ({ id: w.id, kind: w.kind, subject: w.subject, from: w.owner_id === userId ? null : w.owner_id.slice(0,8), amount: w.amount, when: new Date(w.created_at).toLocaleString('en-IN', { timeZone:'Asia/Kolkata' }), status: w.status, actions: decisions(member,userId,w) }));
 });
 export const loadOffices = (db) => outcome(async () => {

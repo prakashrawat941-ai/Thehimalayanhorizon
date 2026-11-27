@@ -17,7 +17,7 @@ export default async function CoFounderOnboarding() {
         <p className="muted">{L('Help new hosts finish their listing. Admin gives the final approval.', 'नए होस्ट की लिस्टिंग पूरी कराएँ। अंतिम मंज़ूरी एडमिन देते हैं।')}</p></div></div>
       {queue.error ? <DashError title={L('Couldn’t load this', 'यह लोड नहीं हुआ')} text={L('Check your connection and try again. Nothing was changed.', 'कनेक्शन जाँचकर फिर कोशिश करें। कुछ नहीं बदला गया।')} retry={L('Try again', 'फिर कोशिश करें')} />
         : <OnboardingQueue lang={lang} sendAction={sendOnboarding} partners={queue.data.map((p) => ({
-            id: p.partnerId, name: p.name, done: p.done,
+            id: p.id, listingId: p.listingId, name: p.name, done: p.done,
             sub: [p.village, p.partner, p.at ? L(`updated ${fmtDate(p.at, lang)}`, `${fmtDate(p.at, lang)} को बदला`) : null].filter(Boolean).join(' · '),
             href: null,
           }))} />}
