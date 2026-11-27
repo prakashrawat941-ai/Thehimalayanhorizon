@@ -6,9 +6,11 @@ Owner: Prakash Singh. Frontend and UI: Claude. Backend integration, permissions,
 |---|---|
 | Instant Cab | Merged to main in PR #14 (`b2cd6fa`, 26 Nov 2026) at the owner's request |
 | Public pages | Merged to main in PR #15 (`b11baa9`, 26 Nov 2026) at the owner's request |
-| Homepage extras (area 5) | Branch `claude/thh-home-extras` from main `01d2928`. Code commit `d5366c3`. Review PR: https://github.com/prakashrawat941-ai/Thehimalayanhorizon/pull/22. Not merged; needs the owner's approval. |
+| Homepage extras (area 5) | Merged to main in PR #22; CMS mode merged in PR #23 (`26cde57`, 27 Nov 2026) after fixing 2 Codex findings (blank optional text saves as '', trust title/subtitle). The #23 migration is NOT applied to production; CMS mode stays off until it is. |
 | Trip Planner (area 4) | Merged to main in PR #19 (`01d2928`, 27 Nov 2026) at the owner's request. Was branch `claude/thh-trip-planner`. Code commit `691339c`. Review PR: https://github.com/prakashrawat941-ai/Thehimalayanhorizon/pull/19 (base `main`). Not merged; needs the owner's approval. |
-| Guest account (area 9) | Branch `claude/thh-account` from main `934b126`. Review PR: https://github.com/prakashrawat941-ai/Thehimalayanhorizon/pull/26. Not merged; needs the owner's approval. |
+| Guest account (area 9) | Merged to main in PR #26 (27 Nov 2026) at the owner's request, after fixing 2 Codex review findings (next confirmed ride, dialog focus). |
+| Homestay booking (area 8) | Merged to main in PR #25 (`3ac39bf`, 27 Nov 2026) at the owner's request, after fixing 3 Codex review findings (empty date crash, submitted-values summary, dialogs above the header). |
+| Partner portal (area 7) | Merged to main in PR #24 (`8e68aef`, 27 Nov 2026) at the owner's request. |
 | Dashboards (area 3) | Merged to main in PR #17 (`a303710`, 27 Nov 2026) at the owner's request, after fixing 4 Codex review findings (booking route order, room counts for tours/workspaces, homestay-only check-in KPI, homestay-only onboarding queue). |
 
 ## Design previews (claude.ai artifacts, private to the owner)
@@ -22,6 +24,8 @@ Every value in these previews is demo data, and each preview is labelled as such
 | 3. Founder, CEO, Co-founder and Admin dashboards | https://claude.ai/artifact/7N3W4hcriB1nS2MBwniViw | Approved 27 Nov 2026; implemented (see below) |
 | 5. Homepage extras | https://claude.ai/artifact/VA4FfYixRRFmus7uhsima7 | Approved 27 Nov 2026; implemented (see below) |
 | 9. Guest account pages | https://claude.ai/artifact/XjkZrVuBcSdGydo221utcD | Approved 27 Nov 2026; implemented (see below) |
+| 8. Homestay booking flow | https://claude.ai/artifact/EZaU2HRzVzwhztCtgxYsud | Approved 27 Nov 2026; implemented (see below) |
+| 7. Partner / homestay portal | https://claude.ai/artifact/CPCnXmyt7mbp8Zp54wuHuR | Approved 27 Nov 2026; implemented (see below) |
 | 4. Trip Planner and Trip Report | https://claude.ai/artifact/TjyUeTJMSW1ueGfotfDR6G (v2) | v1 changed at the owner's request; v2 approved 27 Nov 2026 with price option B (paid fuel-price API); implemented (see below) |
 
 An earlier all-in-one preview (https://claude.ai/artifact/K2uJ3wuzDYM4LBo6qvoYr3) was rejected and is superseded.
@@ -62,6 +66,88 @@ Same tables and RPCs as before. Additions: bookings select now includes `homesta
 - Cancel dialog shows the cancellation rule; a failing RPC keeps the dialog with the message and no refresh; success sends `set_booking_status(p_status='cancelled')`, closes and refreshes. Status line marks Confirmed / Requested correctly; tours show 3 steps.
 - Not run: `next build` locally (relies on CI); no signed-in Supabase test.
 
+## Area 8: Homestay booking flow, as implemented
+
+UI refresh of `/homestays` and `/homestays/[slug]`. No change to auth, schema, RLS, roles or booking transactions. Workspaces and village tours still use the old `ListingDetail` / `BookingForm`.
+
+### Screens and routes
+
+| Route | What changed |
+|---|---|
+| `/homestays` | Homestay cards (`StayCard`): photo, place, up to 3 amenities, "from" price, "Host confirms" tag. Filters unchanged. |
+| `/homestays/[slug]` | New `StayDetail`: photo grid (1 big + up to 4) with full-screen viewer (Esc / arrow keys), facts (max guests from rooms × units, room types, check-in), description, room cards, amenities, meals, house rules parsed from the `Check-in:` / `Check-out:` / `Cancellation:` lines the partner wizard writes, host card (no partner name or phone), place + Trip Planner link, more nearby. |
+| Booking (`StayBooking`) | Desktop: sticky card with dates, room, rooms/guests steppers, live `quote_homestay` estimate → Continue opens the request dialog. Phone: fixed bar above the site tab bar → same dialog. Dialog adds name, phone, message. Guests over `max_guests × rooms` and "not free" disable sending (the database still re-checks both). Not signed in: login link carries `ci, co, room, n, g` in `next`, read back on return. |
+| Request sent | Shown only after `booking_requests.insert(...).select('id, booking_code').single()` succeeds; shows the server's booking code and next steps. Insert errors stay in the dialog. |
+| `loading.jsx` | Skeleton for the detail page. |
+
+### Changed and new files
+
+- `web/components/stay/StayDetail.jsx`, `StayBooking.jsx` (`RoomCards` + `StayBooking`), `Gallery.jsx`, `StayCard.jsx` (new)
+- `web/lib/stay.js` (new: `splitHouseRules`, `istDay`, `nightsBetween`), `web/app/stay.css` (new, `st-`)
+- `web/app/homestays/[slug]/page.jsx`, `web/app/homestays/[slug]/loading.jsx` (new), `web/components/ListingPages.jsx` (homestay list uses `StayCard`)
+
+### Data and APIs
+
+Same as before: `getListing('homestay')`, `getRooms`, `getListings` (nearby), `getLocations`, `getSession` (name/phone prefill), `quote_homestay(p_room, p_start, p_end, p_rooms)` RPC, `booking_requests` insert with the same columns as `BookingForm`. New: the insert now also selects `id, booking_code` of the new row (needs the existing "guest reads own bookings" policy).
+
+### Pending Codex items: homestay booking
+
+- SB1. Confirm in staging that the insert + select of the user's own new row is allowed by RLS (if not, the request is saved but the dialog shows an error).
+- SB2. Optional: a quote breakdown per night (weekday / weekend / special) from the RPC; the UI shows only the total today.
+- SB3. Signed-in staging test of a real request end to end.
+
+### Checks run: homestay booking
+
+- Transpile check of every changed file.
+- Local harness (not committed): real `StayDetail`, `StayBooking`, `Gallery` and `StayCard` bundled with esbuild, stubbed data/auth/Supabase and invented rows; EN/HI × signed in/out × detail/list at 360px and 1280px, plus sparse data (1 room, no photos, no rules): no horizontal scroll, no page errors.
+- Room card tap selects the room in the booking card and re-quotes; 5 guests in a 3-guest room blocks sending with the message; a failed insert keeps the dialog with the error and no success screen; a successful insert shows the server's booking code; quote failure shows retry; "not free" message; login link keeps dates; photo viewer opens, arrows, Esc.
+- Not run: `next build` locally (relies on CI); no signed-in Supabase test.
+
+## Area 7: Partner / homestay portal, as implemented
+
+UI-only refresh of `/partner`. No change to authentication, database schema, RLS, roles or booking transactions. Every write goes through the same calls as before (`set_booking_status` RPC, `homestays` / `homestay_rooms` / `room_rates` writes under the existing RLS, `request_payout`).
+
+### Screens and routes
+
+| Route | What changed |
+|---|---|
+| `/partner` (Today) | New host: 4-step getting-started list (business details, homestay, KYC, send for review; the last is "Later" until the partner account is approved and a homestay exists). Live host: banners (requests waiting, homestay in review, KYC missing), 4 KPIs (requests waiting, arriving in 7 days, staying now, not yet paid), "Next 7 days" arrivals/departures, listing-health checklist. The 6-month bar chart was removed (not in the approved design). |
+| `/partner/bookings` | Card layout. Money box: estimate only while `requested`; guest pays / THH commission (rate) / you receive once the server has fixed `partner_payout_amount`. Guest phone is displayed only for confirmed, checked-in and completed bookings (display rule; the row is still readable by the partner under RLS). Empty state links to the calendar. |
+| `BookingActions` | `window.prompt` replaced by dialogs. Confirm dialog shows the estimate and says the system fixes the amounts. Decline dialog has an optional reason with 3 quick chips. Both close and refresh only after the RPC returns without error; on error the message stays in the dialog. Esc closes; focus returns. |
+| `/partner/calendar` | Range select (tap a start date, then an end date), weekend / special-price / booked / closed cell styles, legend, "Close all rooms" (sets `blocked_units = total_inventory`, keeps any special price), "Reset to normal". Booked nights per date are counted from the partner's confirmed/checked-in bookings for that room (same rule as `private.rooms_free`: `start_date <= d < end_date`), display only. |
+| `/partner/properties` | Cover cards with status (Live / In review / Changes needed / Draft), photo count, completeness bar, commission line, admin remark. |
+| `/partner/properties/[id]` | Back link, status badge, admin remark. Wizard: pill steps with ticks, room cards with remove button, photo grid with cover/remove, sticky Back / Save draft / Next or Send for review bar, "How guests will see it" preview on the last step. Validation and save logic unchanged. |
+| `/partner/earnings` | KPI tiles restyled; logic unchanged. |
+| `loading.jsx`, `error.jsx` | New skeleton and bilingual error with retry for every partner page. |
+
+Mobile note: the site already has a fixed bottom tab bar on phones, so the partner menu stays as the scrollable chip strip at the top instead of the second bottom bar shown in the preview.
+
+### Changed and new files
+
+- `web/app/partner/partner.css` (new, `pp-` classes), `web/lib/partner-ui.js` (new: `listingHealth`, `nextDays`, `addDays`)
+- `web/app/partner/layout.jsx` (labels Today / My homestays, order, `exact` on Today, css import)
+- `web/app/partner/page.jsx`, `bookings/page.jsx`, `calendar/page.jsx`, `earnings/page.jsx`, `properties/page.jsx`, `properties/[id]/page.jsx`, `loading.jsx` (new), `error.jsx` (new)
+- `web/components/partner/BookingActions.jsx`, `RateCalendar.jsx`, `PropertyWizard.jsx`
+
+### Data each screen uses
+
+Unchanged queries: `partners`, `homestays`, `homestay_rooms`, `booking_requests` (via `loadHost`), `partner_kyc.status`, `room_rates`, `payout_requests`. Listing health uses only `name, village, district, summary, images, house_rules, location_id` and active rooms' `base_price`.
+
+### Pending Codex items: partner portal
+
+- PP1. Optional: if guest phone should be hidden from partners until confirmation at the data level too, that needs an RLS/view change (not done here).
+- PP2. Optional: `room_rates` upsert has no server check that closed rooms do not go below rooms already booked; the UI warns that closing does not cancel bookings.
+- PP3. Signed-in staging test of confirm/decline/check-in/complete and calendar save with a real partner account.
+
+### Checks run: partner portal
+
+- Transpile check of every changed file.
+- Local harness (not committed): the real page and client components bundled with esbuild, with stubbed Supabase, i18n and Next modules and invented test rows. 3 host states (new, in review, live) × English/Hindi × 9 screens (Today, Bookings, Calendar, Homestays, Earnings, loading, error, wizard edit, wizard new) at 360px and 1280px: no horizontal page scroll, no page errors.
+- Confirm with a failing RPC keeps the dialog open, shows the message and does not refresh; a successful RPC sends `set_booking_status(p_status='confirmed')`, closes and refreshes. Decline sends the chosen reason. Esc closes.
+- Calendar range 10–14 Dec upserts 5 rows with the entered price; booked nights show on 1–2 Dec.
+- Wizard reaches step 5 with the guest preview; a new wizard blocks Next with "Enter the homestay name."
+- Not run: `next build` locally (no node_modules here); relies on CI. No signed-in test against Supabase.
+
 ## Area 5: Homepage extras, as implemented
 
 Six additions to `/`. Each uses real data only and shows a clear empty state.
@@ -80,6 +166,17 @@ Files:
 - `web/components/home/Extras.jsx`, `ExploreMap.jsx`, `WhatsAppButton.jsx`
 - `web/app/home-extras.css`
 - `web/app/page.jsx` (wiring)
+
+Editable in the CMS (follow-up branch `claude/thh-home-cms`, owner request 27 Nov 2026):
+- The five extras can become `home_sections` kinds: `trust`, `season`, `map`, `sample_plan`, `today_rides`. Admin (and the Co-founder through the `management_cms` policy from PR #18) can then show or hide them, change their order, and set an optional title/subtitle (EN/HI). Their content still fills itself from live data.
+- **Switch:** `site_settings.home_layout.extras_in_cms = true`. Until it is set, the site keeps the current fixed placement, so merging the code changes nothing on its own.
+- **Migration** `supabase/migrations/20261127060000_home_extras_sections.sql` (**not applied**):
+  - widens `home_sections_kind_check`
+  - inserts the 5 rows, with trust at position 2 and the other four after every existing section, shifting existing rows from position 2 by one
+  - sets the switch
+  - Dry run on staging inside `begin … rollback` gave hero:1, trust:2, themes:3 … partner_cta:10, season:11, map:12, sample_plan:13, today_rides:14. Nothing was kept.
+- **CMS editor:** `web/app/admin/cms/page.jsx` lists the new kinds with labels and a hint. CODEX: PR #18 moves this list into `web/components/admin/CmsEditor.jsx`; carry the new options over there when merging.
+- Apply the migration with the PR #18/#21 production release (staging first, owner approval).
 
 Pending for content and Codex:
 - H1 (owner/admin): add destinations with `best_season`, lat/lng and photos. Only 1 location is published today.
