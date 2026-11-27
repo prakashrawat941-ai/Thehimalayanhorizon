@@ -33,7 +33,7 @@ export default async function BookingMonitorPage({ searchParams }) {
     when: r.type === 'cab' ? when(r.departure, lang)
       : [fmtDate(r.start, lang), r.end && r.end !== r.start ? fmtDate(r.end, lang) : ''].filter(Boolean).join(' – '),
     qty: r.type === 'cab' ? L(`${r.seats} seat(s)`, `${r.seats} सीट`)
-      : [r.rooms ? L(`${r.rooms} room(s)`, `${r.rooms} कमरे`) : '', r.guests ? L(`${r.guests} guest(s)`, `${r.guests} मेहमान`) : ''].filter(Boolean).join(' · ') || '—',
+      : [r.kind === 'homestay' && r.rooms ? L(`${r.rooms} room(s)`, `${r.rooms} कमरे`) : '', r.guests ? L(`${r.guests} guest(s)`, `${r.guests} मेहमान`) : ''].filter(Boolean).join(' · ') || '—',
   }));
   const statusWords = {
     requested: L('Waiting for host', 'होस्ट का इंतज़ार'), pending: L('Waiting for driver', 'ड्राइवर का इंतज़ार'),
