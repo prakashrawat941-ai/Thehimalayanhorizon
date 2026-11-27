@@ -335,8 +335,16 @@ export const COST_CATS = [
   ['reserve', 'Emergency reserve', 'आपात रिज़र्व'],
 ];
 export const DEFAULT_MILEAGE = { car: 15, bike: 40, taxi: 15, bus: 0, train: 0, shared: 0 };
+const BODY_MILEAGE = { petrol: { hatch: 17, sedan: 15, suv: 12 }, diesel: { hatch: 20, sedan: 18, suv: 15 }, cng: { hatch: 22, sedan: 20, suv: 16 } };
+const typicalMileage = (d) => {
+  const fuel = d.assumptions?.fuel_type || 'petrol';
+  const body = d.assumptions?.vehicle;
+  if (d.mode === 'car') return BODY_MILEAGE[fuel]?.[body] ?? (fuel === 'cng' ? 20 : DEFAULT_MILEAGE.car);
+  if (d.mode === 'bike' && fuel === 'cng') return 55;
+  return DEFAULT_MILEAGE[d.mode] || 15;
+};
 export const defaultAssumptions = (d) => ({
-  fuel_price: '', mileage: DEFAULT_MILEAGE[d.mode] || 15, taxi_per_km: '', fare_per_person: '', rooms: Math.max(1, Math.ceil(d.adults / 2)),
+  fuel_price: '', mileage: typicalMileage(d), taxi_per_km: '', fare_per_person: '', rooms: Math.max(1, Math.ceil(d.adults / 2)),
   stay_per_night: '', food_per_person_day: '', activities: '', permits: '', local: '', tolls: '', other: '', reserve_pct: 10, local_km_per_day: 20,
 });
 const num = (v) => (v === '' || v == null || Number.isNaN(Number(v)) ? null : Number(v));
@@ -347,14 +355,14 @@ export function computeBudget(d, route, days) {
   const nDays = Math.round((new Date(d.ret) - new Date(d.depart)) / 864e5) + 1;
   const nights = Math.max(0, (days?.length ? days.filter((x) => x.night).length : nDays - 1));
   const sightKm = (num(a.local_km_per_day) || 0) * Math.max(0, (days || []).filter((x) => x.type === 'stay').length);
-  const roadKm = route && !route.missing ? route.total_km : route ? route.total_km : null;
+  const roadKm = route && !route.missing ? route.total_km : null;
   const driveKm = roadKm == null ? null : roadKm + sightKm;
   const lines = {};
   const set = (k, est, how, missing = false) => { lines[k] = { est: est == null ? 0 : Math.round(est), how, missing: missing || est == null }; };
   const own = ['car', 'bike'].includes(d.mode);
   if (own) {
     const p = num(a.fuel_price); const m = num(a.mileage);
-    set('fuel', driveKm != null && p && m ? (driveKm / m) * p : null, driveKm != null && m ? `${Math.round(driveKm)} km ÷ ${m} km/l × ₹${p ?? '?'}` : '', !p || driveKm == null);
+    set('fuel', driveKm != null && p && m ? (driveKm / m) * p : null, driveKm != null && m ? `${Math.round(driveKm)} km ÷ ${m} ${a.fuel_type === 'cng' ? 'km/kg' : 'km/l'} × ₹${p ?? '?'}` : '', !p || !m || driveKm == null);
     set('transport', 0, '');
   } else if (d.mode === 'taxi') {
     const r = num(a.taxi_per_km);
