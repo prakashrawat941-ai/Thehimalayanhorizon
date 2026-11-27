@@ -85,6 +85,18 @@ How the UI uses these values:
 - **T4.** Verify the toll total, the shown fuel price and the remaining cost calculations (engine `computeBudget`) against the chosen data. Optionally place fuel and toll stops into the day plan items (the v2 design shows them on the right day).
 - **T5.** Optional: a stay estimate from approved listings near each night stop when there is no admin default.
 
+### Trip live-data integration
+
+- T1: Server-only SSR Innovation Lab adapter caches successful prices by state, district and IST date. Configure `TRIP_FUEL_API_URL`, `TRIP_FUEL_API_KEY`, and an approved HTTPS `TRIP_REVERSE_GEOCODER_URL` with a Nominatim-compatible response. The provider must specify the observation date and confirm coverage in the target districts. Its public example has no price date, so that response is deliberately rejected. Missing configuration returns `not_connected`; no placeholder price is displayed.
+- T2: `/api/trip/route-pois` queries OpenStreetMap through Overpass for bounded route geometries, snaps and deduplicates the results, and flags stretches over 50 km with no **mapped** fuel stop. Set `TRIP_OVERPASS_URL` to a suitable hosted instance if needed. In `TRIP_TOLL_RATES_JSON`, each entry is keyed by OSM element ID (such as `node/123`) and contains `date`, `source` and `classes`, using the `car`, `motorcycle` and `bus` keys. Populate entries only from checked one-way tariffs. Missing rates remain unknown. The toll total uses known rates only and retains the count of unknown rates.
+- T3–T4: Body and fuel type set a typical mileage estimate. CNG uses km/kg, private fares are kept separate from bus/train, incomplete road routes cannot produce a fuel total, and user rate overrides still take precedence.
+- T5: Deferred. No room estimate is inferred from list prices without checking availability.
+- Verified: `node tests/web/trip-live.mjs` passed the dated district parser, bounded route and POI logic, tariff class and deduplication, fuel gap and CNG budget tests. The paid key, dated district response and actual toll tariff catalogue remain staging dependencies.
+
+- Staging-oriented local HTTP smoke: the credential-free fuel endpoint returned `not_connected`, invalid route input returned HTTP 400, and a valid route returned HTTP 502 when the Overpass upstream was not reachable. The live provider and POI network path still require staging acceptance. The fallback admin price matches the selected fuel only.
+
+**Provider shortlist (27 Nov 2026).** SSR Innovation Lab is the first district-level option to trial. It advertises petrol, diesel and CNG for Uttarakhand districts, but a monthly quote and a dated response for Almora, Nainital and Pithoragarh are needed before purchase. API Express advertises daily city or PIN-code data and lists Growth at ₹4,999/month, or a free sandbox. Energy API advertises daily city data on Professional at US$49.99/month. Neither alternative has verified district-wide prices for those districts. Do not substitute a city or statewide price silently.
+
 ### Changed and new files (area 4)
 
 | File | What |
@@ -406,15 +418,3 @@ The popup still opens only after `request_cab_ride_idempotent` returns a booking
 - **Pre-existing, fixed for the new cabin only:** `h()` in `web/lib/cab/ui.js` assigns `style` objects with `Object.assign`, which ignores CSS custom properties. The old schematic seat grid's `--cabin-tracks` and `--cabin-columns` were never applied. The new cabin sets its variable with `style.setProperty`. Other callers that pass `--*` in `style` are unchanged.
 - **Hindi:** new labels use the existing `L(en, hi)` helper. Hindi wording should be reviewed by a native speaker.
 - **Popup checkmark:** in the harness screenshots the receipt popup's check mark looked empty. The popup's `cele-mark` styling and animation were not changed in this work. Check it on a real device.
-
-### Trip live-data integration
-
-- T1: Server-only SSR Innovation Lab adapter caches successful prices by state, district and IST date. Configure `TRIP_FUEL_API_URL`, `TRIP_FUEL_API_KEY`, and an approved HTTPS `TRIP_REVERSE_GEOCODER_URL` with a Nominatim-compatible response. The provider must specify the observation date and confirm coverage in the target districts. Its public example has no price date, so that response is deliberately rejected. Missing configuration returns `not_connected`; no placeholder price is displayed.
-- T2: `/api/trip/route-pois` queries OpenStreetMap through Overpass for bounded route geometries, snaps and deduplicates the results, and flags stretches over 50 km with no **mapped** fuel stop. Set `TRIP_OVERPASS_URL` to a suitable hosted instance if needed. In `TRIP_TOLL_RATES_JSON`, each entry is keyed by OSM element ID (such as `node/123`) and contains `date`, `source` and `classes`, using the `car`, `motorcycle` and `bus` keys. Populate entries only from checked one-way tariffs. Missing rates remain unknown. The toll total uses known rates only and retains the count of unknown rates.
-- T3–T4: Body and fuel type set a typical mileage estimate. CNG uses km/kg, private fares are kept separate from bus/train, incomplete road routes cannot produce a fuel total, and user rate overrides still take precedence.
-- T5: Deferred. No room estimate is inferred from list prices without checking availability.
-- Verified: `node tests/web/trip-live.mjs` passed the dated district parser, bounded route and POI logic, tariff class and deduplication, fuel gap and CNG budget tests. The paid key, dated district response and actual toll tariff catalogue remain staging dependencies.
-
-- Staging-oriented local HTTP smoke: the credential-free fuel endpoint returned `not_connected`, invalid route input returned HTTP 400, and a valid route returned HTTP 502 when the Overpass upstream was not reachable. The live provider and POI network path still require staging acceptance. The fallback admin price matches the selected fuel only.
-
-**Provider shortlist (27 Nov 2026).** SSR Innovation Lab is the first district-level option to trial. It advertises petrol, diesel and CNG for Uttarakhand districts, but a monthly quote and a dated response for Almora, Nainital and Pithoragarh are needed before purchase. API Express advertises daily city or PIN-code data and lists Growth at ₹4,999/month, or a free sandbox. Energy API advertises daily city data on Professional at US$49.99/month. Neither alternative has verified district-wide prices for those districts. Do not substitute a city or statewide price silently.
