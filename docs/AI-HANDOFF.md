@@ -139,6 +139,14 @@ Unchanged queries: `partners`, `homestays`, `homestay_rooms`, `booking_requests`
 - PP2. Optional: `room_rates` upsert has no server check that closed rooms do not go below rooms already booked; the UI warns that closing does not cancel bookings.
 - PP3. Signed-in staging test of confirm/decline/check-in/complete and calendar save with a real partner account.
 
+### Approved partner privacy and inventory update (PP1 / PP2)
+
+- Migration `20261127130000_partner_booking_privacy_room_caps.sql` moves booking phone numbers to a private table with RLS and no browser grants. Partner-readable rows and status RPC results show a number only in confirmed, checked-in or completed states. Requested, declined and cancelled rows are cleared, including existing rows. The guest and Admin can retrieve the original number through `booking_guest_phones`; a host cannot use that RPC to read a guest's private contact. Apply the migration before enabling the updated app. Existing JWT and partner ownership policies are unchanged.
+- Room-rate saves and upserts cap closed units at inventory minus confirmed and checked-in units per night. The guard locks the same room row as confirmation before counting bookings. Existing future rate rows are capped on migration. Reset still removes the rate row. The calendar reports when the saved closure was capped.
+- The existing status notification already uses the saved partner note when the partner makes a status decision. No separate alert was added. SB2 per-night pricing remains a later UI/backend item.
+- Verified on staging in a rolled-back transaction: 41/41 homestay regression assertions passed. The tests exercised authenticated guest and partner reads, the private contact RPC, the confirmation response, cancellation masking and the closed-room cap. The migration was rolled back after the test.
+- Before production, rehearse backup and rollback on a clone. To revert the app, keep the privacy migration in place so previously masked contacts stay private. Any schema rollback must preserve the private contact rows and requires owner review.
+
 ### Checks run: partner portal
 
 - Transpile check of every changed file.
