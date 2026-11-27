@@ -6,6 +6,7 @@ Owner: Prakash Singh. Frontend and UI: Claude. Backend integration, permissions,
 |---|---|
 | Instant Cab | Merged to main in PR #14 (`b2cd6fa`, 26 Nov 2026) at the owner's request |
 | Public pages | Merged to main in PR #15 (`b11baa9`, 26 Nov 2026) at the owner's request |
+| Trip Planner (area 4) | Branch `claude/thh-trip-planner`, stacked on `claude/thh-dashboards` (PR #17). Review PR: see "Area 4" below. Not merged; needs the owner's approval. |
 | Dashboards (area 3) | Branch `claude/thh-dashboards`, cut from main `b11baa9`. Code commits `8b40d27` (switcher, booking monitor, components) and `7341296` (Founder, CEO, Co-founder routes). Review PR: https://github.com/prakashrawat941-ai/Thehimalayanhorizon/pull/17. Not merged; needs the owner's approval. |
 
 ## Design previews (claude.ai artifacts, private to the owner)
@@ -17,9 +18,103 @@ Every value in these previews is demo data, and each preview is labelled as such
 | 1. Instant Cab booking | https://claude.ai/artifact/VRH2V9ftq3ZKPLGJx278bp | Approved 26 Nov 2026; implemented (see below) |
 | 2. Homepage and public pages | https://claude.ai/artifact/5J12rL8aEzxvExJgaZT3n5 (layout) and the HD preview at `/design-preview/public-pages.html` on branch `claude/thh-public-preview` | Approved 26 Nov 2026; implemented (see below) |
 | 3. Founder, CEO, Co-founder and Admin dashboards | https://claude.ai/artifact/7N3W4hcriB1nS2MBwniViw | Approved 27 Nov 2026; implemented (see below) |
-| 4. Trip Planner and Trip Report | https://claude.ai/artifact/TjyUeTJMSW1ueGfotfDR6G | Waiting for the owner's approval (27 Nov 2026) |
+| 4. Trip Planner and Trip Report | https://claude.ai/artifact/TjyUeTJMSW1ueGfotfDR6G (v2) | v1 changed at the owner's request; v2 approved 27 Nov 2026 with price option B (paid fuel-price API); implemented (see below) |
 
 An earlier all-in-one preview (https://claude.ai/artifact/K2uJ3wuzDYM4LBo6qvoYr3) was rejected and is superseded.
+
+## Area 4: Trip Planner and Trip Report, as implemented
+
+### What changed for the traveller (`/plan`)
+
+- **4 steps instead of 5:** Plan & route → Day plan → Cost → Report.
+- **Plan & route is map-first:**
+  - The map sits on top on phones and is a sticky panel on the right on laptops.
+  - Layer buttons on the map: Fuel, Toll, Stays.
+  - The road route is fetched automatically about 0.7 s after the start and every stop are chosen. There is no separate "See the route" step.
+  - Each stop row shows the leg's km and drive time.
+- **Who's going:** Solo, Couple, Family, Friends, Group. Picking one sets the default adults and children; the counters can still be changed. When 8 or more people travel by car or taxi, a note says one car is not enough.
+- **Vehicle:**
+  - Mode, plus a body type (Hatchback, Sedan, SUV) for a car or taxi.
+  - Fuel type (Petrol, Diesel, CNG) and optional own mileage for a car or bike.
+  - Bus and train fares are not guessed; the traveller adds them on the Cost step.
+- **Location picker** (start or any stop; "Use my location" / "Pick on map"):
+  - A fixed red pin sits in the middle of an OpenStreetMap map.
+  - High-accuracy GPS keeps the best reading within about 12 s and stops early at ±15 m or better.
+  - An accuracy circle and band are shown: Precise ≤ 30 m, Approximate ≤ 200 m, Rough above that. "Use this spot" is blocked while the pin sits on a Rough fix.
+  - The nearest place name comes from Nominatim.
+  - The saved place keeps `accuracy` and `source` (`gps` or `pin`). If the map fails to load, GPS still works.
+  - GPS is never claimed as 100 %: the pin, which the person can move, decides the spot.
+- **Live cost card** (dark card on laptops, sticky bottom bar above the tab bar on phones): total, per person, per day, and five groups. It shows "—" when nothing can be worked out yet.
+- **Cost step:**
+  - Every line shows its formula, a source chip (Your value, Live price with area and date, Admin default, Typical mileage, Needs a rate) and "Change" / "Back to auto".
+  - Overrides are stored in `d.assumptions`.
+  - Budget, budget left and actual spend tracking are kept.
+- **Report:**
+  - Who's going, vehicle type and fuel appear in the summary.
+  - The map shows fuel, toll and stay markers.
+  - A "Fuel pumps & toll plazas on the way" list appears when live data exists, with a toll total that counts plazas whose rate is unknown.
+  - The header actions now wrap on phones. This was an existing squeeze bug from the shared `.tr-head`.
+
+### Data shapes (no schema change)
+
+- **Who's going:** stored as one of `solo|couple|family|friends|group` inside `preferences` (two new PREFS keys, `friends` and `group`, with no theme).
+- **Vehicle and fuel:** `assumptions.vehicle` (`hatch|sedan|suv`) and `assumptions.fuel_type` (`petrol|diesel|cng`).
+- **Start and stop places:** `accuracy` and `source` are added to the place jsonb (`slim()`).
+- **On save:** `assumptions` stores the effective rates (admin defaults + live values + overrides), as before, plus `auto_sources: { fuel: { area, date }, tolls: { count, unknown } }`. A saved trip therefore keeps the prices used on the day it was saved.
+
+### Live data contract for Codex (owner chose option B: paid fuel-price API, 27 Nov 2026)
+
+`web/lib/trip/live.js` is the only place the planner gets live prices, pumps and tolls. Both functions return `{ status: 'not_connected' }` today, and the UI says so; it never shows a guessed price.
+
+| Function | Server route to build | Result shape the UI reads |
+|---|---|---|
+| `fetchFuelPrices(place)` | `GET /api/trip/fuel-price?lat&lng`, which calls the paid provider with a **server-only key** (Vercel/Supabase secret, never in the browser or git) and caches per district per day | `{ status: 'ok', area, source, prices: { petrol: { price, date }, diesel: { price, date }, cng: { price, date, unit: 'kg' } } }` |
+| `fetchRoutePois(route, vehicle)` | `POST /api/trip/route-pois` with the chosen legs' coords. Pumps and toll booths come from OpenStreetMap (Overpass), snapped to the route. Toll rates come from an admin-maintained NHAI rate table (or the provider, if it has tolls) for the vehicle class, one way | `{ status: 'ok', source, legs: { [legKey]: [{ kind: 'fuel'\|'toll', km, name, lat, lng, brand?, rate?, rateDate? }] }, gaps: { [legKey]: [{ fromKm, toKm }] } }`. `km` counts from the start of that leg. Use `status: 'error'` on failure. |
+
+How the UI uses these values:
+- The live fuel price fills `fuel_price` for the chosen fuel type.
+- Tolls are summed from `rate` into `tolls`.
+- Plazas with a `null` rate are counted as unknown and flagged.
+- A traveller's own value always wins.
+
+### Pending Codex items: Trip Planner
+
+- **T1.** Choose and buy the fuel-price provider (owner pays). Build `/api/trip/fuel-price` with the key as a server secret, cache it, and return dates. Fill `fetchFuelPrices`.
+- **T2.** Build `/api/trip/route-pois`: OSM pumps and toll booths along the chosen legs, no-fuel gaps (for example over 50 km), and toll rates per vehicle class with the date they were checked. Fill `fetchRoutePois`.
+- **T3.** Mileage by vehicle body type (`assumptions.vehicle`). Today the engine uses `DEFAULT_MILEAGE` per mode. Decide typical values or keep the per-mode default.
+- **T4.** Verify the toll total, the shown fuel price and the remaining cost calculations (engine `computeBudget`) against the chosen data. Optionally place fuel and toll stops into the day plan items (the v2 design shows them on the right day).
+- **T5.** Optional: a stay estimate from approved listings near each night stop when there is no admin default.
+
+### Changed and new files (area 4)
+
+| File | What |
+|---|---|
+| `web/app/plan/Planner.jsx` | Rewritten UI on the same engine, save, share and itinerary logic. |
+| `web/app/plan/planner.css` | All `tp2-` styles, including the report header fix. |
+| `web/components/trip/LocationPicker.jsx` | GPS + pin picker. |
+| `web/components/trip/RouteLegs.jsx` | Legs, road options, fuel / toll / gap list. |
+| `web/components/trip/LiveCost.jsx` | Live cost card and phone bar. |
+| `web/components/trip/CostStep.jsx` | Auto cost with sources, overrides, budget and actuals. |
+| `web/components/trip/RouteMap.jsx` | Optional `pois` + `layers` markers (escaped popups). |
+| `web/components/trip/TripReport.jsx` | Who and vehicle in the summary, POI markers and list. |
+| `web/lib/trip/common.js` | `WHO`, `VEHICLES`, `FUELS`, `whoOf`; `slim()` keeps `accuracy` and `source`. |
+| `web/lib/trip/live.js` | Live data contract (not connected yet). |
+
+### Checks run: Trip Planner
+
+- TypeScript transpile check of all changed files: OK.
+- Local harness (not committed). The real Planner was bundled with esbuild. OSRM, Open-Meteo and Nominatim were faked by intercepting `fetch`, Leaflet was stubbed, and `live.js` was switched between not-connected and invented test data. It was run in Chrome via Playwright at 360px and 1280px, in English and Hindi. Results:
+  - No horizontal overflow on Plan, Cost, Report or the picker. The report header overflow was found and fixed.
+  - Route auto-runs: 3 legs with road options.
+  - With live data on: the petrol price shows on the fuel chip, the fuel line uses it ("Petrol · Test area · 27 Nov"), tolls total with 1 unknown plaza flagged, the no-fuel gap row shows, and the report lists 3 POIs.
+  - With live data off: "Price needed" and "Toll data not connected yet" show, and the total reads "—" until rates exist.
+  - Override then "Back to auto" restores the auto value.
+  - Friends sets 4 adults; Group shows the 8+ note.
+  - Picker with a mocked GPS fix (±9 m) shows "Precise ±9 m", and the picked start shows "Pin near …".
+  - A blank trip shows 5 validation errors.
+  - A failed OSRM route shows the per-leg error.
+  - No page errors.
+- Not run here: `next build` (no packages in this sandbox). Real Leaflet tiles and real GPS were not exercised (sandbox blocks the network). CI and the Vercel preview are the build evidence.
 
 ## Area 3: Dashboards, as implemented
 
