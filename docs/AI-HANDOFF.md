@@ -57,6 +57,7 @@ Checks run:
   - The map filter switches the card to the filtered kind. A bug where the card kept showing a filtered-out place was found and fixed.
   - WhatsApp links are `https://wa.me/<digits>?text=…`. Escape closes the sheet. With no number, there is no button.
   - The ride card links to `/cab/ride/<id>`.
+- Review fixes (Codex on PR #22): homestays are placed only when their location has both lat and lng. Items at the same spot share one pin with a count, and the card shows "Also here:" so each one stays selectable (harness: 2 stays at one spot, switching works both ways).
 - `next build`, CI and the Vercel preview are the build evidence.
 
 ## Area 4: Trip Planner and Trip Report, as implemented

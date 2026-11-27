@@ -93,3 +93,8 @@
 .hx-wa-qs { display: grid; gap: 6px; }
 .hx-wa-qs a { border: 1px solid var(--line); border-radius: 12px; padding: 9px 10px; text-decoration: none; color: var(--ink); display: block; }
 @media print { .hx-wa { display: none; } }
+
+.hx-pin { position: relative; }
+.hx-pin b { position: absolute; right: -8px; top: -8px; min-width: 16px; height: 16px; border-radius: 999px; background: #fff; color: var(--ink); font: 700 .62rem/16px var(--font); text-align: center; box-shadow: 0 1px 3px rgba(0, 0, 0, .3); }
+.hx-here { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 10px; font-size: .8rem; color: var(--muted); }
+.hx-here button { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 3px 10px; font: 600 .78rem var(--font); cursor: pointer; color: var(--ink); min-height: 30px; }

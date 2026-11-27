@@ -196,7 +196,7 @@ export default async function Home() {
     const mapPoints = [
         ...locations.filter((l) => l.lat != null && l.lng != null && l.kind !== 'transport_hub').map((l) => ({ id: `l-${l.id}`, kind: l.kind === 'village' ? 'village' : 'place', name: pick(l, 'name'),
             sub: [l.district, pick(l, 'summary')].filter(Boolean).join(' · ').slice(0, 140), lat: l.lat, lng: l.lng, href: `/destinations/${l.slug}`, plan: `/plan?place=${encodeURIComponent(l.slug)}` })),
-        ...stays.map((h) => { const l = locById.get(h.location_id); return l && l.lat != null ? { id: `h-${h.id}`, kind: 'stay', name: h.name, sub: L(`Near ${pick(l, 'name')}`, `${pick(l, 'name')} के पास`) + (h.price_per_night ? ` · ${inr(h.price_per_night)} / ${L('night', 'रात')}` : ''),
+        ...stays.map((h) => { const l = locById.get(h.location_id); return l && l.lat != null && l.lng != null ? { id: `h-${h.id}`, kind: 'stay', name: h.name, sub: L(`Near ${pick(l, 'name')}`, `${pick(l, 'name')} के पास`) + (h.price_per_night ? ` · ${inr(h.price_per_night)} / ${L('night', 'रात')}` : ''),
             lat: l.lat, lng: l.lng, href: `/homestays/${listingSlug(h.name || 'stay', h.id)}`, plan: null } : null; }).filter(Boolean),
     ];
     const contact = settings.contact || {};
@@ -209,7 +209,7 @@ export default async function Home() {
       {mapPoints.length ? (<section className="wrap rf-sec">
         <Head eyebrow={L('Explore on the map', 'नक्शे पर देखें')} title={L('Where is everything?', 'सब कहाँ है?')} note={L('Published destinations, villages and approved homestays. Tap a pin.', 'प्रकाशित जगहें, गाँव और मंज़ूर होमस्टे। किसी पिन पर टैप करें।')}/>
         <ExploreMap points={mapPoints} labels={{ all: L('All', 'सभी'), places: L('Places', 'जगहें'), villages: L('Villages', 'गाँव'), stays: L('Homestays', 'होमस्टे'), place: L('Place', 'जगह'), village: L('Village', 'गाँव'), stay: L('Homestay', 'होमस्टे'),
-            view: L('View', 'देखें'), plan: L('Plan a trip here', 'यहाँ का ट्रिप प्लान करें'), map: L('Map of places', 'जगहों का नक्शा'), filter: L('Filter the map', 'नक्शा फ़िल्टर करें'), tap: L('Tap another pin to see it here.', 'दूसरी जगह देखने के लिए पिन पर टैप करें।') }}/>
+            view: L('View', 'देखें'), plan: L('Plan a trip here', 'यहाँ का ट्रिप प्लान करें'), map: L('Map of places', 'जगहों का नक्शा'), filter: L('Filter the map', 'नक्शा फ़िल्टर करें'), tap: L('Tap another pin to see it here.', 'दूसरी जगह देखने के लिए पिन पर टैप करें।'), alsoHere: L('Also here:', 'यहाँ और भी:') }}/>
       </section>) : null}
       <SamplePlan it={itineraries[0] || null} L={L} pick={pick} lang={lang}/>
       <TodayRides rides={rides} L={L} lang={lang} pick={pick} inr={inr}/>

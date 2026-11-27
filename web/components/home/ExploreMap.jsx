@@ -31,9 +31,14 @@ export function ExploreMap({ points, labels }) {
       if (layer.current) layer.current.remove();
       layer.current = L.layerGroup().addTo(map.current);
       const bounds = [];
-      shown.forEach((p) => {
-        const icon = L.divIcon({ className: 'hx-pin', html: `<span style="background:${COLORS[p.kind] || COLORS.place}"></span>`, iconSize: [22, 22], iconAnchor: [11, 11] });
-        L.marker([p.lat, p.lng], { icon, title: p.name, keyboard: true }).addTo(layer.current).on('click', () => setSel(p.id));
+      // One marker per spot: items sharing coordinates (e.g. homestays placed at their location) are
+      // grouped, and the card lists the others so each one stays selectable.
+      const groups = new Map();
+      shown.forEach((p) => { const k = `${p.lat},${p.lng}`; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(p); });
+      groups.forEach((list) => {
+        const p = list[0];
+        const icon = L.divIcon({ className: 'hx-pin', html: `<span style="background:${COLORS[p.kind] || COLORS.place}"></span>${list.length > 1 ? `<b>${list.length}</b>` : ''}`, iconSize: [22, 22], iconAnchor: [11, 11] });
+        L.marker([p.lat, p.lng], { icon, title: list.map((x) => x.name).join(', '), keyboard: true }).addTo(layer.current).on('click', () => setSel(p.id));
         bounds.push([p.lat, p.lng]);
       });
       if (bounds.length > 1) map.current.fitBounds(bounds, { padding: [30, 30], maxZoom: 10 });
@@ -45,6 +50,7 @@ export function ExploreMap({ points, labels }) {
   useEffect(() => () => { if (map.current) { map.current.remove(); map.current = null; } }, []);
 
   const cur = shown.find((p) => p.id === sel) || shown[0];
+  const here = cur ? shown.filter((p) => p.lat === cur.lat && p.lng === cur.lng) : [];
   const filters = [['all', labels.all], ['place', labels.places], ['village', labels.villages], ['stay', labels.stays]].filter(([k]) => k === 'all' || kinds.has(k));
   return (
     <div className="hx-mapwrap">
@@ -62,6 +68,9 @@ export function ExploreMap({ points, labels }) {
         <div className="hx-pop" aria-live="polite">
           <span className="hx-pop-kind" style={{ background: COLORS[cur.kind] }}>{cur.kind === 'stay' ? labels.stay : cur.kind === 'village' ? labels.village : labels.place}</span>
           <h3>{cur.name}</h3>{cur.sub ? <p>{cur.sub}</p> : null}
+          {here.length > 1 ? (
+            <div className="hx-here"><span>{labels.alsoHere}</span>{here.filter((p) => p.id !== cur.id).map((p) => <button key={p.id} type="button" onClick={() => setSel(p.id)}>{p.name}</button>)}</div>
+          ) : null}
           <div className="hx-acts"><Link className="btn btn-sm" href={cur.href}>{labels.view}</Link>{cur.plan ? <Link className="btn btn-ghost btn-sm" href={cur.plan}>{labels.plan}</Link> : null}</div>
           {shown.length > 1 ? <p className="hx-note">{labels.tap}</p> : null}
         </div>
