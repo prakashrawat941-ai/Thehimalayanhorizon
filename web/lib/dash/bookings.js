@@ -41,8 +41,9 @@ export function feedTone(row) {
 const placeName = (p, pick) => (p ? pick(p, 'name') : '');
 function cabRoute(b, pick) {
   const r = b.cab_rides || {};
-  const from = placeName(b.from_place, pick) || placeName(r.from_place, pick) || placeName(r.from_location, pick) || b.pickup_geo?.name || r.from_geo?.name || r.pickup_point || '?';
-  const to = placeName(b.to_place, pick) || placeName(r.to_place, pick) || placeName(r.to_location, pick) || b.drop_geo?.name || r.to_geo?.name || r.drop_point || '?';
+  // The passenger's own pickup/drop wins over the ride's endpoints (same order as bookingPlaces()).
+  const from = placeName(b.from_place, pick) || b.pickup_geo?.name || placeName(r.from_place, pick) || placeName(r.from_location, pick) || r.from_geo?.name || r.pickup_point || '?';
+  const to = placeName(b.to_place, pick) || b.drop_geo?.name || placeName(r.to_place, pick) || placeName(r.to_location, pick) || r.to_geo?.name || r.drop_point || '?';
   return `${from} → ${to}`;
 }
 
