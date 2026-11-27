@@ -25,21 +25,24 @@ export default function Mfa({ lang }) {
       } else {
         const listed = await mfa.listFactors();
         if (listed.error) throw listed.error;
-        const existing = listed.data.totp[0];
+        const existing = listed.data.totp.find((item) => item.status === 'verified');
         if (existing) setFactor(existing.id);
         else {
+          // A pending enrollment has no recoverable secret after a reload. Remove only
+          // the current user's unverified TOTP factor before starting setup again.
+          for (const pending of listed.data.totp.filter((item) => item.status !== 'verified')) {
+            const removed = await mfa.unenroll({ factorId: pending.id });
+            if (removed.error) throw removed.error;
+          }
           const result = await mfa.enroll({ factorType: 'totp' });
           if (result.error) throw result.error;
           setFactor(result.data.id);
           setSecret(result.data.totp.secret);
         }
       }
-    } catch {
+    } catch (cause) {
       setError(
-        L(
-          'Verification failed. Please retry.',
-          'सत्यापन विफल। फिर प्रयास करें।',
-        ),
+        cause?.message || L('Verification failed. Please retry.', 'सत्यापन विफल। फिर प्रयास करें।'),
       );
     } finally {
       setBusy(false);

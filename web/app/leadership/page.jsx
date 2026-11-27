@@ -6,10 +6,13 @@ import { LeadershipForm } from './LeadershipForm';
 export const metadata = { title: 'Leadership sign in', robots: { index: false } };
 
 // One common leadership login. Role and MFA are decided on /leadership/go, never here.
-export default async function LeadershipLogin() {
+export default async function LeadershipLogin({ searchParams }) {
   const session = await getSession();
   if (session.user) redirect('/leadership/go');
   const { L } = await getT();
+  const params = await searchParams;
+  const authError = params?.error === 'oauth' ? L('Google sign-in was cancelled or could not finish. Check that this preview URL is allowed in staging authentication settings.', 'Google लॉगिन पूरा नहीं हुआ। स्टेजिंग ऑथ सेटिंग में इस प्रीव्यू URL को जाँचें।')
+    : params?.error === 'session' ? L('Sign-in session could not be created. Please try again.', 'लॉगिन सत्र नहीं बन पाया। फिर कोशिश करें।') : '';
   const text = {
     title: L('Leadership sign in', 'लीडरशिप लॉगिन'),
     subtitle: L(
@@ -29,7 +32,7 @@ export default async function LeadershipLogin() {
     <div className="auth-split">
       <div className="auth-form">
         <div style={{ width: '100%', maxWidth: 400 }}>
-          <LeadershipForm text={text} />
+          <LeadershipForm text={text} initialError={authError} />
         </div>
       </div>
     </div>

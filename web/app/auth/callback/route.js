@@ -8,14 +8,17 @@ export async function GET(request) {
     const errorText = url.searchParams.get('error_description') || url.searchParams.get('error');
     const code = url.searchParams.get('code');
     const back = (path) => NextResponse.redirect(new URL(path, url.origin));
+    const failure = (kind) => next === '/leadership/go'
+        ? `/leadership?error=${kind}`
+        : `/login?next=${encodeURIComponent(next)}&error=${encodeURIComponent(kind === 'oauth' ? 'Authentication was cancelled or failed.' : 'Sign-in session could not be created.')}`;
     if (errorText)
-        return back(`/login?next=${encodeURIComponent(next)}&error=${encodeURIComponent(errorText)}`);
+        return back(failure('oauth'));
     if (!code)
-        return back(`/login?next=${encodeURIComponent(next)}`);
+        return back(failure('oauth'));
     const supabase = await createClient();
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (error)
-        return back(`/login?next=${encodeURIComponent(next)}&error=${encodeURIComponent(error.message)}`);
+        return back(failure('session'));
     // Google sign-in: fill an empty profile name/photo from the Google account (only empty fields).
     const u = data.user;
     if (u) {

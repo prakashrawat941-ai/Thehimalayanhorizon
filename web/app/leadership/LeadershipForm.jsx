@@ -1,14 +1,12 @@
 'use client';
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { browserDb } from '@/lib/supabase/client';
 import { GoogleButton } from '@/components/GoogleButton';
 
 // Email + password and Google both end at /leadership/go, which checks role and MFA on the server.
-export function LeadershipForm({ text }) {
-  const router = useRouter();
+export function LeadershipForm({ text, initialError = '' }) {
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState('');
+  const [err, setErr] = useState(initialError);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -22,10 +20,10 @@ export function LeadershipForm({ text }) {
         password: String(fd.get('password') || ''),
       });
       if (error) throw error;
-      router.replace('/leadership/go');
-      router.refresh();
-    } catch {
-      setErr(text.failed);
+      // A document navigation sends the freshly written SSR cookies to /go.
+      window.location.assign('/leadership/go');
+    } catch (error) {
+      setErr(error?.message === 'Invalid login credentials' ? text.failed : (error?.message || text.failed));
     } finally {
       setBusy(false);
     }
