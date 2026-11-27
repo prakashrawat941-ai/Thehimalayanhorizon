@@ -26,10 +26,21 @@ An earlier all-in-one preview (https://claude.ai/artifact/K2uJ3wuzDYM4LBo6qvoYr3
 ### What is live on this branch and what is not
 
 - **Admin (live data, existing guard).** `/admin` gets the dashboard switcher and a new **Booking monitor** at `/admin/bookings`. These use only existing tables, read through the admin's own session, so the current admin policies decide what is visible.
-- **Founder, CEO and Co-founder (components only, no routes).** The screens are built as components in `web/components/dash/management/`. They take server-loaded data and Codex's server actions as props.
-  - No `/founder`, `/ceo` or `/co-founder` route is added on main. Codex's branch `feature/thh-management-security-foundation` already owns those routes, the `management_*` tables, MFA and the RPCs.
-  - None of that exists in production: no `management%` tables in prod as of 27 Nov 2026.
-  - Codex mounts these components in `Workspace` (or per-role pages) when that branch lands.
+- **Founder, CEO and Co-founder (routes added, owner view, 27 Nov 2026 at the owner's request).**
+  - New routes: `/founder` (+ `/access`, `/approvals`, `/audit`), `/ceo` (+ `/tasks`, `/reviews`, `/requests`) and `/co-founder` (+ `/locations`, `/onboarding`, `/releases`).
+  - **Temporary guard:** `requireAdmin`. Only the owner-set admin role can open them, and every page shows an "Owner view" note. `ADMIN_OPENS_MANAGEMENT = true` in `web/lib/dashboards.js` adds these three to an admin's switcher.
+  - **Live data, existing tables only:**
+    - Founder overview: `admin_homestay_stats` (homestay booking value and commission, labelled "records").
+    - Access: admin profiles, read-only, with no add or edit.
+    - Audit: latest 30 rows of `audit_log`.
+    - CEO operations: check-ins today, rides today, live seat holds, open SOS; alerts for stay requests waiting over 12 h and support tickets open over 24 h.
+    - Co-founder website: `home_sections`.
+    - Onboarding: steps derived from `partners`, `homestays`, `homestay_rooms` and `partner_kyc`, with links to admin approvals.
+    - Releases: `APP_VERSION`.
+  - **"Not connected yet"** (no sample rows): team members and MFA, every work queue (approvals, tasks, reviews, sent requests, releases), village offices, and location matching.
+  - Loaders: `web/lib/dash/management-data.js`. Each one returns `{ data, error }`; on error the page shows the error state with retry.
+  - **Conflict note:** Codex's branch `feature/thh-management-security-foundation` also creates `web/app/founder|ceo|co-founder/page.jsx` (rendering `Workspace`). When it lands, keep these pages and feed them from `management_*` + MFA. Then switch the guard to the management guard, set `ADMIN_OPENS_MANAGEMENT = false`, and pass `managementRole` into `DashLayout` (D1).
+  - Codex's `management_*` tables, MFA and RPCs are still not in production (no `management%` tables in prod as of 27 Nov 2026).
 - **Unchanged:** authentication, schema, RLS, role permissions and booking transactions. There are no new tables, RPCs or migrations.
 
 ### Changed and new files
@@ -46,6 +57,10 @@ An earlier all-in-one preview (https://claude.ai/artifact/K2uJ3wuzDYM4LBo6qvoYr3
 | `web/app/admin/bookings/page.jsx`, `loading.jsx` | Booking monitor route and skeleton. |
 | `web/app/admin/layout.jsx` | Uses `DashLayout`. Adds the nav item "Booking monitor". The admin guard is unchanged. |
 | `web/app/admin/page.jsx` | Adds a "Bookings waiting" stat (`booking_requests.status = requested` + `cab_bookings.status = pending`). |
+| `web/lib/dash/management-data.js` | Server loaders for the three role dashboards (existing tables only). |
+| `web/components/dash/ManagementFrame.jsx` | Frame + temporary `requireAdmin` guard + owner note + nav for `/founder`, `/ceo`, `/co-founder`. |
+| `web/app/founder/**`, `web/app/ceo/**`, `web/app/co-founder/**` | Role dashboard routes (layout, loading, pages). |
+| `web/components/account/AccountNav.jsx` | Optional `exact` on nav items so "Overview" is only highlighted on its own page (also fixes `/admin`). |
 | `web/components/dash/management/*` | `AccessManagement`, `WorkQueue`, `LocationReview`, `FounderOverview`, `OpsToday`, `CmsSections`, `OnboardingQueue`, `NoteDialog`, helpers in `ui.js`. |
 | `web/app/dash.css` | All `dsx-` styles. Also a phone-only fix so the section chips keep their height on short dashboard pages (scoped to dashboards). |
 
@@ -99,7 +114,7 @@ or `{ status: 'not_connected' }`.
 
 ### Pending Codex items: dashboards
 
-- D1. Wire `authorisedDashboards({ managementRole })` from a server-side, MFA-checked read of `management_members`. Mount the management components in `/founder`, `/ceo` and `/co-founder`, with `DashLayout` for the frame.
+- D1. Replace the temporary `requireAdmin` guard in `ManagementFrame` (and each role page) with the management guard (`management_members` role + `aal2`). Wire `authorisedDashboards({ managementRole })` from that read and set `ADMIN_OPENS_MANAGEMENT = false`. Feed the "Not connected yet" parts from `management_*`.
 - D2. Add the Founder-only `setMember` action and invite flow, plus the server-side MFA factor and last-sign-in read for the people list.
 - D3. Location matching (`findMatches`), field-source storage, `saveDraft` and `publish`.
 - D4. Confirm the "held" reading in the Booking monitor (pending + future `hold_expires_at`) against the booking rules.
@@ -109,6 +124,8 @@ or `{ status: 'not_connected' }`.
 ### Checks run: dashboards
 
 - TypeScript transpile check of every new or changed JSX/JS file: all OK.
+- Loader test (tsx, mock database): onboarding steps derive correctly (a pending stay with a room, 3 photos, rules and KYC gives 6/6; a draft gives basic only; a partner without a stay gives basic). Any query error returns `{ error: true }` with no rows. The IST day range for 08:00 IST is 26 Nov 18:30Z – 27 Nov 18:30Z.
+- Harness, owner-view screens at 360px and 1280px in English and Hindi: no overflow. Access has no add or edit buttons when the action is not connected. Onboarding shows "Open in Approvals" for complete listings and "Help finish" otherwise.
 - Local browser harness (not committed). The real components were bundled with esbuild, using stubs for `next/link` and `next/navigation` and invented test rows. It was run in Chrome via Playwright at 360px and 1280px, in English and Hindi, across 15 screens. Results:
   - No horizontal page overflow on any screen.
   - The switcher lists only allowed dashboards, and Esc or an outside click closes it.

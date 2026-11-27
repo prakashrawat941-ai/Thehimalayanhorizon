@@ -9,6 +9,13 @@ export const DASHBOARDS = Object.freeze({
 });
 
 /**
+ * Until the management backend is live (handoff D1), the owner's admin account may open the
+ * Founder, CEO and Co-founder dashboards. Those routes are guarded by requireAdmin and show
+ * only existing-table data. CODEX: set this to false once management_members + MFA guard them.
+ */
+export const ADMIN_OPENS_MANAGEMENT = true;
+
+/**
  * Keys of the dashboards this user may open, in display order.
  * `managementRole` must come from a server-side, MFA-checked read of management_members
  * (CODEX: wire this in when the management migration lands). Until then only `admin`
@@ -17,6 +24,7 @@ export const DASHBOARDS = Object.freeze({
 export function authorisedDashboards({ roles = {}, managementRole = null } = {}) {
   const keys = [];
   if (managementRole && DASHBOARDS[managementRole]) keys.push(managementRole);
+  if (roles?.admin && ADMIN_OPENS_MANAGEMENT) ['founder', 'ceo', 'co_founder'].forEach((k) => { if (!keys.includes(k)) keys.push(k); });
   if (roles?.admin) keys.push('admin');
   keys.push('account');
   return keys;

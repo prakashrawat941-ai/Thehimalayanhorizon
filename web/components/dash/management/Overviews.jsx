@@ -14,10 +14,10 @@ export function FounderOverview({ lang, finance, waiting, mfaReady, teamSize, ch
       <div className="ds-head"><div className="grow"><p className="eyebrow">{L('Founder', 'संस्थापक')}</p><h1>{L('Overview', 'ओवरव्यू')}</h1>
         <p className="muted">{L('Amounts are booking records — payments happen outside the platform.', 'रकम बुकिंग के रिकॉर्ड हैं — भुगतान प्लेटफ़ॉर्म के बाहर होता है।')}</p></div></div>
       <KpiRow>
-        <Kpi label={L('Booking value (confirmed)', 'बुकिंग मूल्य (कन्फ़र्म)')} value={finance ? rupees(finance.booking_value) : '—'} hint={finance ? null : L('Not connected yet', 'अभी जुड़ा नहीं')} />
-        <Kpi label={L('Commission recorded', 'दर्ज कमीशन')} value={finance ? rupees(finance.commission) : '—'} />
-        <Kpi label={L('Waiting for you', 'आपका इंतज़ार')} value={n(waiting)} hint={L('critical · finance · expense', 'महत्वपूर्ण · वित्त · खर्च')} href="/founder?tab=approvals" />
-        <Kpi label={L('Team with two-step', 'दो-चरण वाली टीम')} value={mfaReady == null ? '—' : `${mfaReady} / ${teamSize}`} href="/founder?tab=access" />
+        <Kpi label={L('Homestay booking value (records)', 'होमस्टे बुकिंग मूल्य (रिकॉर्ड)')} value={finance ? rupees(finance.booking_value) : '—'} />
+        <Kpi label={L('Commission (records)', 'कमीशन (रिकॉर्ड)')} value={finance ? rupees(finance.commission) : '—'} />
+        <Kpi label={L('Waiting for you', 'आपका इंतज़ार')} value={n(waiting)} hint={waiting == null ? L('Not connected yet', 'अभी जुड़ा नहीं') : L('critical · finance · expense', 'महत्वपूर्ण · वित्त · खर्च')} href="/founder/approvals" />
+        <Kpi label={L('Team with two-step', 'दो-चरण वाली टीम')} value={mfaReady == null ? '—' : `${mfaReady} / ${teamSize}`} hint={mfaReady == null ? L('Not connected yet', 'अभी जुड़ा नहीं') : null} href="/founder/access" />
       </KpiRow>
       {children}
     </>
@@ -59,7 +59,7 @@ export function OpsToday({ lang, counts, alerts, offices, officesConnected = tru
 }
 
 /** Co-founder: homepage sections from home_sections. sections: [{ id, title, enabled, position, note }] */
-export function CmsSections({ lang, sections, editHref = '/co-founder/cms' }) {
+export function CmsSections({ lang, sections, editHref = '/admin/cms' }) {
   const L = tr(lang);
   if (!sections.length) return <DashEmpty title={L('No homepage sections', 'होमपेज के कोई सेक्शन नहीं')} text={L('Add sections in the content editor.', 'कंटेंट एडिटर में सेक्शन जोड़ें।')} />;
   return (
@@ -99,7 +99,7 @@ export function OnboardingQueue({ lang, partners, connected = true, sendAction =
             <span className="dsx-row-act">
               {ready && sendAction
                 ? <form action={sendAction}><input type="hidden" name="partner_id" value={p.id} /><button className="btn btn-sm">{L('Send for approval', 'मंज़ूरी के लिए भेजें')}</button></form>
-                : p.href ? <Link className="btn btn-ghost btn-sm" href={p.href}>{L('Help finish', 'पूरा करने में मदद')}</Link> : null}
+                : p.href ? <Link className="btn btn-ghost btn-sm" href={p.href}>{ready ? L('Open in Approvals', 'मंज़ूरी में खोलें') : L('Help finish', 'पूरा करने में मदद')}</Link> : null}
             </span>
           </div>
         );

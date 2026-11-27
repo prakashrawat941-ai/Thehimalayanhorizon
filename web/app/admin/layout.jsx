@@ -21,7 +21,7 @@ export default async function AdminLayout({ children }) {
     count(db.from('contact_messages').select('id', h).eq('status', 'new')),
   ]);
   const items = [
-    { href: '/admin', icon: 'home', label: L('Overview', 'ओवरव्यू') },
+    { href: '/admin', icon: 'home', label: L('Overview', 'ओवरव्यू'), exact: true },
     { href: '/admin/partners', icon: 'people', label: L('Manage listings & partners','लिस्टिंग और पार्टनर') },
     { href: '/admin/approvals', icon: 'check', label: L('Approvals', 'मंज़ूरी'), count: partners + homes + tours + works + kyc },
     { href: '/admin/bookings', icon: 'calendar', label: L('Booking monitor', 'बुकिंग मॉनिटर') },
