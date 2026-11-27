@@ -206,6 +206,19 @@ export async function publish({ params }) {
   const instantI = h('input', { type: 'checkbox', id: 'pr-instant', role: 'switch' }); instantI.checked = r ? r.auto_confirm : false;
   const notesI = h('textarea', { class: 'input', id: 'pr-notes', rows: 3, maxlength: 500, value: r?.notes || '', placeholder: L('Luggage space, breaks, music…', 'सामान की जगह, रुकना, म्यूज़िक…') });
   notesI.value = r?.notes || '';
+  const luggageI = h('input', { id: 'pr-luggage', class: 'input', maxlength: 120, value: r?.luggage_rule || '' });
+  const ruleSelect = (key, current) => {
+    const select = h('select', { id: key, class: 'input' },
+      h('option', { value: '' }, L('Not specified', 'नहीं बताया')),
+      h('option', { value: 'yes' }, L('Allowed', 'अनुमति है')),
+      h('option', { value: 'no' }, L('Not allowed', 'अनुमति नहीं')));
+    select.value = current == null ? '' : current ? 'yes' : 'no';
+    return select;
+  };
+  const smokingI = ruleSelect('pr-smoking', r?.smoking_allowed);
+  const petsI = ruleSelect('pr-pets', r?.pets_allowed);
+  const ruleValue = (input) => input.value ? input.value === 'yes' : null;
+
   if (locked) [dateI, timeI, vehS, priceI].forEach((x) => { x.disabled = true; });
   const err = h('p', { class: 'form-err', role: 'alert' });
   const root = h('div', { class: 'app-page' });
@@ -246,6 +259,7 @@ export async function publish({ params }) {
       stops: stops.map((s) => ({ place_id: s.get().id || null, name: s.get().name, lat: +s.get().lat, lng: +s.get().lng })),
       departure_at: when.toISOString(), seats_total: seats, price_per_seat: price,
       pickup_point: pickI.value.trim(), drop_point: dropI.value.trim(), auto_confirm: instantI.checked, notes: notesI.value.trim(),
+      luggage_rule: luggageI.value.trim().slice(0,120) || null, smoking_allowed: ruleValue(smokingI), pets_allowed: ruleValue(petsI),
     } };
   }
 
@@ -334,7 +348,11 @@ export async function publish({ params }) {
           h('label', { class: 'field', for: 'pr-price' }, h('span', { class: 'field-label' }, L('Contribution per seat (₹)', 'हर सीट का हिस्सा (₹)')), priceI)),
         h('label', { class: 'switch-row', for: 'pr-instant' }, h('span', {}, h('strong', {}, L('Instant book', 'तुरंत बुकिंग')),
           h('span', { class: 'small muted' }, L('Bookings are confirmed at once. Turn off to approve each request yourself.', 'बुकिंग तुरंत कन्फ़र्म होगी। बंद रखें तो हर रिक्वेस्ट आप ख़ुद मंज़ूर करेंगे।'))), instantI)),
-      h('section', { class: 'panel stack' }, h('label', { class: 'field', for: 'pr-notes' }, h('span', { class: 'field-label' }, L('Journey notes (optional)', 'यात्रा की बातें (वैकल्पिक)')), notesI)),
+      h('section', { class: 'panel stack' },
+        h('label', { class: 'field', for: 'pr-luggage' }, h('span', { class: 'field-label' }, L('Luggage rule', 'सामान का नियम')), luggageI),
+        h('label', { class: 'field', for: 'pr-smoking' }, h('span', { class: 'field-label' }, L('Smoking', 'धूम्रपान')), smokingI),
+        h('label', { class: 'field', for: 'pr-pets' }, h('span', { class: 'field-label' }, L('Pets', 'पालतू जानवर')), petsI),
+        h('label', { class: 'field', for: 'pr-notes' }, h('span', { class: 'field-label' }, L('Journey notes (optional)', 'यात्रा की बातें (वैकल्पिक)')), notesI)),
       err,
       h('button', { class: 'btn btn-block btn-lg', type: 'submit' }, L('Review journey', 'यात्रा जाँचें'), icon('arrow', 16))),
   ].filter(Boolean);

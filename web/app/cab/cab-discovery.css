@@ -132,3 +132,7 @@
 .cab-trip-card .seat-pill { background: #1f4d3a; }
 .cab-trip-card .rc-foot { background: #fbfcfd; }
 .cab-trip-card .veh-card { background: linear-gradient(180deg, #f5f8fb, #e7edf3); border-radius: 12px; }
+
+.cab-seat-strip { display:flex; flex-wrap:wrap; gap:.25rem; margin-top:.3rem; }
+.cab-seat-strip:empty { display:none; }
+.cab-seat-strip-item { display:grid; place-items:center; min-width:1.1rem; min-height:1.1rem; border:1px solid currentColor; border-radius:.25rem; font-size:.75rem; }

@@ -4,6 +4,7 @@ import { getT } from '@/lib/i18n/server';
 import { getListing, getListings, getLocations, getRooms, KINDS } from '@/lib/data';
 import { idFromSlug, inr, listingSlug } from '@/lib/format';
 import { getSession } from '@/lib/auth';
+import { publicDb } from '@/lib/supabase/server';
 import { BookingForm } from './booking/BookingForm';
 import { Chips, Empty, Grid, ListingCard, Section } from './Blocks';
 import { Cover } from './Cover';
@@ -35,13 +36,41 @@ export async function ListingList({ kind, sp }) {
     const k = KINDS[kind];
     const maxPrice = Number(sp.max) || 0;
     const guests = Number(sp.guests) || 0;
+    const checkIn = kind === 'homestay' && typeof sp.check_in === 'string' ? sp.check_in : '';
+    const checkOut = kind === 'homestay' && typeof sp.check_out === 'string' ? sp.check_out : '';
+    const datesRequested = Boolean(checkIn || checkOut);
+    const validDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d) && Number.isFinite(Date.parse(d))
+      && new Date(d).toISOString().slice(0,10) === d;
+    const today = new Date(Date.now() + 19_800_000).toISOString().slice(0,10);
+    const validStay = validDate(checkIn) && validDate(checkOut) && checkIn >= today && checkOut > checkIn
+      && Date.parse(checkOut) - Date.parse(checkIn) <= 60 * 86_400_000
+      && Number.isInteger(guests) && guests >= 0 && guests <= 50;
+    let dateError = datesRequested && !validStay
+      ? L('Choose valid check-in and check-out dates for a stay of up to 60 nights.', '60 रातों तक ठहरने के लिए सही आने और जाने की तारीख चुनें।') : '';
     const districts = [...new Set(rows.map((x) => x.district || locs.find((l) => l.id === x.location_id)?.district).filter(Boolean))];
-    const shown = rows
+    let shown = rows
         .filter((x) => !sp.district || (x.district || locs.find((l) => l.id === x.location_id)?.district) === sp.district)
         .filter((x) => !maxPrice || (x[k.priceField] ?? 0) <= maxPrice)
         .filter((x) => !guests || kind !== 'homestay' || (x.max_guests ?? 0) >= guests);
+    if (datesRequested && validStay && shown.length) {
+        const batches = [];
+        for (let i = 0; i < shown.length; i += 100) {
+            batches.push(publicDb().rpc('find_available_homestays', {
+                p_ids: shown.slice(i, i + 100).map((row) => row.id),
+                p_start: checkIn, p_end: checkOut, p_guests: guests || 1,
+            }));
+        }
+        const results = await Promise.all(batches);
+        if (results.some((r) => r.error)) {
+            dateError = L('Availability could not be checked. Try again.', 'उपलब्धता जाँची नहीं जा सकी। फिर कोशिश करें।');
+        } else {
+            const ids = new Set(results.flatMap((r) => (r.data || []).map((item) => item.homestay_id)));
+            shown = shown.filter((row) => ids.has(row.id));
+        }
+    }
+    if (dateError) shown = [];
     const locName = (x) => { const l = locs.find((y) => y.id === x.location_id); return l ? pick(l, 'name') : undefined; };
-    const filtered = !!(sp.district || sp.max || sp.guests);
+    const filtered = !!(sp.district || sp.max || sp.guests || datesRequested);
     return (<div className="rf-page">
       <PageHero lang={lang} photo={HERO_PHOTO[kind]} title={t(TITLE_KEY[kind])} lead={intro(kind, tr)}/>
       <div className="wrap">
@@ -54,12 +83,20 @@ export async function ListingList({ kind, sp }) {
             <input className="input" name="max" type="number" min={0} step={100} inputMode="numeric" defaultValue={sp.max || ''}/></label>
           {kind === 'homestay' ? (<label className="field"><span className="field-label">{t('guests')}</span>
               <input className="input" name="guests" type="number" min={1} max={50} inputMode="numeric" defaultValue={sp.guests || ''}/></label>) : null}
+          {kind === 'homestay' ? <>
+            <label className="field"><span className="field-label">{L('Check-in', 'आने की तारीख')}</span>
+              <input className="input" name="check_in" type="date" min={today} defaultValue={checkIn}/></label>
+            <label className="field"><span className="field-label">{L('Check-out', 'जाने की तारीख')}</span>
+              <input className="input" name="check_out" type="date" min={today} defaultValue={checkOut}/></label>
+          </> : null}
           <button className="btn" type="submit">{t('filter')}</button>
           {filtered ? <Link className="link" href={k.route}>{t('clear_filters')}</Link> : null}
         </form></div>) : null}
-      {rows.length ? <p className="rf-count">{shown.length} {t('results')}</p> : null}
+      {dateError ? <p role="alert" className="form-err">{dateError}</p> : null}
+      {datesRequested && !dateError && shown.length ? <p className="small muted">{L('Rooms were available when checked. The host still confirms the booking.', 'जाँच के समय कमरे उपलब्ध थे। बुकिंग की पुष्टि होस्ट करेंगे।')}</p> : null}
+      {rows.length && !dateError ? <p className="rf-count">{shown.length} {t('results')}</p> : null}
       <div className={rows.length ? '' : 'rf-body'}>
-      {shown.length ? <Grid>{shown.map((x) => kind === 'homestay' ? <StayCard key={x.id} x={x} tr={tr} locName={locName(x)}/> : <ListingCard key={x.id} kind={kind} x={x} tr={tr} locName={locName(x)}/>)}</Grid>
+      {dateError ? null : shown.length ? <Grid>{shown.map((x) => kind === 'homestay' ? <StayCard key={x.id} x={x} tr={tr} locName={locName(x)}/> : <ListingCard key={x.id} kind={kind} x={x} tr={tr} locName={locName(x)}/>)}</Grid>
             : <Empty icon="house" text={rows.length ? t('nothing_here') : t('no_listings')} action={rows.length ? (filtered ? <Link className="btn btn-ghost" href={k.route}>{t('clear_filters')}</Link> : undefined) : <Link className="btn btn-ghost" href="/partner/join">{t('become_partner')}</Link>}/>}
       </div>
       </div>

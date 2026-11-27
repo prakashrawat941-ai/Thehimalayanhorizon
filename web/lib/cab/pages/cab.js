@@ -303,7 +303,13 @@ export async function find({ query }) {
       cards.set(ride.id, view); list.append(view.el);
     });
     for (let offset = 0; offset < matches.length; offset += 100) {
-      watchRides(matches.slice(offset, offset + 100).map((ride) => ride.id), (row) => cards.get(row.id)?.update(row));
+      const ids = matches.slice(offset, offset + 100).map((ride) => ride.id);
+      seatSnapshot(ids).then((snapshot) => ids.forEach((id) => cards.get(id)?.loadSeats(snapshot.filter((s) => s.ride_id === id)))).catch(() => {});
+      watchRides(ids, (row) => {
+        const cardView = cards.get(row.id);
+        cardView?.update(row);
+        cardView?.refreshSeats(row.id);
+      });
     }
   }
   page.append(list);
@@ -332,9 +338,31 @@ function discoveryMap(ride) {
   return container;
 }
 
+async function seatSnapshot(ids) {
+  return q(sb.rpc('cab_rides_seat_snapshot', { p_ride_ids: ids }));
+}
+
+async function rideSeatSnapshot(id) {
+  try { return await seatSnapshot([id]); }
+  catch { return q(sb.rpc('cab_ride_taken_seats', { p_ride: id })); }
+}
+
+function rideRules(ride) {
+  const describe = (value, en, hi, denied, deniedHi) =>
+    typeof value === 'boolean' ? L(...(value ? [en, hi] : [denied, deniedHi])) : null;
+  const rules = [
+    ride.luggage_rule ? `${L('Luggage', 'सामान')}: ${ride.luggage_rule}` : null,
+    describe(ride.smoking_allowed, 'Smoking allowed', 'धूम्रपान की अनुमति', 'No smoking', 'धूम्रपान मना है'),
+    describe(ride.pets_allowed, 'Pets allowed', 'पालतू जानवर ला सकते हैं', 'No pets', 'पालतू जानवर मना हैं'),
+  ].filter(Boolean);
+  return rules.length ? h('p', { class: 'small muted' }, rules.join(' · ')) : null;
+}
+
 function rideCard(ride, driver, { n, match, pickup, variantId, rating, returnTo }) {
   const seatCount = h('span', { class: 'seat-pill', 'aria-live': 'polite' });
   const availability = h('p', { class: 'cab-card-availability muted small', 'aria-live': 'polite' });
+  const strip = h('div', { class: 'cab-seat-strip' });
+  let currentRide = ride, version = 0;
   const params = new URLSearchParams({ n: String(n), back: returnTo });
   if (match && pickup && match.pickup_km > 2) params.set('pn', (placeName(pickup) || pickup.name).slice(0, 80));
 
@@ -357,7 +385,7 @@ function rideCard(ride, driver, { n, match, pickup, variantId, rating, returnTo 
           ? h('p', { class: 'rc-near small' }, `${L('Pickup about', 'पिकअप लगभग')} ${Math.round(match.pickup_km)} km ${L('from the route', 'रूट से')}`) : null,
         match && match.drop_km > 2
           ? h('p', { class: 'rc-near small' }, `${L('Drop about', 'ड्रॉप लगभग')} ${Math.round(match.drop_km)} km ${L('from the route', 'रूट से')}`) : null,
-        availability),
+        availability, rideRules(ride), strip),
       vehicleVisual(ride.vehicle_model, { size: 'card', gallery: false, variantId, vehicleId: ride.vehicle_id })),
     h('div', { class: 'rc-foot' },
       h('div', {}, h('strong', { class: 'price' }, inr(ride.price_per_seat)),
@@ -368,6 +396,7 @@ function rideCard(ride, driver, { n, match, pickup, variantId, rating, returnTo 
         selectSeats)));
 
   function update(row) {
+    currentRide = { ...currentRide, ...row };
     const left = Math.max(0, row.seats_total - row.seats_booked);
     const open = row.status === 'open' || row.status === 'full';
     selectSeats.hidden = row.status !== 'open' || left < n || Boolean(user()?.id && row.driver_id === user().id);
@@ -377,7 +406,26 @@ function rideCard(ride, driver, { n, match, pickup, variantId, rating, returnTo 
     availability.textContent = open && left < n ? L('Fewer seats than requested', 'यात्रियों से कम सीटें उपलब्ध हैं') : '';
   }
   update(ride);
-  return { el: article, update };
+  function loadSeats(rows) {
+    clear(strip);
+    if (!['open','full'].includes(currentRide.status)) return;
+    const { taken, held } = takenSeats(rows);
+    if (taken.length !== currentRide.seats_booked) return;
+    for (let no = 1; no <= currentRide.seats_total; no++) {
+      const [mark, label] = held.includes(no) ? ['◷', L('Held', 'होल्ड')]
+        : taken.includes(no) ? ['×', L('Booked', 'बुक')] : ['○', L('Available', 'उपलब्ध')];
+      strip.append(h('span', { class: 'cab-seat-strip-item', title: `${no} ${label}`, role: 'img', 'aria-label': `${no} ${label}` }, mark));
+    }
+  }
+  async function refreshSeats(id) {
+    const next = ++version;
+    clear(strip);
+    try {
+      const rows = await seatSnapshot([id]);
+      if (next === version) loadSeats(rows);
+    } catch { /* Keep the visible seat count if a per-seat snapshot is unavailable. */ }
+  }
+  return { el: article, update, loadSeats: (rows) => { if (!version) loadSeats(rows); }, refreshSeats };
 }
 
 // ---------- 3–7. Ride details → seats → confirm ----------
@@ -425,7 +473,7 @@ export async function ride({ params, query }) {
   async function loadTaken() {
     const version = ++availabilityVersion;
     try {
-      const taken = await q(sb.rpc('cab_ride_taken_seats', { p_ride: r.id }));
+      const taken = await rideSeatSnapshot(r.id);
       if (version !== availabilityVersion) return;
       const parsed = takenSeats(taken);
       st.taken = parsed.taken;
@@ -494,7 +542,7 @@ export async function ride({ params, query }) {
           h('p', { class: 'muted small' }, dateOf(r.departure_at),
             r.distance_km ? ` · ${Math.round(r.distance_km)} km` : '',
             r.duration_min ? ` · ${L('Estimated arrival', 'पहुँचने का अनुमान')}` : ''),
-          timeline(), discoveryMap(r),
+          timeline(), discoveryMap(r), rideRules(r),
           r.ride_ref ? h('p', { class: 'small muted' }, L('Ride ID ', 'राइड आईडी '), h('span', { class: 'mono' }, r.ride_ref)) : null,
           r.notes ? h('div', { class: 'cab-detail-about' }, h('h3', {}, L('Notes from the driver', 'ड्राइवर की बात')), h('p', {}, r.notes)) : null),
         isOwn ? ownSeatMap() : null,
@@ -519,7 +567,7 @@ export async function ride({ params, query }) {
     const legendHeld = h('span', { 'data-state': 'held', hidden: true }, L('Held', 'होल्ड'));
     const legendTaken = h('span', { 'data-state': 'booked' }, L('Booked or held', 'बुक या होल्ड'));
     const status = h('p', { class: 'small muted', role: 'status' }, L('Loading seats…', 'सीटें लोड हो रही हैं…'));
-    q(sb.rpc('cab_ride_taken_seats', { p_ride: r.id })).then((reply) => {
+    rideSeatSnapshot(r.id).then((reply) => {
       const { taken, held, holdInfo } = takenSeats(reply);
       for (const [no, el] of seats) {
         const isTaken = taken.includes(no);

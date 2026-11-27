@@ -25,7 +25,16 @@ function Group({ lang, k, title, fields, initial }) {
       {msg ? <p className={msg.err ? 'form-err' : 'form-ok'}>{msg.text}</p> : null}
       <button type="button" className="btn" onClick={async () => {
         const clean = Object.fromEntries(Object.entries(v).filter(([, x]) => x !== '' && x != null));
-        const { error } = await saveKey(k, { ...(initial || {}), ...clean });
+        if (k === 'contact') {
+          const valid = (x, max) => typeof x === 'number' && Number.isFinite(x) && Math.abs(x) <= max;
+          if ((clean.lat != null || clean.lng != null) && (!valid(clean.lat, 90) || !valid(clean.lng, 180))) {
+            setMsg({ err: true, text: L('Enter both valid office coordinates, or clear both.', 'कार्यालय के दोनों सही निर्देशांक भरें, या दोनों खाली रखें।') });
+            return;
+          }
+        }
+        const value = { ...(initial || {}), ...clean };
+        if (k === 'contact' && clean.lat == null && clean.lng == null) { delete value.lat; delete value.lng; }
+        const { error } = await saveKey(k, value);
         setMsg(error ? { err: true, text: error.message } : { err: false, text: L('Saved', 'सेव हो गया') }); if (!error) router.refresh();
       }}>{L('Save', 'सेव करें')}</button>
     </section>
@@ -43,7 +52,7 @@ export function SettingsEditor({ lang, settings }) {
   return (
     <div className="ds-body">
       <Group lang={lang} k="contact" title={L('Contact details', 'संपर्क जानकारी')} initial={settings.contact}
-        fields={[['phone', L('Phone', 'फ़ोन'), 'tel'], ['whatsapp', 'WhatsApp', 'tel', L('With country code, e.g. 91XXXXXXXXXX', 'देश कोड के साथ, जैसे 91XXXXXXXXXX')], ['email', L('Email', 'ईमेल'), 'email'], ['address', L('Address', 'पता')]]} />
+        fields={[['phone', L('Phone', 'फ़ोन'), 'tel'], ['whatsapp', 'WhatsApp', 'tel', L('With country code, e.g. 91XXXXXXXXXX', 'देश कोड के साथ, जैसे 91XXXXXXXXXX')], ['email', L('Email', 'ईमेल'), 'email'], ['address', L('Address', 'पता')], ['lat', L('Office latitude', 'कार्यालय अक्षांश'), 'number'], ['lng', L('Office longitude', 'कार्यालय देशांतर'), 'number']]} />
       <Group lang={lang} k="social" title={L('Social links', 'सोशल लिंक')} initial={settings.social}
         fields={[['instagram', 'Instagram (https://…)', 'url'], ['facebook', 'Facebook (https://…)', 'url'], ['youtube', 'YouTube (https://…)', 'url'], ['x', 'X / Twitter (https://…)', 'url']]} />
       <Group lang={lang} k="cab_rules" title={L('Instant Cab rules', 'इंस्टेंट कैब नियम')} initial={settings.cab_rules}

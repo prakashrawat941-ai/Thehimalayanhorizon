@@ -102,7 +102,7 @@ export default async function Home() {
             return (<section className="wrap rf-sec" key={s.id}>
           <Head title={sTitle(s)} note={sSub(s)} link="/experiences" label={t('view_all')}/>
           <div className="rf-themes">
-            {list.map((th) => <Tile key={th.id} className="rf-tile rf-theme" link={`/experiences/${th.slug}`} photo={notePhoto(THEME_PHOTO[th.slug])} seed={th.slug} lang={lang} title={pick(th, 'name')}/>)}
+            {list.map((th) => <Tile key={th.id} className="rf-tile rf-theme" link={`/experiences/${th.slug}`} cms={th.image_url} photo={!th.image_url ? notePhoto(THEME_PHOTO[th.slug]) : null} seed={th.slug} lang={lang} title={pick(th, 'name')}/>)}
           </div>
         </section>);
         },

@@ -600,3 +600,16 @@ The popup still opens only after `request_cab_ride_idempotent` returns a booking
 - **Pre-existing, fixed for the new cabin only:** `h()` in `web/lib/cab/ui.js` assigns `style` objects with `Object.assign`, which ignores CSS custom properties. The old schematic seat grid's `--cabin-tracks` and `--cabin-columns` were never applied. The new cabin sets its variable with `style.setProperty`. Other callers that pass `--*` in `style` are unchanged.
 - **Hindi:** new labels use the existing `L(en, hi)` helper. Hindi wording should be reviewed by a native speaker.
 - **Popup checkmark:** in the harness screenshots the receipt popup's check mark looked empty. The popup's `cele-mark` styling and animation were not changed in this work. Check it on a real device.
+
+### Cab and public-page follow-ups
+
+- C0: Vercel Preview and Netlify deploy/branch previews now select `thh-staging` at build time. Existing previews keep their old configuration until rebuilt. No production test records were changed.
+- C1/C3: A single bounded RPC returns held and confirmed seat states for up to 100 visible rides, without passenger information. Seat picker and driver view retain the original integer RPC as a fallback. Ride cards use numbered-seat state markers when the snapshot and availability counter agree.
+- C2: Drivers can set luggage, smoking and pet rules. Unspecified rules are hidden on cards and ride details.
+- C4: Read-only production count for the past 14 days: 2/2 booking references and 12/12 ride references matched the prescribed formats. No bookings or rides were written.
+- P2: All 11 Wikimedia photos now use local, resized WebP assets. The source page, author and license remain visible in photo credits.
+- P3: Optional stay dates are forwarded from Home to Homestays. Availability checks approved properties against active room types, guest capacity, blocked units and confirmed occupancy for each night. Host confirmation is still required.
+- P4: Contact settings accept an office latitude and longitude. Our Office shows an OpenStreetMap pin after the owner enters the coordinates.
+- P5: The theme image column backs the existing CMS photo field and overrides the theme tile defaults on Home.
+
+**Verification:** Migration `20261127041210_cab_public_followups.sql` applied to `thh-staging` only. The staging Cab fixture passed 86/86 including held seats and batch bounds. The staging Homestay fixture passed 37/38, including both new date/capacity and blocked-room checks. Re-running the unmodified base suite reproduced the single pre-existing admin GMV assertion failure (35/36). Fixtures were rolled back. The local Next.js production build passed. Signed-in browser runs and the owner-provided office coordinates are pending.

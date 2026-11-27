@@ -32,6 +32,9 @@ export function HomeSearch({ lang, labels, text }) {
   const [from, setFrom] = useState(null);
   const [to, setTo] = useState(null);
   const [date, setDate] = useState(todayISO());
+  const [checkIn, setCheckIn] = useState('');
+  const [checkOut, setCheckOut] = useState('');
+  const L = (en, hi) => lang === 'hi' ? hi : en;
   const [guests, setGuests] = useState(2);
   const [seats, setSeats] = useState(1);
   const [error, setError] = useState('');
@@ -44,6 +47,14 @@ export function HomeSearch({ lang, labels, text }) {
       const qs = new URLSearchParams();
       if (where?.district && !where.ext) qs.set('district', where.district);
       qs.set('guests', String(guests));
+      if (checkIn || checkOut) {
+        if (!checkIn || !checkOut || checkOut <= checkIn) {
+          setError(L('Choose both stay dates. Check-out must be after check-in.', 'ठहरने की दोनों तारीखें चुनें। जाने की तारीख बाद में होनी चाहिए।'));
+          return;
+        }
+        qs.set('check_in', checkIn);
+        qs.set('check_out', checkOut);
+      }
       router.push(`/homestays?${qs}`);
     } else if (tab === 'cab') {
       if (!from || !to) { setError(T('err_route')); return; }
@@ -72,6 +83,12 @@ export function HomeSearch({ lang, labels, text }) {
       <div className="rf-sf" role="tabpanel">
         {tab === 'stays' ? (<>
           <PlaceSearch key="stays" lang={lang} labels={labels} onPick={pick(setWhere)} onType={() => setWhere(null)} placeholder={T('where')} initial={where?.name || ''}/>
+          <div className="rf-sf-row rf-stay-dates">
+            <label className="field"><span className="field-label">{L('Check-in', 'आने की तारीख')}</span>
+              <input className="input" type="date" min={todayISO()} value={checkIn} onChange={(e) => setCheckIn(e.target.value)}/></label>
+            <label className="field"><span className="field-label">{L('Check-out', 'जाने की तारीख')}</span>
+              <input className="input" type="date" min={checkIn || todayISO()} value={checkOut} onChange={(e) => setCheckOut(e.target.value)}/></label>
+          </div>
           <Stepper value={guests} min={1} max={20} onChange={setGuests} label={T('guests')} unit={(n) => T(n === 1 ? 'guest' : 'guests_unit')}/>
         </>) : null}
         {tab === 'cab' ? (<>

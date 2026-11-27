@@ -25,8 +25,12 @@ const Paragraphs = ({ body }) => <div className="prose">{body.split(/\n{2,}/).ma
 // Contact details come only from Admin → Settings → Contact. Nothing is shown when a value is not set.
 function OfficeContact({ contact: c, tr }) {
     const { t, L } = tr;
+    const marker = typeof c.lat === 'number' && typeof c.lng === 'number'
+      && Math.abs(c.lat) <= 90 && Math.abs(c.lng) <= 180
+      ? `https://www.openstreetmap.org/?mlat=${c.lat}&mlon=${c.lng}#map=16/${c.lat}/${c.lng}` : null;
     const wa = (c.whatsapp || '').replace(/\D/g, '');
     const cards = [
+        marker ? <a className="rf-cc" key="map" href={marker} target="_blank" rel="noopener noreferrer"><i><Icon name="map"/></i><span><b>{L('Office location', 'कार्यालय की लोकेशन')}</b><span>{L('Open map pin', 'मैप पिन खोलें')}</span></span></a> : null,
         c.address ? <div className="rf-cc" key="a"><i><Icon name="pin"/></i><span><b>{L('Address', 'पता')}</b><span>{c.address}</span></span></div> : null,
         c.phone ? <a className="rf-cc" key="p" href={`tel:${c.phone.replace(/\s/g, '')}`}><i><Icon name="phone"/></i><span><b>{L('Phone', 'फ़ोन')}</b><span>{c.phone}</span></span></a> : null,
         wa ? <a className="rf-cc" key="w" href={`https://wa.me/${wa}`} target="_blank" rel="noopener noreferrer"><i><Icon name="support"/></i><span><b>WhatsApp</b><span>{c.whatsapp}</span></span></a> : null,
