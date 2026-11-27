@@ -1,5 +1,5 @@
 // Dashboard registry for the switcher. UI only: every dashboard route still checks the
-// signed-in user's rights on the server (requireAdmin today; management guards come from Codex).
+// signed-in user's rights on the server.
 export const DASHBOARDS = Object.freeze({
   founder: { href: '/founder', label: ['Founder', 'संस्थापक'], initials: 'F', color: '#1f4d3a' },
   ceo: { href: '/ceo', label: ['CEO', 'मुख्य कार्यकारी'], initials: 'C', color: '#1d5f99' },
@@ -8,18 +8,13 @@ export const DASHBOARDS = Object.freeze({
   account: { href: '/account', label: ['My account', 'मेरा खाता'], initials: 'ME', color: '#6b7680', sub: ['Bookings and trips', 'बुकिंग और यात्राएँ'] },
 });
 
-/**
- * Until the management backend is live (handoff D1), the owner's admin account may open the
- * Founder, CEO and Co-founder dashboards. Those routes are guarded by requireAdmin and show
- * only existing-table data. CODEX: set this to false once management_members + MFA guard them.
- */
+// Admin membership alone does not grant leadership access.
 export const ADMIN_OPENS_MANAGEMENT = false;
 
 /**
  * Keys of the dashboards this user may open, in display order.
  * `managementRole` must come from a server-side, MFA-checked read of management_members
- * (CODEX: wire this in when the management migration lands). Until then only `admin`
- * (profiles.role = 'admin', set by the owner) and the personal account are offered.
+ * and the Admin entry uses the separately granted profile role.
  */
 export function authorisedDashboards({ roles = {}, managementRole = null } = {}) {
   const keys = [];

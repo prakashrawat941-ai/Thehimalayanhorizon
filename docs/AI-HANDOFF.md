@@ -222,7 +222,9 @@ or `{ status: 'not_connected' }`.
 
 **Known access gaps:** Founder and CEO operational monitors currently show counts without links to admin-only detail pages; dedicated management detail routes are still needed. Co-founder homepage content editing uses `/co-founder/cms`, while location additions use the source-tracked review flow. Onboarding links to admin-only pages are hidden. MFA status in the roster means a verified factor is enrolled; it does not assert that the person is currently at `aal2`.
 
-### Pending Codex items: dashboards
+**Current-main review:** PR #18 was reconciled with the squash-merged dashboard and Trip Planner changes, preserving the PR #17 fixes. A staged transaction with an `aal2` CEO verified that the Founder route membership condition and Founder directory RPC both deny this identity. The fixture rolled back. The Admin switcher only advertises a leadership destination when the same account also holds the matching team role and has completed MFA.
+
+### Original dashboard handoff items (see integration status above)
 
 - D1. Replace the temporary `requireAdmin` guard in `ManagementFrame` (and each role page) with the management guard (`management_members` role + `aal2`). Wire `authorisedDashboards({ managementRole })` from that read and set `ADMIN_OPENS_MANAGEMENT = false`. Feed the "Not connected yet" parts from `management_*`.
 - D2. Add the Founder-only `setMember` action and invite flow, plus the server-side MFA factor and last-sign-in read for the people list.

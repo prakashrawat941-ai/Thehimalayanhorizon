@@ -1,5 +1,6 @@
 import { getT } from '@/lib/i18n/server';
 import { requireAdmin, count } from '@/lib/admin';
+import { managementRoleForSwitcher } from '@/lib/management/guard';
 import { DashLayout } from '@/components/dash/DashLayout';
 
 export const metadata = { robots: { index: false }, title: 'Admin' };
@@ -7,7 +8,7 @@ export const metadata = { robots: { index: false }, title: 'Admin' };
 export default async function AdminLayout({ children }) {
   const ctx = await requireAdmin('/admin');
   const { db } = ctx;
-  const { L } = await getT();
+  const [{ L }, managementRole] = await Promise.all([getT(), managementRoleForSwitcher(ctx)]);
   const h = { count: 'exact', head: true };
   const [partners, homes, tours, works, kyc, payouts, tickets, reviews, messages] = await Promise.all([
     count(db.from('partners').select('id', h).eq('status', 'pending')),
@@ -38,7 +39,7 @@ export default async function AdminLayout({ children }) {
     { href: '/admin/cab', icon: 'car', label: L('Instant Cab', 'इंस्टेंट कैब') },
   ];
   return (
-    <DashLayout ctx={ctx} current="admin" title={L('Admin', 'एडमिन')} items={items} L={L}>
+    <DashLayout ctx={ctx} managementRole={managementRole} current="admin" title={L('Admin', 'एडमिन')} items={items} L={L}>
       {children}
     </DashLayout>
   );
