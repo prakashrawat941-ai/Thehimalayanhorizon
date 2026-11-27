@@ -2,11 +2,12 @@
 import Link from 'next/link';
 import { useMemo } from 'react';
 import { computeBudget, COST_CATS, placesAlong, pickLeg, distanceKm, tripPoints, seasonNotes } from '@/lib/trip/engine';
-import { PREFS, PACES, MODES, placeLabel } from '@/lib/trip/common';
+import { PREFS, PACES, MODES, WHO, whoOf, VEHICLES, FUELS, placeLabel } from '@/lib/trip/common';
 import { listingSlug, inr, slugify } from '@/lib/format';
 import { RouteMap } from './RouteMap';
 import { useWeather } from './useWeather';
 import { WeatherChip, DayItems, km, dur } from './bits';
+import '@/app/plan/planner.css';
 
 const SAFETY = [
   ['https://mausam.imd.gov.in/', 'IMD weather warnings', 'IMD मौसम चेतावनी'],
@@ -18,7 +19,7 @@ const NUMBERS = [['112', 'All emergencies', 'सभी आपात'], ['1070', 
   ['100', 'Police', 'पुलिस'], ['101', 'Fire', 'फ़ायर'], ['108', 'Ambulance', 'एम्बुलेंस']];
 
 /** Full Trip Report: summary, route, costs, nearby places, day plan, stays, stops, safety, sources. */
-export function TripReport({ d, places = [], locations = [], listings = [], lang, actions = null }) {
+export function TripReport({ d, places = [], locations = [], listings = [], lang, actions = null, pois = [], auto = {} }) {
   const L = (en, hi) => (lang === 'hi' ? hi : en);
   const pts = tripPoints(d);
   const legs = d.route?.legs || [];
@@ -27,7 +28,11 @@ export function TripReport({ d, places = [], locations = [], listings = [], lang
   const { byDay } = useWeather(days);
   const allCoords = legs.filter((l) => !l.error).flatMap((l) => pickLeg(l).coords || []);
   const dests = d.dests.filter(Boolean);
-  const themes = d.prefs.map((k) => PREFS.find((p) => p[0] === k)).filter(Boolean).map((p) => (lang === 'hi' ? p[2] : p[1]));
+  const who = WHO.find((w) => w[0] === whoOf(d));
+  const vehicle = VEHICLES.find((v) => v[0] === d.assumptions?.vehicle);
+  const fuel = FUELS.find((f) => f[0] === (d.assumptions?.fuel_type || 'petrol'));
+  const routePois = pois.filter((p) => p.kind === 'fuel' || p.kind === 'toll');
+  const themes = d.prefs.filter((k) => !WHO.some((w) => w[0] === k)).map((k) => PREFS.find((p) => p[0] === k)).filter(Boolean).map((p) => (lang === 'hi' ? p[2] : p[1]));
   const pace = PACES.find((p) => p[0] === d.pace);
   const mode = MODES.find((m) => m[0] === d.mode);
   const people = d.adults + d.children;
@@ -55,15 +60,15 @@ export function TripReport({ d, places = [], locations = [], listings = [], lang
         <div><dt>{L('Start', 'शुरुआत')}</dt><dd>{placeLabel(d.start, lang)}</dd></div>
         <div><dt>{L('Destinations', 'मंज़िलें')}</dt><dd>{dests.map((p) => placeLabel(p, lang)).join(', ')}</dd></div>
         <div><dt>{L('Dates', 'तारीख़')}</dt><dd>{fmt(d.depart)} – {fmt(d.ret)} · {b.nDays} {L('days', 'दिन')}</dd></div>
-        <div><dt>{L('Travellers', 'यात्री')}</dt><dd>{d.adults} {L('adults', 'वयस्क')}{d.children ? `, ${d.children} ${L('children', 'बच्चे')}` : ''}</dd></div>
-        <div><dt>{L('Vehicle', 'सवारी')}</dt><dd>{mode ? (lang === 'hi' ? mode[2] : mode[1]) : d.mode}</dd></div>
+        <div><dt>{L('Travellers', 'यात्री')}</dt><dd>{who ? `${lang === 'hi' ? who[2] : who[1]} · ` : ''}{d.adults} {L('adults', 'वयस्क')}{d.children ? `, ${d.children} ${L('children', 'बच्चे')}` : ''}</dd></div>
+        <div><dt>{L('Vehicle', 'सवारी')}</dt><dd>{mode ? (lang === 'hi' ? mode[2] : mode[1]) : d.mode}{vehicle && ['car', 'taxi'].includes(d.mode) ? ` · ${lang === 'hi' ? vehicle[2] : vehicle[1]}` : ''}{['car', 'bike'].includes(d.mode) && fuel ? ` · ${lang === 'hi' ? fuel[2] : fuel[1]}` : ''}</dd></div>
         {['car', 'bike', 'taxi'].includes(d.mode) ? <div><dt>{L('Mileage', 'माइलेज')}</dt><dd>{b.a.mileage} km/l</dd></div> : null}
         <div><dt>{L('Trip type', 'ट्रिप का प्रकार')}</dt><dd>{d.roundTrip !== false ? L('Round trip', 'आना-जाना') : L('One way', 'एक तरफ़')} · {pace ? (lang === 'hi' ? pace[2] : pace[1]) : ''}</dd></div>
       </dl>
 
       <section className="section">
         <h2>{L('Route overview', 'रास्ते की जानकारी')}</h2>
-        <RouteMap points={pts} legs={legs} height={300} />
+        <RouteMap points={pts} legs={legs} pois={pois} layers={{ fuel: true, toll: true, stay: true }} height={300} />
         <ol className="leg-list">
           {legs.map((leg, i) => {
             const l = pickLeg(leg);
@@ -77,6 +82,16 @@ export function TripReport({ d, places = [], locations = [], listings = [], lang
             );
           })}
         </ol>
+        {routePois.length ? (
+          <>
+            <h3 className="tr-sub">{L('Fuel pumps & toll plazas on the way', 'रास्ते के पेट्रोल पंप और टोल प्लाज़ा')}</h3>
+            <ul className="tp2-poi tp2-poi-r">{routePois.map((p, i) => (
+              <li key={i}><span className="tp2-km">{p.leg ? `${L('Leg', 'हिस्सा')} ${p.leg}` : ''}{p.km != null ? ` · ${km(p.km)}` : ''}</span><span className={`tp2-ic ${p.kind}`} aria-hidden="true">{p.kind === 'toll' ? '₹' : '⛽'}</span>
+                <span>{p.name}<small>{p.sub}</small></span><span className="tp2-pr" /></li>
+            ))}</ul>
+            {auto.tollInfo ? <p className="small muted">{L(`Tolls on this route: ${inr(auto.tolls || 0)}${auto.tollInfo.unknown ? ` (+ ${auto.tollInfo.unknown} plaza(s) with unknown rate)` : ''}.`, `इस रास्ते के टोल: ${inr(auto.tolls || 0)}${auto.tollInfo.unknown ? ` (+ ${auto.tollInfo.unknown} प्लाज़ा का रेट पता नहीं)` : ''}।`)}</p> : null}
+          </>
+        ) : null}
         <p className="small muted">{L('Road distances and times from OpenStreetMap (OSRM), without traffic. Hill roads are often slower; live traffic, tolls and road closures are not included — see NHAI Rajmargyatra and USDMA.',
           'सड़क की दूरी और समय OpenStreetMap (OSRM) से, ट्रैफ़िक के बिना। पहाड़ी सड़कें अक्सर धीमी होती हैं; लाइव ट्रैफ़िक, टोल और बंद रास्ते शामिल नहीं — NHAI राजमार्गयात्रा और USDMA देखें।')}</p>
       </section>

@@ -44,7 +44,7 @@ export const loadOps = (db, now = Date.now()) => safe('ops', async () => {
   const [start, end] = istDayRange(now);
   const nowIso = new Date(now).toISOString();
   const [checkins, rides, holds, sos, slowStays, oldTickets] = await Promise.all([
-    n(db.from('booking_requests').select('id', head).eq('start_date', today).in('status', ['confirmed', 'checked_in'])),
+    n(db.from('booking_requests').select('id', head).eq('kind', 'homestay').eq('start_date', today).in('status', ['confirmed', 'checked_in'])),
     n(db.from('cab_rides').select('id', head).gte('departure_at', start).lt('departure_at', end).neq('status', 'cancelled')),
     n(db.from('cab_bookings').select('id', head).eq('status', 'pending').gt('hold_expires_at', nowIso)),
     n(db.from('sos_incidents').select('id', head).in('status', ['open', 'acknowledged'])),
@@ -67,7 +67,7 @@ const STEP_PHOTOS = 3;
  */
 export const loadOnboarding = (db) => safe('onboarding', async () => {
   const [partners, stays, kyc] = await Promise.all([
-    all(db.from('partners').select('id, business_name, village, status, created_at').eq('status', 'pending').order('created_at')),
+    all(db.from('partners').select('id, business_name, village, status, created_at').eq('status', 'pending').contains('categories', ['homestay']).order('created_at')),
     all(db.from('homestays').select('id, partner_id, name, village, images, house_rules, status, updated_at, partners(business_name)').in('status', ['draft', 'pending']).order('updated_at')),
     all(db.rpc('management_onboarding_kyc')),
   ]);

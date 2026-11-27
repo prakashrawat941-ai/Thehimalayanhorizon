@@ -17,7 +17,19 @@ export const PREFS = [
   ['family', 'Family travel', 'परिवार के साथ', null],
   ['couple', 'Couple travel', 'कपल ट्रिप', null],
   ['solo', 'Solo travel', 'अकेले यात्रा', null],
+  ['friends', 'Friends trip', 'दोस्तों के साथ', null],
+  ['group', 'Group trip', 'ग्रुप ट्रिप', null],
 ];
+/** "Who's going" — one of these is kept in prefs (no new column). [key, en, hi, adults, children, icon] */
+export const WHO = [
+  ['solo', 'Solo', 'अकेले', 1, 0, '🧍'], ['couple', 'Couple', 'कपल', 2, 0, '💑'], ['family', 'Family', 'परिवार', 2, 1, '👨‍👩‍👧'],
+  ['friends', 'Friends', 'दोस्त', 4, 0, '🧑‍🤝‍🧑'], ['group', 'Group', 'ग्रुप', 8, 0, '👥'],
+];
+export const WHO_KEYS = WHO.map((w) => w[0]);
+export const whoOf = (d) => WHO_KEYS.find((k) => d.prefs?.includes(k)) || null;
+/** Vehicle body type and fuel, stored in assumptions (no new column). */
+export const VEHICLES = [['hatch', 'Hatchback', 'हैचबैक'], ['sedan', 'Sedan', 'सेडान'], ['suv', 'SUV', 'एसयूवी']];
+export const FUELS = [['petrol', 'Petrol', 'पेट्रोल', 'l'], ['diesel', 'Diesel', 'डीज़ल', 'l'], ['cng', 'CNG', 'सीएनजी', 'kg']];
 export const PACES = [
   ['relaxed', 'Relaxed', 'आराम से', 'Fewer places, more rest', 'कम जगहें, ज़्यादा आराम'],
   ['balanced', 'Normal', 'संतुलित', 'A mix of travel and rest', 'घूमना और आराम दोनों'],
@@ -46,7 +58,8 @@ export function dropDraft() { try { localStorage.removeItem(KEY); } catch { /* i
 
 /** Light copy of a place for storing in the trip. */
 export const slim = (p) => (p ? { id: p.id || null, name: p.name, name_hi: p.name_hi || null, district: p.district || null, region: p.region || null,
-  lat: Number(p.lat), lng: Number(p.lng), location_id: p.location_id || null, custom: !!p.custom, ext: !!p.ext, near: p.near || null } : null);
+  lat: Number(p.lat), lng: Number(p.lng), location_id: p.location_id || null, custom: !!p.custom, ext: !!p.ext, near: p.near || null,
+  accuracy: p.accuracy ?? null, source: p.source || null } : null);
 
 export const placeLabel = (p, lang) => (!p ? '' : lang === 'hi' && p.name_hi ? p.name_hi : p.custom && p.near ? `Pin near ${p.near}` : p.name);
 export const tripDays = (d) => (d.depart && d.ret ? Math.round((new Date(d.ret) - new Date(d.depart)) / 864e5) + 1 : null);
