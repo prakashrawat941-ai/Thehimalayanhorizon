@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 // Version shown in the footer: package version + short commit (Netlify sets COMMIT_REF).
 const commit = (process.env.COMMIT_REF || '').slice(0, 7);
-const cabPreviewBranches = ['cab-customer-design', 'cab-seat-booking'];
+const cabPreviewBranches = ['cab-customer-design', 'cab-seat-booking', 'codex/staging-merged-ui-e5995b7'];
 const cabDesignPreview = (process.env.VERCEL_ENV === 'preview' && cabPreviewBranches.includes(process.env.VERCEL_GIT_COMMIT_REF))
   || (['deploy-preview', 'branch-deploy'].includes(process.env.CONTEXT)
     && [process.env.BRANCH, process.env.HEAD].some((branch) => cabPreviewBranches.includes(branch)));
