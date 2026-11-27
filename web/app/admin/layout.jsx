@@ -1,11 +1,12 @@
 import { getT } from '@/lib/i18n/server';
 import { requireAdmin, count } from '@/lib/admin';
-import { AccountNav } from '@/components/account/AccountNav';
+import { DashLayout } from '@/components/dash/DashLayout';
 
 export const metadata = { robots: { index: false }, title: 'Admin' };
 
 export default async function AdminLayout({ children }) {
-  const { db } = await requireAdmin('/admin');
+  const ctx = await requireAdmin('/admin');
+  const { db } = ctx;
   const { L } = await getT();
   const h = { count: 'exact', head: true };
   const [partners, homes, tours, works, kyc, payouts, tickets, reviews, messages] = await Promise.all([
@@ -23,6 +24,7 @@ export default async function AdminLayout({ children }) {
     { href: '/admin', icon: 'home', label: L('Overview', 'ओवरव्यू') },
     { href: '/admin/partners', icon: 'people', label: L('Manage listings & partners','लिस्टिंग और पार्टनर') },
     { href: '/admin/approvals', icon: 'check', label: L('Approvals', 'मंज़ूरी'), count: partners + homes + tours + works + kyc },
+    { href: '/admin/bookings', icon: 'calendar', label: L('Booking monitor', 'बुकिंग मॉनिटर') },
     { href: '/admin/homestays', icon: 'house', label: L('Homestay business', 'होमस्टे बिज़नेस') },
     { href: '/admin/payouts', icon: 'layers', label: L('Payouts', 'पेआउट'), count: payouts },
     { href: '/admin/tickets', icon: 'support', label: L('Support tickets', 'सहायता टिकट'), count: tickets },
@@ -36,9 +38,8 @@ export default async function AdminLayout({ children }) {
     { href: '/admin/cab', icon: 'car', label: L('Instant Cab', 'इंस्टेंट कैब') },
   ];
   return (
-    <div className="ds">
-      <AccountNav items={items} title={L('Admin', 'एडमिन')} />
-      <div className="ds-main">{children}</div>
-    </div>
+    <DashLayout ctx={ctx} current="admin" title={L('Admin', 'एडमिन')} items={items} L={L}>
+      {children}
+    </DashLayout>
   );
 }
