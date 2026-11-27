@@ -1,0 +1,147 @@
+/* Public travel pages retain their existing forest-green and gold palette.
+   Portal tokens are scoped to .ds so public marketing pages cannot change. */
+.ds {
+  --ui-bg: #f7f4ee;
+  --ui-surface: #fffdf9;
+  --ui-text: #1d2420;
+  --ui-text-secondary: #3e4a43;
+  --ui-border: #d9d2c3;
+  --ui-brand: #1f4d3a;
+  --ui-brand-hover: #2f6b4f;
+  --ui-accent: #b08a3e;
+  --ui-focus: #b7791f;
+  --ui-success: #166534;
+  --ui-warning: #92400e;
+  --ui-danger: #b91c1c;
+  --ui-radius: 14px;
+  --ui-shadow: 0 6px 24px rgb(15 23 42 / 7%);
+  --thh-surface: var(--ui-surface);
+  --thh-text: var(--ui-text);
+  --thh-border: var(--ui-border);
+  --thh-muted: var(--ui-text-secondary);
+  --thh-accent: var(--ui-brand);
+  --thh-accent-hover: var(--ui-brand-hover);
+  --thh-subtle: var(--sage);
+  --thh-focus: var(--ui-focus);
+  --ink: var(--ui-text);
+  --ink-2: var(--ui-text-secondary);
+  --muted: var(--ui-text-secondary);
+  --paper: var(--ui-bg);
+  --card: var(--ui-surface);
+  --line: var(--ui-border);
+  --green: var(--ui-brand);
+  --green-2: var(--ui-brand-hover);
+  --sage: #e2e8f0;
+  --sky: #e0f2fe;
+  --saffron: var(--ui-focus);
+  --ok: var(--ui-success);
+  --warn: var(--ui-warning);
+  --err: var(--ui-danger);
+  background: var(--ui-bg);
+  color: var(--ui-text);
+  color-scheme: light;
+}
+.ds.ds-management {
+  --ui-bg: #f1f5f9;
+  --ui-surface: #ffffff;
+  --ui-text: #0f172a;
+  --ui-text-secondary: #475569;
+  --ui-border: #cbd5e1;
+  --ui-brand: #1d4ed8;
+  --ui-brand-hover: #1e40af;
+  --ui-accent: #0f766e;
+  --ui-focus: #0d9488;
+  --sage: #e2e8f0;
+  --sky: #e0f2fe;
+}
+
+.ds :focus-visible { outline-color: var(--ui-focus); }
+.ds .dsx-switch-btn, .ds .dsx-menu, .ds .dsx-chip, .ds .dsx-mc,
+.ds .dsx-md, .ds .dsx-fld input, .ds .dsx-fld select, .ds .dsx-fld textarea,
+.ds .dsx-match, .ds .dsx-pfi {
+  background: var(--ui-surface);
+  color: var(--ui-text);
+}
+.ds .dsx-menu-item[aria-current="true"] { background: #dbeafe; }
+.ds .dsx-chip[aria-current="page"] { background: var(--ui-brand); border-color: var(--ui-brand); color: white; }
+.ds .dsx-info { background: #dbeafe; border-color: #93c5fd; color: #1e3a8a; }
+.ds .dsx-row, .ds .ds-row { border-color: var(--ui-border); }
+
+/* The CSS-only system fallback follows OS preference even before hydration. */
+@media (prefers-color-scheme: dark) {
+  html[data-theme="system"] .ds { color-scheme: dark; }
+}
+html[data-theme="dark"] .ds {
+  --ui-bg: #0c1915;
+  --ui-surface: #1a3027;
+  --ui-text: #f1f5f9;
+  --ui-text-secondary: #cbd5e1;
+  --ui-border: #475569;
+  --ui-brand: #86d8ac;
+  --ui-brand-hover: #a7ebc7;
+  --ui-accent: #f6d283;
+  --ui-focus: #f6d283;
+  --ui-success: #86efac;
+  --ui-warning: #fcd34d;
+  --ui-danger: #fca5a5;
+  --ui-shadow: 0 6px 24px rgb(0 0 0 / 18%);
+  --sage: #294539;
+  --sky: #203e39;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  html[data-theme="system"] .ds {
+    --ui-bg: #0c1915;
+    --ui-surface: #1a3027;
+    --ui-text: #f1f5f9;
+    --ui-text-secondary: #cbd5e1;
+    --ui-border: #475569;
+    --ui-brand: #86d8ac;
+    --ui-brand-hover: #a7ebc7;
+    --ui-accent: #f6d283;
+    --ui-focus: #f6d283;
+    --ui-success: #86efac;
+    --ui-warning: #fcd34d;
+    --ui-danger: #fca5a5;
+    --ui-shadow: 0 6px 24px rgb(0 0 0 / 18%);
+    --sage: #294539;
+    --sky: #203e39;
+  }
+}
+html[data-theme="dark"] .ds.ds-management {
+  --ui-bg: #0b1425;
+  --ui-surface: #17243a;
+  --ui-brand: #60a5fa;
+  --ui-brand-hover: #93c5fd;
+  --ui-accent: #2dd4bf;
+  --ui-focus: #5eead4;
+  --sage: #273750;
+  --sky: #1e3a5f;
+}
+@media (prefers-color-scheme: dark) {
+  html[data-theme="system"] .ds.ds-management {
+    --ui-bg: #0b1425;
+    --ui-surface: #17243a;
+    --ui-brand: #60a5fa;
+    --ui-brand-hover: #93c5fd;
+    --ui-accent: #2dd4bf;
+    --ui-focus: #5eead4;
+    --sage: #273750;
+    --sky: #1e3a5f;
+  }
+}
+html[data-theme="dark"] .ds .dsx-menu-item[aria-current="true"],
+html[data-theme="dark"] .ds .dsx-info { background: #173a62; color: #dbeafe; border-color: #3b82f6; }
+@media (prefers-color-scheme: dark) {
+  html[data-theme="system"] .ds .dsx-menu-item[aria-current="true"],
+  html[data-theme="system"] .ds .dsx-info { background: #173a62; color: #dbeafe; border-color: #3b82f6; }
+}
+html[data-theme="dark"] .ds .ds-stat.urgent,
+html[data-theme="dark"] .ds .dsx-pfi.need { background: #372a19; color: #fcd34d; }
+
+.ui-theme-control { display: inline-flex; align-items: center; gap: 6px; font: 600 .875rem var(--font); }
+.ui-theme-control select {
+  min-height: 40px; border: 1px solid var(--ui-border); border-radius: 9px;
+  background: var(--ui-surface); color: var(--ui-text); padding: 6px 10px; font: inherit;
+}
+.ui-theme-control select:focus-visible { outline: 3px solid var(--ui-focus); outline-offset: 2px; }
