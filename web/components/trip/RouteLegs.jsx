@@ -3,6 +3,7 @@ import { legPairs, pickLeg, summarise } from '@/lib/trip/engine';
 import { placeLabel } from '@/lib/trip/common';
 import { inr } from '@/lib/format';
 import { km, dur } from './bits';
+import { poiLegKey } from '@/lib/trip/live';
 
 const fmtDate = (iso, lang) => (iso ? new Date(`${iso}T12:00:00+05:30`).toLocaleDateString(lang === 'hi' ? 'hi-IN' : 'en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 
@@ -31,8 +32,9 @@ export function RouteLegs({ d, lang, pois, busy, progress, onRoute, onRetry }) {
       {route.legs.map((leg, i) => {
         const pr = pairs[i] || {};
         const l = pickLeg(leg);
-        const list = live ? (pois.legs?.[leg.key] || []) : [];
-        const gaps = live ? (pois.gaps?.[leg.key] || []) : [];
+        const pk = poiLegKey(route, i);
+        const list = live ? (pois.legs?.[pk] || []) : [];
+        const gaps = live ? (pois.gaps?.[pk] || []) : [];
         const tolls = list.filter((p) => p.kind === 'toll');
         const fuel = list.filter((p) => p.kind === 'fuel');
         return (
@@ -63,7 +65,7 @@ export function RouteLegs({ d, lang, pois, busy, progress, onRoute, onRetry }) {
                       <li key={k}>
                         <span className="tp2-km">{km(p.at)}</span>
                         <span className={`tp2-ic ${p.kind}`} aria-hidden="true">{p.kind === 'toll' ? '₹' : p.kind === 'fuel' ? '⛽' : '⚠'}</span>
-                        <span>{p.kind === 'gap' ? L(`No fuel pump for ~${Math.round(p.toKm - p.fromKm)} km`, `~${Math.round(p.toKm - p.fromKm)} किमी तक पेट्रोल पंप नहीं`) : p.name}
+                        <span>{p.kind === 'gap' ? L(`No mapped fuel pump for ~${Math.round(p.toKm - p.fromKm)} km`, `~${Math.round(p.toKm - p.fromKm)} किमी तक नक्शे पर पेट्रोल पंप नहीं`) : p.name}
                           <small>{p.kind === 'toll' ? (p.rate != null ? L(`One way · rate as of ${fmtDate(p.rateDate, lang)}`, `एक तरफ़ · ${fmtDate(p.rateDate, lang)} का रेट`) : L('Rate not known', 'रेट पता नहीं'))
                             : p.kind === 'fuel' ? (p.brand || L('Fuel pump', 'पेट्रोल पंप')) : L('Fill up before this stretch', 'इससे पहले टंकी भरवाएँ')}</small></span>
                         <span className="tp2-pr">{p.kind === 'toll' && p.rate != null ? inr(p.rate) : ''}</span>
@@ -80,7 +82,7 @@ export function RouteLegs({ d, lang, pois, busy, progress, onRoute, onRetry }) {
       {route.missing ? <button type="button" className="btn btn-ghost btn-sm" onClick={onRetry}>{L('Try missing parts again', 'बाक़ी हिस्से फिर से')}</button> : null}
       {pois?.status === 'not_connected' ? <p className="small muted">{L('Fuel pumps, toll plazas and their prices will show here once the live price service is connected.', 'लाइव प्राइस सेवा जुड़ते ही पेट्रोल पंप, टोल प्लाज़ा और उनके दाम यहाँ दिखेंगे।')}</p> : null}
       {pois?.status === 'error' ? <p className="small muted">{L('Could not load fuel pumps and tolls right now.', 'अभी पेट्रोल पंप और टोल लोड नहीं हुए।')}</p> : null}
-      <p className="small muted">{L('Roads: OpenStreetMap (OSRM), no live traffic. Hill roads are often slower.', 'सड़कें: OpenStreetMap (OSRM), लाइव ट्रैफ़िक नहीं। पहाड़ी सड़कें अक्सर धीमी होती हैं।')}{live && pois.source ? ` ${L('Prices', 'दाम')}: ${pois.source}.` : ''}</p>
+      <p className="small muted">{L('Roads: OpenStreetMap (OSRM), no live traffic. Hill roads are often slower.', 'सड़कें: OpenStreetMap (OSRM), लाइव ट्रैफ़िक नहीं। पहाड़ी सड़कें अक्सर धीमी होती हैं।')}{live && pois.source ? ` ${L('POI data', 'रास्ते की जानकारी')}: ${pois.source}.` : ''}</p>
     </div>
   );
 }

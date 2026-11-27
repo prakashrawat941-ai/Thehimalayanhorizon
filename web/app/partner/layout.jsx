@@ -1,6 +1,7 @@
 import { getT } from '@/lib/i18n/server';
 import { requireUser, rows } from '@/lib/account';
 import { AccountNav } from '@/components/account/AccountNav';
+import './partner.css';
 
 export const metadata = { robots: { index: false } };
 
@@ -15,10 +16,10 @@ export default async function PartnerLayout({ children }) {
     db.from('support_tickets').select('id', { count: 'exact', head: true }).eq('partner_id', p.id).eq('status', 'answered'),
   ]);
   const items = [
-    { href: '/partner', icon: 'home', label: L('Overview', 'ओवरव्यू') },
-    { href: '/partner/properties', icon: 'house', label: L('My properties', 'मेरी प्रॉपर्टी') },
-    { href: '/partner/calendar', icon: 'calendar', label: L('Rate calendar', 'रेट कैलेंडर') },
+    { href: '/partner', icon: 'home', label: L('Today', 'आज'), exact: true },
     { href: '/partner/bookings', icon: 'doc', label: L('Bookings', 'बुकिंग'), count: pending || 0 },
+    { href: '/partner/calendar', icon: 'calendar', label: L('Rate calendar', 'रेट कैलेंडर') },
+    { href: '/partner/properties', icon: 'house', label: L('My homestays', 'मेरे होमस्टे') },
     { href: '/partner/earnings', icon: 'layers', label: L('Earnings & payouts', 'कमाई और पेआउट') },
     { href: '/partner/kyc', icon: 'shield', label: L('KYC & bank', 'KYC और बैंक') },
     ...(p.categories?.includes('cab') ? [{href:'/partner/rides',icon:'car',label:L('Cab rides','कैब राइड')}] : []),
@@ -28,7 +29,7 @@ export default async function PartnerLayout({ children }) {
     { href: '/partner/profile', icon: 'user', label: L('Business profile', 'बिज़नेस प्रोफ़ाइल') },
   ];
   return (
-    <div className="ds">
+    <div className="ds pp">
       <AccountNav items={items} title={L('Partner portal', 'पार्टनर पोर्टल')} />
       <div className="ds-main">{children}</div>
     </div>

@@ -89,7 +89,7 @@ export function TripReport({ d, places = [], locations = [], listings = [], lang
               <li key={i}><span className="tp2-km">{p.leg ? `${L('Leg', 'हिस्सा')} ${p.leg}` : ''}{p.km != null ? ` · ${km(p.km)}` : ''}</span><span className={`tp2-ic ${p.kind}`} aria-hidden="true">{p.kind === 'toll' ? '₹' : '⛽'}</span>
                 <span>{p.name}<small>{p.sub}</small></span><span className="tp2-pr" /></li>
             ))}</ul>
-            {auto.tollInfo ? <p className="small muted">{L(`Tolls on this route: ${inr(auto.tolls || 0)}${auto.tollInfo.unknown ? ` (+ ${auto.tollInfo.unknown} plaza(s) with unknown rate)` : ''}.`, `इस रास्ते के टोल: ${inr(auto.tolls || 0)}${auto.tollInfo.unknown ? ` (+ ${auto.tollInfo.unknown} प्लाज़ा का रेट पता नहीं)` : ''}।`)}</p> : null}
+            {auto.tollInfo ? <p className="small muted">{L(`Tolls on this route: ${(auto.tolls == null ? '—' : inr(auto.tolls))}${auto.tollInfo.unknown ? ` (+ ${auto.tollInfo.unknown} plaza(s) with unknown rate)` : ''}.`, `इस रास्ते के टोल: ${(auto.tolls == null ? '—' : inr(auto.tolls))}${auto.tollInfo.unknown ? ` (+ ${auto.tollInfo.unknown} प्लाज़ा का रेट पता नहीं)` : ''}।`)}</p> : null}
           </>
         ) : null}
         <p className="small muted">{L('Road distances and times from OpenStreetMap (OSRM), without traffic. Hill roads are often slower; live traffic, tolls and road closures are not included — see NHAI Rajmargyatra and USDMA.',

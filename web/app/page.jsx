@@ -1,7 +1,13 @@
 import Link from 'next/link';
 import { getT } from '@/lib/i18n/server';
 import { getSession } from '@/lib/auth';
-import { getHomeSections, getItineraries, getListings, getLocations, getThemes } from '@/lib/data';
+import { getHomeSections, getItineraries, getListings, getLocations, getSettings, getThemes } from '@/lib/data';
+import { inr, listingSlug } from '@/lib/format';
+import { TrustStrip, SeasonNow, SamplePlan, TodayRides } from '@/components/home/Extras';
+import { ExploreMap } from '@/components/home/ExploreMap';
+import { WhatsAppButton } from '@/components/home/WhatsAppButton';
+import { istMonth, seasonOf, goodIn } from '@/lib/home/season';
+import { getTodayRides } from '@/lib/home/rides';
 import { Icon } from '@/components/Icon';
 import { Cover } from '@/components/Cover';
 import { Photo } from '@/components/Photo';
@@ -46,6 +52,21 @@ export default async function Home() {
     const { t, pick, L, lang } = tr;
     const [sections, session] = await Promise.all([getHomeSections(), getSession()]);
     const signedIn = !!session.user;
+    // Homepage extras: live, real data only; each block shows a clear empty state.
+    const [locations, stays, itineraries, rides, settings] = await Promise.all([getLocations(), getListings('homestay'), getItineraries(), getTodayRides(), getSettings()]);
+    const month = istMonth();
+    const season = seasonOf(month);
+    const seasonPlaces = locations.filter((l) => l.kind !== 'transport_hub' && goodIn(l.best_season, month)).slice(0, 6);
+    const locById = new Map(locations.map((l) => [l.id, l]));
+    const mapPoints = [
+        ...locations.filter((l) => l.lat != null && l.lng != null && l.kind !== 'transport_hub').map((l) => ({ id: `l-${l.id}`, kind: l.kind === 'village' ? 'village' : 'place', name: pick(l, 'name'),
+            sub: [l.district, pick(l, 'summary')].filter(Boolean).join(' · ').slice(0, 140), lat: l.lat, lng: l.lng, href: `/destinations/${l.slug}`, plan: `/plan?place=${encodeURIComponent(l.slug)}` })),
+        ...stays.map((h) => { const l = locById.get(h.location_id); return l && l.lat != null && l.lng != null ? { id: `h-${h.id}`, kind: 'stay', name: h.name, sub: L(`Near ${pick(l, 'name')}`, `${pick(l, 'name')} के पास`) + (h.price_per_night ? ` · ${inr(h.price_per_night)} / ${L('night', 'रात')}` : ''),
+            lat: l.lat, lng: l.lng, href: `/homestays/${listingSlug(h.name || 'stay', h.id)}`, plan: null } : null; }).filter(Boolean),
+    ];
+    // Once the home_extras migration has run, the five extras are home_sections rows that the
+    // Co-founder/Admin can show, hide, reorder and retitle. Before that they keep fixed places.
+    const cmsExtras = settings.home_layout?.extras_in_cms === true;
     const used = new Set();
     const notePhoto = (n) => { if (n) used.add(n); return n; };
     const sTitle = (s) => pick(s, 'title');
@@ -72,6 +93,7 @@ export default async function Home() {
           </div>
         </section>
         <div className="wrap"><HomeSearch lang={lang} labels={searchLabels(tr)} text={searchText}/></div>
+        {!cmsExtras ? <TrustStrip L={L}/> : null}
         <Services tr={tr}/>
       </div>),
         themes: async (s) => {
@@ -179,12 +201,28 @@ export default async function Home() {
                 : <p className="rf-soft">{t('no_listings')} <Link href="/partner/join">{t('become_partner')}</Link></p>}
       </section>);
     }
+
+    // Homepage extras as blocks (CMS mode) — titles and subtitles come from the section row when set.
+    const extraBlocks = {
+        trust: (s) => <TrustStrip key={s.id} L={L} title={sTitle(s)} note={sSub(s)}/>,
+        season: (s) => <SeasonNow key={s.id} season={season} places={seasonPlaces} L={L} lang={lang} pick={pick} title={sTitle(s)} note={sSub(s)}/>,
+        map: (s) => (mapPoints.length ? (<section className="wrap rf-sec" key={s.id}>
+        <Head eyebrow={L('Explore on the map', 'नक्शे पर देखें')} title={sTitle(s) || L('Where is everything?', 'सब कहाँ है?')} note={sSub(s) || L('Published destinations, villages and approved homestays. Tap a pin.', 'प्रकाशित जगहें, गाँव और मंज़ूर होमस्टे। किसी पिन पर टैप करें।')}/>
+        <ExploreMap points={mapPoints} labels={{ all: L('All', 'सभी'), places: L('Places', 'जगहें'), villages: L('Villages', 'गाँव'), stays: L('Homestays', 'होमस्टे'), place: L('Place', 'जगह'), village: L('Village', 'गाँव'), stay: L('Homestay', 'होमस्टे'),
+            view: L('View', 'देखें'), plan: L('Plan a trip here', 'यहाँ का ट्रिप प्लान करें'), map: L('Map of places', 'जगहों का नक्शा'), filter: L('Filter the map', 'नक्शा फ़िल्टर करें'), tap: L('Tap another pin to see it here.', 'दूसरी जगह देखने के लिए पिन पर टैप करें।'), alsoHere: L('Also here:', 'यहाँ और भी:') }}/>
+      </section>) : null),
+        sample_plan: (s) => <SamplePlan key={s.id} it={itineraries[0] || null} L={L} pick={pick} lang={lang} eyebrow={sTitle(s)} note={sSub(s)}/>,
+        today_rides: (s) => <TodayRides key={s.id} rides={rides} L={L} lang={lang} pick={pick} inr={inr} title={sTitle(s)} note={sSub(s)}/>,
+    };
+    if (cmsExtras) Object.assign(blocks, extraBlocks);
     const rendered = await Promise.all(sections.map(async (s) => (blocks[s.kind] ? blocks[s.kind](s) : null)));
+    const contact = settings.contact || {};
     const hasHero = sections.some((s) => s.kind === 'hero');
     ['thali', 'aipan', 'doli', 'bells', 'aipanPlate', 'walk', 'spring', 'summer', 'monsoon', 'autumn', 'winter', 'kumaon'].forEach(notePhoto);
     return (<div className="home rf-home">
       {!hasHero ? blocks.hero({ id: 'fallback-hero', title: '', title_hi: '' }) : null}
       {rendered}
+      {!cmsExtras ? ['season', 'map', 'sample_plan', 'today_rides'].map((k) => extraBlocks[k]({ id: `fixed-${k}`, kind: k })) : null}
       <Culture tr={tr}/>
       <WhyUs tr={tr}/>
       <Seasons tr={tr}/>
@@ -196,6 +234,8 @@ export default async function Home() {
         </div>
       </section>
       <PhotoCredits names={[...used]} L={L}/>
+      <WhatsAppButton number={contact.whatsapp} labels={{ button: 'WhatsApp', title: L('Chat with us', 'हमसे बात करें'), sub: L('Opens WhatsApp with a message ready.', 'WhatsApp में तैयार मैसेज के साथ खुलेगा।') }}
+        messages={[L('Hi! I want to plan a trip.', 'नमस्ते! मुझे ट्रिप प्लान करनी है।'), L('Hi! I want to book a homestay.', 'नमस्ते! मुझे होमस्टे बुक करना है।'), L('Hi! I need help with a cab booking.', 'नमस्ते! कैब बुकिंग में मदद चाहिए।'), L('Hi! I want to list my homestay.', 'नमस्ते! मुझे अपना होमस्टे लिस्ट करना है।')]}/>
     </div>);
 }
 function Services({ tr }) {

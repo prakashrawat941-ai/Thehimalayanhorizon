@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { browserDb } from '@/lib/supabase/client';
 import { inr } from '@/lib/format';
+import { Cover } from '@/components/Cover';
 
 // Policies are kept inside house_rules as labelled lines (the table has no separate columns).
 const POL_RE = /^(Check-in|Check-out|Cancellation): (.*)$/;
@@ -33,7 +34,7 @@ export function PropertyWizard({ lang, partnerId, userId, canSubmit, amenities, 
   const [busy, setBusy] = useState('');
   const set = (k) => (e) => setV({ ...v, [k]: e.target.value });
   const setRoom = (i, k, val) => setRooms(rooms.map((r, j) => (j === i ? { ...r, [k]: val } : r)));
-  const STEPS = [L('Basic info', 'जानकारी'), L('Rooms', 'कमरे'), L('Photos', 'फ़ोटो'), L('Policies', 'नियम'), L('Review', 'जाँचें')];
+  const STEPS = [L('Basic info', 'जानकारी'), L('Rooms', 'कमरे'), L('Photos', 'फ़ोटो'), L('House rules', 'घर के नियम'), L('Check & send', 'जाँचें और भेजें')];
 
   function check(s) {
     if (s === 0) {
@@ -99,8 +100,13 @@ export function PropertyWizard({ lang, partnerId, userId, canSubmit, amenities, 
   }
 
   return (
-    <div className="ds-panel stack">
-      <ol className="steps-bar">{STEPS.map((s, i) => <li key={s} className={i === step ? 'on' : ''}><button type="button" onClick={() => (i <= step || !check(step) ? setStep(i) : setErr(check(step)))}>{i + 1}. {s}</button></li>)}</ol>
+    <div className="stack">
+      <ol className="pp-steps" aria-label={L('Steps', 'कदम')}>{STEPS.map((s, i) => (
+        <li key={s} className={i === step ? 'on' : i < step ? 'done' : ''}>
+          <button type="button" aria-current={i === step ? 'step' : undefined} onClick={() => (i <= step || !check(step) ? (setErr(''), setStep(i)) : setErr(check(step)))}><i>{i < step ? '✓' : i + 1}</i>{s}</button>
+        </li>
+      ))}</ol>
+      <div className="ds-panel stack">
 
       {step === 0 ? (
         <div className="stack">
@@ -126,7 +132,9 @@ export function PropertyWizard({ lang, partnerId, userId, canSubmit, amenities, 
       {step === 1 ? (
         <div className="stack">
           {rooms.map((r, i) => (
-            <div key={r.id || `n${i}`} className="panel stack">
+            <div key={r.id || `n${i}`} className="pp-room">
+              <div className="pp-room-h"><strong>{String(r.room_type || '').trim() || L(`Room type ${i + 1}`, `रूम टाइप ${i + 1}`)}</strong>
+                {rooms.length > 1 ? <button type="button" className="btn btn-danger-ghost btn-sm" onClick={() => { if (r.id) setRemoved([...removed, r.id]); setRooms(rooms.filter((_, j) => j !== i)); }}>{L('Remove', 'हटाएँ')}</button> : null}</div>
               <div className="form-grid">
                 <label className="field"><span className="field-label">{L('Room type name', 'रूम टाइप का नाम')}</span><input className="input" value={r.room_type} onChange={(e) => setRoom(i, 'room_type', e.target.value)} maxLength={80} /></label>
                 <label className="field"><span className="field-label">{L('Number of such rooms (units)', 'ऐसे कितने कमरे')}</span><input className="input" type="number" min={1} max={50} value={r.total_inventory} onChange={(e) => setRoom(i, 'total_inventory', e.target.value)} /></label>
@@ -134,7 +142,6 @@ export function PropertyWizard({ lang, partnerId, userId, canSubmit, amenities, 
                 <label className="field"><span className="field-label">{L('Base price per night (₹)', 'एक रात का बेस किराया (₹)')}</span><input className="input" type="number" min={1} value={r.base_price} onChange={(e) => setRoom(i, 'base_price', e.target.value)} /></label>
                 <label className="field"><span className="field-label">{L('Weekend price (Fri & Sat nights, optional)', 'वीकेंड किराया (शुक्र और शनि की रात, वैकल्पिक)')}</span><input className="input" type="number" min={1} value={r.weekend_price ?? ''} onChange={(e) => setRoom(i, 'weekend_price', e.target.value)} /></label>
               </div>
-              {rooms.length > 1 ? <button type="button" className="btn btn-ghost btn-sm" onClick={() => { if (r.id) setRemoved([...removed, r.id]); setRooms(rooms.filter((_, j) => j !== i)); }}>{L('Remove room type', 'रूम टाइप हटाएँ')}</button> : null}
             </div>
           ))}
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => setRooms([...rooms, { room_type: '', max_guests: 2, total_inventory: 1, base_price: '', weekend_price: '' }])}>+ {L('Add room type', 'रूम टाइप जोड़ें')}</button>
@@ -144,19 +151,20 @@ export function PropertyWizard({ lang, partnerId, userId, canSubmit, amenities, 
       {step === 2 ? (
         <div className="stack">
           <p className="small muted">{L('Real photos of your home only (JPG, PNG or WebP, up to 5 MB each, max 10). The first photo is the cover.', 'सिर्फ़ अपने घर की असली फ़ोटो (JPG, PNG या WebP, हर एक 5 MB तक, अधिकतम 10)। पहली फ़ोटो कवर बनेगी।')}</p>
-          <div className="gallery-grid">
+          <div className="pp-photos">
             {v.images.map((u, i) => (
-              <div key={u} className="photo-tile">
+              <div key={u} className="pp-ph">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={u} alt="" />
-                <div className="row-actions">
-                  {i > 0 ? <button type="button" className="btn btn-ghost btn-sm" onClick={() => setV({ ...v, images: [u, ...v.images.filter((x) => x !== u)] })}>{L('Make cover', 'कवर बनाएँ')}</button> : <span className="badge badge-approved">{L('Cover', 'कवर')}</span>}
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setV({ ...v, images: v.images.filter((x) => x !== u) })}>✕</button>
-                </div>
+                <img src={u} alt={L(`Photo ${i + 1}`, `फ़ोटो ${i + 1}`)} />
+                {i > 0 ? <button type="button" className="badge badge-full pp-ph-cv" onClick={() => setV({ ...v, images: [u, ...v.images.filter((x) => x !== u)] })}>{L('Make cover', 'कवर बनाएँ')}</button>
+                  : <span className="badge badge-approved pp-ph-cv">{L('Cover', 'कवर')}</span>}
+                <button type="button" className="pp-ph-x" aria-label={L('Remove photo', 'फ़ोटो हटाएँ')} onClick={() => setV({ ...v, images: v.images.filter((x) => x !== u) })}>✕</button>
               </div>
             ))}
+            {v.images.length < 10 ? <label className="pp-ph-add"><span aria-hidden="true" style={{ fontSize: 24 }}>📷</span>{busy === 'photo' ? L('Uploading…', 'अपलोड हो रहा है…') : L('Add photos', 'फ़ोटो जोड़ें')}
+              <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="sr-only" onChange={upload} disabled={busy === 'photo'} /></label> : null}
           </div>
-          {v.images.length < 10 ? <label className="btn btn-ghost">{busy === 'photo' ? L('Uploading…', 'अपलोड हो रहा है…') : L('Add photos', 'फ़ोटो जोड़ें')}<input type="file" accept="image/jpeg,image/png,image/webp" multiple className="sr-only" onChange={upload} disabled={busy === 'photo'} /></label> : null}
+          <p className="small muted">{L('Tip: bedroom, bathroom, view, outside of the house and a meal. Guests trust real photos.', 'सुझाव: बेडरूम, बाथरूम, नज़ारा, घर का बाहर और खाना। मेहमान असली फ़ोटो पर भरोसा करते हैं।')}</p>
         </div>
       ) : null}
 
@@ -172,25 +180,37 @@ export function PropertyWizard({ lang, partnerId, userId, canSubmit, amenities, 
       ) : null}
 
       {step === 4 ? (
-        <div className="stack">
-          <dl className="kv-rows">
-            <div className="kv-row"><dt>{L('Name', 'नाम')}</dt><dd>{v.name}</dd></div>
-            <div className="kv-row"><dt>{L('Place', 'जगह')}</dt><dd>{[v.village, v.district, v.state].filter(Boolean).join(', ')}</dd></div>
-            <div className="kv-row"><dt>{L('Rooms', 'कमरे')}</dt><dd>{rooms.map((r) => `${r.room_type} × ${r.total_inventory} (${inr(Number(r.base_price))}${r.weekend_price ? ` / ${inr(Number(r.weekend_price))}` : ''})`).join(', ')}</dd></div>
-            <div className="kv-row"><dt>{L('Photos', 'फ़ोटो')}</dt><dd>{v.images.length}</dd></div>
-            <div className="kv-row"><dt>{L('Check-in / out', 'चेक-इन / आउट')}</dt><dd>{v.checkin} / {v.checkout}</dd></div>
-          </dl>
-          <p className="small muted">{L('After you send it, the admin reviews it and sets the commission. You will see the status and any remarks here.', 'भेजने के बाद एडमिन जाँच करेंगे और कमीशन तय करेंगे। स्थिति और टिप्पणी आपको यहीं दिखेगी।')}</p>
-          {!canSubmit ? <p className="soft-note">{L('You can send for review once your partner account is approved. Save as draft for now.', 'पार्टनर अकाउंट मंज़ूर होने पर जाँच के लिए भेज सकेंगे। अभी ड्राफ़्ट सेव करें।')}</p> : null}
+        <div className="pp-cols">
+          <div className="stack">
+            <dl className="kv-rows">
+              <div className="kv-row"><dt>{L('Name', 'नाम')}</dt><dd>{v.name}</dd></div>
+              <div className="kv-row"><dt>{L('Place', 'जगह')}</dt><dd>{[v.village, v.district, v.state].filter(Boolean).join(', ')}</dd></div>
+              <div className="kv-row"><dt>{L('Rooms', 'कमरे')}</dt><dd>{rooms.map((r) => `${r.room_type} × ${r.total_inventory} (${inr(Number(r.base_price))}${r.weekend_price ? ` / ${inr(Number(r.weekend_price))}` : ''})`).join(', ')}</dd></div>
+              <div className="kv-row"><dt>{L('Photos', 'फ़ोटो')}</dt><dd>{v.images.length}{v.images.length && v.images.length < 5 ? ` · ${L('add more for best results', 'बेहतर नतीजे के लिए और जोड़ें')}` : ''}</dd></div>
+              <div className="kv-row"><dt>{L('Check-in / out', 'चेक-इन / आउट')}</dt><dd>{v.checkin} / {v.checkout}</dd></div>
+            </dl>
+            <p className="small muted">{L('After you send it, the admin reviews it and sets the commission. You will see the status and any remarks here.', 'भेजने के बाद एडमिन जाँच करेंगे और कमीशन तय करेंगे। स्थिति और टिप्पणी आपको यहीं दिखेगी।')}</p>
+            {!canSubmit ? <p className="soft-note">{L('You can send for review once your partner account is approved. Save as draft for now.', 'पार्टनर अकाउंट मंज़ूर होने पर जाँच के लिए भेज सकेंगे। अभी ड्राफ़्ट सेव करें।')}</p> : null}
+          </div>
+          <div>
+            <p className="small muted" style={{ margin: '0 0 6px' }}>{L('How guests will see it', 'मेहमानों को ऐसा दिखेगा')}</p>
+            <div className="pp-preview">
+              <Cover url={v.images[0]} seed={property?.id || v.name} className="pp-cover" />
+              <div><b>{v.name || '—'}</b><small>{[v.village, v.district].filter(Boolean).join(' · ')}</small>
+                {v.summary ? <p className="small" style={{ margin: '6px 0 0' }}>{v.summary}</p> : null}
+                {rooms.some((r) => Number(r.base_price) > 0) ? <p style={{ margin: '6px 0 0' }}><strong>{L('From', 'से')} {inr(Math.min(...rooms.filter((r) => Number(r.base_price) > 0).map((r) => Number(r.base_price))))}</strong> <small>/ {L('night', 'रात')}</small></p> : null}</div>
+            </div>
+          </div>
         </div>
       ) : null}
 
       {err ? <p className="form-err" role="alert">{err}</p> : null}
-      <div className="row-actions">
-        {step > 0 ? <button type="button" className="btn btn-ghost" onClick={() => setStep(step - 1)}>← {L('Back', 'पीछे')}</button> : null}
-        {step < 4 ? <button type="button" className="btn" onClick={next}>{L('Next', 'आगे')} →</button> : null}
-        <button type="button" className="btn btn-ghost" disabled={!!busy} onClick={() => save(false)}>{busy === 'draft' ? '…' : L('Save draft', 'ड्राफ़्ट सेव करें')}</button>
-        {step === 4 && canSubmit ? <button type="button" className="btn" disabled={!!busy} onClick={() => save(true)}>{busy === 'submit' ? '…' : L('Send for review', 'जाँच के लिए भेजें')}</button> : null}
+      </div>
+      <div className="pp-sticky">
+        {step > 0 ? <button type="button" className="btn btn-ghost" onClick={() => { setErr(''); setStep(step - 1); }}>← {L('Back', 'पीछे')}</button> : null}
+        <button type="button" className="btn btn-ghost" disabled={!!busy} onClick={() => save(false)}>{busy === 'draft' ? L('Saving…', 'सेव हो रहा है…') : L('Save draft', 'ड्राफ़्ट सेव करें')}</button>
+        {step < 4 ? <button type="button" className="btn grow-btn" onClick={next}>{L('Next', 'आगे')} →</button> : null}
+        {step === 4 && canSubmit ? <button type="button" className="btn grow-btn" disabled={!!busy} onClick={() => save(true)}>{busy === 'submit' ? L('Sending…', 'भेजा जा रहा है…') : L('Send for review', 'जाँच के लिए भेजें')}</button> : null}
       </div>
     </div>
   );
