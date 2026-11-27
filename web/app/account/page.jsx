@@ -11,7 +11,7 @@ export default async function AccountOverview() {
   const tr = await getT();
   const { t, L, pick, lang } = tr;
   const today = todayIST();
-  const [trips, cabs, saved, unread, feedback, locations, places, recent, nextStays, reqCount] = await Promise.all([
+  const [trips, cabs, saved, unread, feedback, locations, places, recent, nextStays, reqCount, confirmedCabs] = await Promise.all([
     rows(db.from('trips').select('id,title,start_date,days_count,status').eq('user_id', user.id).neq('status', 'cancelled').gte('start_date', today).order('start_date').limit(1)),
     rows(db.from('cab_bookings').select('id,status,seats,booking_ref,booking_code,from_place_id,to_place_id,pickup_geo,drop_geo,cab_rides(departure_at,from_location_id,to_location_id,from_place_id,to_place_id,from_geo,to_geo,pickup_point,drop_point)').eq('user_id', user.id).order('created_at', { ascending: false }).limit(3)),
     rows(db.from('saved_destinations').select('location_id').eq('user_id', user.id)),
@@ -21,6 +21,8 @@ export default async function AccountOverview() {
     rows(db.from('notifications').select('id,title,body,created_at,read_at,link').eq('user_id', user.id).order('created_at', { ascending: false }).limit(3)),
     rows(db.from('booking_requests').select('id,kind,status,start_date,end_date,homestays(name,village),village_tours(title),workspaces(name)').eq('user_id', user.id).in('status', ['confirmed', 'checked_in']).gte('end_date', today).order('start_date').limit(1)),
     db.from('booking_requests').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'requested'),
+    // All confirmed cab bookings (not just the 3 newest) so the next ride is never missed.
+    rows(db.from('cab_bookings').select('id,status,seats,booking_ref,booking_code,from_place_id,to_place_id,pickup_geo,drop_geo,cab_rides(departure_at,status,from_location_id,to_location_id,from_place_id,to_place_id,from_geo,to_geo,pickup_point,drop_point)').eq('user_id', user.id).eq('status', 'confirmed')),
   ]);
   const name = profile?.full_name || user.email || '';
   const first = name.split(/\s+/)[0];
@@ -29,7 +31,7 @@ export default async function AccountOverview() {
   const next = trips[0];
 
   const requests = reqCount.count || 0;
-  const upcomingCabs = cabs.filter((c) => c.status === 'confirmed' && new Date(c.cab_rides?.departure_at || 0).getTime() > Date.now())
+  const upcomingCabs = confirmedCabs.filter((c) => c.cab_rides?.status !== 'completed' && new Date(c.cab_rides?.departure_at || 0).getTime() > Date.now())
     .sort((a, b) => new Date(a.cab_rides.departure_at) - new Date(b.cab_rides.departure_at));
   const ns = nextStays[0];
   const nc = upcomingCabs[0];
