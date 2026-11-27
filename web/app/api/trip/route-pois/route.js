@@ -1,9 +1,11 @@
 import { unstable_cache } from 'next/cache';
 import { createHash } from 'node:crypto';
 import { overpassQuery, snapRoutePois, validateRoute } from '@/lib/trip/route-pois';
+import { fetchOverpassElements } from '@/lib/trip/overpass';
 import { istDate } from '@/lib/trip/fuel-provider';
 
 export const runtime = 'nodejs';
+export const maxDuration = 30;
 
 export async function POST(req) {
   try {
@@ -27,16 +29,11 @@ export async function POST(req) {
     const { legs, vehicleClass } = valid;
     const query = overpassQuery(legs);
     const key = createHash('sha256').update(query).digest('hex');
-    const getOsm = unstable_cache(async () => {
-      const result = await fetch(process.env.TRIP_OVERPASS_URL || 'https://overpass-api.de/api/interpreter', {
-        method: 'POST', body: new URLSearchParams({ data: query }),
-        signal: AbortSignal.timeout(23_000), redirect: 'error', cache: 'no-store',
-      });
-      if (!result.ok) throw new Error('OSM unavailable');
-      const json = await result.json();
-      if (json.remark || !Array.isArray(json.elements) || json.elements.length >= 4200) throw new Error('OSM results incomplete');
-      return json.elements;
-    }, ['thh-osm-corridor-v1', key], { revalidate: 86400 });
+    const getOsm = unstable_cache(() => fetchOverpassElements(query, {
+      primary: process.env.TRIP_OVERPASS_URL || undefined,
+      fallback: process.env.TRIP_OVERPASS_FALLBACK_URL
+        ?? (process.env.TRIP_OVERPASS_URL ? '' : undefined),
+    }), ['thh-osm-corridor-v2', key], { revalidate: 86400 });
     const elements = await getOsm();
     const rates = JSON.parse(process.env.TRIP_TOLL_RATES_JSON || '{}') || {};
     return Response.json(snapRoutePois(legs, elements, vehicleClass, rates, istDate()));

@@ -97,6 +97,9 @@ How the UI uses these values:
 
 **Provider shortlist (27 Nov 2026).** SSR Innovation Lab is the first district-level option to trial. It advertises petrol, diesel and CNG for Uttarakhand districts, but a monthly quote and a dated response for Almora, Nainital and Pithoragarh are needed before purchase. API Express advertises daily city or PIN-code data and lists Growth at ₹4,999/month, or a free sandbox. Energy API advertises daily city data on Professional at US$49.99/month. Neither alternative has verified district-wide prices for those districts. Do not substitute a city or statewide price silently.
 
+
+- Overpass failover uses one bounded alternate request on a network error, timeout, 5xx or incomplete response. It stops on 4xx, returns HTTP 502 if both providers fail, and does not invent POIs. Set `TRIP_OVERPASS_FALLBACK_URL` explicitly when `TRIP_OVERPASS_URL` is configured. `node tests/web/trip-overpass.mjs` passed the failure-path tests with controlled upstream responses.
+
 ### Changed and new files (area 4)
 
 | File | What |
