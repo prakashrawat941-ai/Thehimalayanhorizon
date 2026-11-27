@@ -1,6 +1,7 @@
 import { getT } from '@/lib/i18n/server';
 import { requireUser, rows } from '@/lib/account';
 import { AccountNav } from '@/components/account/AccountNav';
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import './partner.css';
 
 export const metadata = { robots: { index: false } };
@@ -31,7 +32,7 @@ export default async function PartnerLayout({ children }) {
   return (
     <div className="ds pp">
       <AccountNav items={items} title={L('Partner portal', 'पार्टनर पोर्टल')} />
-      <div className="ds-main">{children}</div>
+      <div className="ds-main"><div className="dsx-topbar"><ThemeToggle /></div>{children}</div>
     </div>
   );
 }

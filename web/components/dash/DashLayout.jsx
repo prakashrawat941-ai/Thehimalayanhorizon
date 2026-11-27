@@ -1,6 +1,7 @@
 import { AccountNav } from '@/components/account/AccountNav';
 import { DashSwitcher } from './DashSwitcher';
 import { authorisedDashboards, switcherItems } from '@/lib/dashboards';
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import '@/app/dash.css';
 
 /**
@@ -11,7 +12,7 @@ import '@/app/dash.css';
 export function DashLayout({ ctx, managementRole = null, current, title, items, L, children }) {
   const keys = authorisedDashboards({ roles: ctx?.roles, managementRole });
   return (
-    <div className="ds">
+    <div className="ds ds-management">
       <AccountNav items={items} title={title} />
       <div className="ds-main">
         <div className="dsx-topbar">
@@ -19,6 +20,7 @@ export function DashLayout({ ctx, managementRole = null, current, title, items, 
             switch: L('Switch dashboard', 'डैशबोर्ड बदलें'), yours: L('Your dashboards', 'आपके डैशबोर्ड'),
             note: L('Only dashboards you are allowed to open are listed. Each one checks your access again.', 'सिर्फ़ वही डैशबोर्ड दिखते हैं जिनकी आपको अनुमति है। हर डैशबोर्ड आपकी अनुमति दोबारा जाँचता है।'),
           }} />
+          <ThemeToggle />
         </div>
         {children}
       </div>
