@@ -8,6 +8,7 @@ Owner: Prakash Singh. Frontend and UI: Claude. Backend integration, permissions,
 | Public pages | Merged to main in PR #15 (`b11baa9`, 26 Nov 2026) at the owner's request |
 | Homepage extras (area 5) | Branch `claude/thh-home-extras` from main `01d2928`. Code commit `d5366c3`. Review PR: https://github.com/prakashrawat941-ai/Thehimalayanhorizon/pull/22. Not merged; needs the owner's approval. |
 | Trip Planner (area 4) | Merged to main in PR #19 (`01d2928`, 27 Nov 2026) at the owner's request. Was branch `claude/thh-trip-planner`. Code commit `691339c`. Review PR: https://github.com/prakashrawat941-ai/Thehimalayanhorizon/pull/19 (base `main`). Not merged; needs the owner's approval. |
+| Homestay booking (area 8) | Branch `claude/thh-stay-booking` from main `934b126`. Review PR: opened with this commit. Not merged; needs the owner's approval. |
 | Dashboards (area 3) | Merged to main in PR #17 (`a303710`, 27 Nov 2026) at the owner's request, after fixing 4 Codex review findings (booking route order, room counts for tours/workspaces, homestay-only check-in KPI, homestay-only onboarding queue). |
 
 ## Design previews (claude.ai artifacts, private to the owner)
@@ -20,9 +21,47 @@ Every value in these previews is demo data, and each preview is labelled as such
 | 2. Homepage and public pages | https://claude.ai/artifact/5J12rL8aEzxvExJgaZT3n5 (layout) and the HD preview at `/design-preview/public-pages.html` on branch `claude/thh-public-preview` | Approved 26 Nov 2026; implemented (see below) |
 | 3. Founder, CEO, Co-founder and Admin dashboards | https://claude.ai/artifact/7N3W4hcriB1nS2MBwniViw | Approved 27 Nov 2026; implemented (see below) |
 | 5. Homepage extras | https://claude.ai/artifact/VA4FfYixRRFmus7uhsima7 | Approved 27 Nov 2026; implemented (see below) |
+| 8. Homestay booking flow | https://claude.ai/artifact/EZaU2HRzVzwhztCtgxYsud | Approved 27 Nov 2026; implemented (see below) |
 | 4. Trip Planner and Trip Report | https://claude.ai/artifact/TjyUeTJMSW1ueGfotfDR6G (v2) | v1 changed at the owner's request; v2 approved 27 Nov 2026 with price option B (paid fuel-price API); implemented (see below) |
 
 An earlier all-in-one preview (https://claude.ai/artifact/K2uJ3wuzDYM4LBo6qvoYr3) was rejected and is superseded.
+
+## Area 8: Homestay booking flow, as implemented
+
+UI refresh of `/homestays` and `/homestays/[slug]`. No change to auth, schema, RLS, roles or booking transactions. Workspaces and village tours still use the old `ListingDetail` / `BookingForm`.
+
+### Screens and routes
+
+| Route | What changed |
+|---|---|
+| `/homestays` | Homestay cards (`StayCard`): photo, place, up to 3 amenities, "from" price, "Host confirms" tag. Filters unchanged. |
+| `/homestays/[slug]` | New `StayDetail`: photo grid (1 big + up to 4) with full-screen viewer (Esc / arrow keys), facts (max guests from rooms × units, room types, check-in), description, room cards, amenities, meals, house rules parsed from the `Check-in:` / `Check-out:` / `Cancellation:` lines the partner wizard writes, host card (no partner name or phone), place + Trip Planner link, more nearby. |
+| Booking (`StayBooking`) | Desktop: sticky card with dates, room, rooms/guests steppers, live `quote_homestay` estimate → Continue opens the request dialog. Phone: fixed bar above the site tab bar → same dialog. Dialog adds name, phone, message. Guests over `max_guests × rooms` and "not free" disable sending (the database still re-checks both). Not signed in: login link carries `ci, co, room, n, g` in `next`, read back on return. |
+| Request sent | Shown only after `booking_requests.insert(...).select('id, booking_code').single()` succeeds; shows the server's booking code and next steps. Insert errors stay in the dialog. |
+| `loading.jsx` | Skeleton for the detail page. |
+
+### Changed and new files
+
+- `web/components/stay/StayDetail.jsx`, `StayBooking.jsx` (`RoomCards` + `StayBooking`), `Gallery.jsx`, `StayCard.jsx` (new)
+- `web/lib/stay.js` (new: `splitHouseRules`, `istDay`, `nightsBetween`), `web/app/stay.css` (new, `st-`)
+- `web/app/homestays/[slug]/page.jsx`, `web/app/homestays/[slug]/loading.jsx` (new), `web/components/ListingPages.jsx` (homestay list uses `StayCard`)
+
+### Data and APIs
+
+Same as before: `getListing('homestay')`, `getRooms`, `getListings` (nearby), `getLocations`, `getSession` (name/phone prefill), `quote_homestay(p_room, p_start, p_end, p_rooms)` RPC, `booking_requests` insert with the same columns as `BookingForm`. New: the insert now also selects `id, booking_code` of the new row (needs the existing "guest reads own bookings" policy).
+
+### Pending Codex items: homestay booking
+
+- SB1. Confirm in staging that the insert + select of the user's own new row is allowed by RLS (if not, the request is saved but the dialog shows an error).
+- SB2. Optional: a quote breakdown per night (weekday / weekend / special) from the RPC; the UI shows only the total today.
+- SB3. Signed-in staging test of a real request end to end.
+
+### Checks run: homestay booking
+
+- Transpile check of every changed file.
+- Local harness (not committed): real `StayDetail`, `StayBooking`, `Gallery` and `StayCard` bundled with esbuild, stubbed data/auth/Supabase and invented rows; EN/HI × signed in/out × detail/list at 360px and 1280px, plus sparse data (1 room, no photos, no rules): no horizontal scroll, no page errors.
+- Room card tap selects the room in the booking card and re-quotes; 5 guests in a 3-guest room blocks sending with the message; a failed insert keeps the dialog with the error and no success screen; a successful insert shows the server's booking code; quote failure shows retry; "not free" message; login link keeps dates; photo viewer opens, arrows, Esc.
+- Not run: `next build` locally (relies on CI); no signed-in Supabase test.
 
 ## Area 5: Homepage extras, as implemented
 

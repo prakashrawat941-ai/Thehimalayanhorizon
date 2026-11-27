@@ -10,6 +10,8 @@ import { Cover } from './Cover';
 import { imgUrl } from '@/lib/img';
 import { PageHero } from './PageHero';
 import { PhotoCredits } from './PhotoCredits';
+import { StayCard } from './stay/StayCard';
+import '@/app/stay.css';
 const HERO_PHOTO = { homestay: 'village', workspace: 'workBalcony', village_tour: 'walk' };
 const TITLE_KEY = { homestay: 'stays', workspace: 'workspaces', village_tour: 'village_tours' };
 const LEGACY_DETAIL = { homestay: 'stay', workspace: 'workspace', village_tour: 'tour' };
@@ -57,7 +59,7 @@ export async function ListingList({ kind, sp }) {
         </form></div>) : null}
       {rows.length ? <p className="rf-count">{shown.length} {t('results')}</p> : null}
       <div className={rows.length ? '' : 'rf-body'}>
-      {shown.length ? <Grid>{shown.map((x) => <ListingCard key={x.id} kind={kind} x={x} tr={tr} locName={locName(x)}/>)}</Grid>
+      {shown.length ? <Grid>{shown.map((x) => kind === 'homestay' ? <StayCard key={x.id} x={x} tr={tr} locName={locName(x)}/> : <ListingCard key={x.id} kind={kind} x={x} tr={tr} locName={locName(x)}/>)}</Grid>
             : <Empty icon="house" text={rows.length ? t('nothing_here') : t('no_listings')} action={rows.length ? (filtered ? <Link className="btn btn-ghost" href={k.route}>{t('clear_filters')}</Link> : undefined) : <Link className="btn btn-ghost" href="/partner/join">{t('become_partner')}</Link>}/>}
       </div>
       </div>
