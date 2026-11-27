@@ -1,7 +1,8 @@
-import { ListingDetail, listingDetailMeta } from '@/components/ListingPages';
+import { listingDetailMeta } from '@/components/ListingPages';
+import { StayDetail } from '@/components/stay/StayDetail';
 export async function generateMetadata({ params }) {
     return listingDetailMeta('homestay', (await params).slug);
 }
 export default async function Page({ params }) {
-    return <ListingDetail kind="homestay" slug={(await params).slug}/>;
+    return <StayDetail slug={(await params).slug}/>;
 }
