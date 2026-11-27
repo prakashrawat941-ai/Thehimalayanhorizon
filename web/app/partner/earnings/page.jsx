@@ -21,15 +21,15 @@ export default async function Earnings() {
   const payoutStatus = { unpaid: L('Unpaid', 'बाकी'), processing: L('Payout requested', 'पेआउट माँगा'), paid: L('Paid', 'भुगतान हुआ') };
   return (
     <>
-      <div className="ds-head"><div className="grow"><h1>{L('Earnings & payouts', 'कमाई और पेआउट')}</h1>
-        <p className="muted">{L('Records only — guests pay you directly; THH commission is settled through payouts.', 'सिर्फ़ रिकॉर्ड — मेहमान सीधे आपको भुगतान करते हैं; THH कमीशन पेआउट से तय होता है।')}</p></div></div>
-      <div className="ds-stats">
-        <div className="ds-stat"><span className="ds-stat-l">{L('Completed stays (total)', 'पूरे स्टे (कुल)')}</span><span className="ds-stat-n">{inr(sum(done, 'total_amount'))}</span></div>
-        <div className="ds-stat"><span className="ds-stat-l">{L('THH commission', 'THH कमीशन')}</span><span className="ds-stat-n">{inr(sum(done, 'platform_commission'))}</span></div>
-        <div className="ds-stat"><span className="ds-stat-l">{L('Your share', 'आपका हिस्सा')}</span><span className="ds-stat-n">{inr(sum(done, 'partner_payout_amount'))}</span></div>
-        <div className="ds-stat urgent"><span className="ds-stat-l">{L('Not yet paid out', 'अभी पेआउट बाकी')}</span><span className="ds-stat-n">{inr(sum(unpaid, 'partner_payout_amount'))}</span></div>
+      <div className="pp-head"><div><h1>{L('Earnings & payouts', 'कमाई और पेआउट')}</h1>
+        <p>{L('Records only — guests pay you directly; THH commission is settled through payouts.', 'सिर्फ़ रिकॉर्ड — मेहमान सीधे आपको भुगतान करते हैं; THH कमीशन पेआउट से तय होता है।')}</p></div></div>
+      <div className="pp-kpis">
+        <div className="pp-kpi"><small>{L('Completed stays (total)', 'पूरे स्टे (कुल)')}</small><b>{inr(sum(done, 'total_amount'))}</b></div>
+        <div className="pp-kpi"><small>{L('THH commission', 'THH कमीशन')}</small><b>{inr(sum(done, 'platform_commission'))}</b></div>
+        <div className="pp-kpi"><small>{L('Your share', 'आपका हिस्सा')}</small><b>{inr(sum(done, 'partner_payout_amount'))}</b></div>
+        <div className="pp-kpi hot"><small>{L('Not yet paid out', 'अभी पेआउट बाकी')}</small><b>{inr(sum(unpaid, 'partner_payout_amount'))}</b></div>
       </div>
-      <section className="ds-panel">
+      <section className="pp-card">
         <h2>{L('Request payout', 'पेआउट माँगें')}</h2>
         {!kycOk ? <p>{L('Payouts open after your KYC and bank / UPI details are verified.', 'KYC और बैंक / UPI वेरिफ़ाई होने के बाद पेआउट खुलेगा।')} <Link href="/partner/kyc">{L('KYC & bank', 'KYC और बैंक')}</Link></p>
           : open ? <p>{L('You have an open payout request. A new one can be made after it is processed.', 'आपकी एक पेआउट रिक्वेस्ट खुली है। उसके पूरा होने के बाद नई माँग सकेंगे।')}</p>
@@ -37,7 +37,7 @@ export default async function Earnings() {
               confirmText={L('Request payout for all completed, unpaid stays?', 'सभी पूरे, बाकी स्टे का पेआउट माँगें?')} doneText={L('Requested', 'माँगा गया')} />
               : <p className="muted">{L('Nothing to pay out right now.', 'अभी कोई पेआउट बाकी नहीं।')}</p>}
       </section>
-      <section className="ds-panel">
+      <section className="pp-card">
         <h2>{L('Completed stays', 'पूरे स्टे')}</h2>
         {done.length ? <div className="table-wrap"><table className="table">
           <thead><tr><th>{L('Booking', 'बुकिंग')}</th><th className="right">{L('Total', 'कुल')}</th><th className="right">{L('Commission', 'कमीशन')}</th><th className="right">{L('Your share', 'आपका हिस्सा')}</th><th>{L('Payout', 'पेआउट')}</th></tr></thead>
@@ -46,7 +46,7 @@ export default async function Earnings() {
             <td><span className={`badge badge-${b.payout_status === 'paid' ? 'approved' : b.payout_status === 'processing' ? 'pending' : 'draft'}`}>{payoutStatus[b.payout_status] || b.payout_status}</span></td></tr>)}</tbody>
         </table></div> : <p className="muted">{L('No completed stays yet.', 'अभी कोई पूरा स्टे नहीं।')}</p>}
       </section>
-      <section className="ds-panel">
+      <section className="pp-card">
         <h2>{L('Payout history', 'पेआउट इतिहास')}</h2>
         {payouts.length ? <div className="ds-rows">{payouts.map((p) => (
           <div key={p.id} className="ds-row"><span className="grow"><strong>{inr(p.amount)}</strong><span>{fmtDate(p.requested_at, lang)} · {p.bookings_count} {L('stays', 'स्टे')}{p.transaction_ref ? ` · UTR/UPI ${p.transaction_ref}` : ''}{p.admin_note ? ` · ${p.admin_note}` : ''}</span></span>
