@@ -35,7 +35,8 @@ export function CrudTable({ lang, table, rows, fields, titleField, subField, def
       else if (f.type === 'list') val = String(val || '').split(',').map((s) => s.trim()).filter(Boolean);
       else if (f.type === 'json') { try { val = val === '' ? null : JSON.parse(val); } catch { return setErr(`${f.label}: ${L('not valid JSON', 'सही JSON नहीं')}`); } }
       else if (f.type === 'bool') val = !!val;
-      else if (typeof val === 'string') val = val.trim() === '' ? null : val.trim();
+      // keepEmpty: the column is NOT NULL with '' as default, so a blank field saves as '' instead of null.
+      else if (typeof val === 'string') val = val.trim() === '' ? (f.keepEmpty ? '' : null) : val.trim();
       if (f.required && (val == null || val === '')) return setErr(`${f.label}: ${L('required', 'ज़रूरी')}`);
       if (f.name === 'slug' && val && !/^[a-z0-9-]{2,80}$/.test(val)) return setErr(L('Slug: lowercase letters, numbers and dashes only.', 'स्लग: सिर्फ़ छोटे अक्षर, अंक और डैश।'));
       row[f.name] = val;

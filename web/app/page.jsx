@@ -204,7 +204,7 @@ export default async function Home() {
 
     // Homepage extras as blocks (CMS mode) — titles and subtitles come from the section row when set.
     const extraBlocks = {
-        trust: (s) => <TrustStrip key={s.id} L={L}/>,
+        trust: (s) => <TrustStrip key={s.id} L={L} title={sTitle(s)} note={sSub(s)}/>,
         season: (s) => <SeasonNow key={s.id} season={season} places={seasonPlaces} L={L} lang={lang} pick={pick} title={sTitle(s)} note={sSub(s)}/>,
         map: (s) => (mapPoints.length ? (<section className="wrap rf-sec" key={s.id}>
         <Head eyebrow={L('Explore on the map', 'नक्शे पर देखें')} title={sTitle(s) || L('Where is everything?', 'सब कहाँ है?')} note={sSub(s) || L('Published destinations, villages and approved homestays. Tap a pin.', 'प्रकाशित जगहें, गाँव और मंज़ूर होमस्टे। किसी पिन पर टैप करें।')}/>

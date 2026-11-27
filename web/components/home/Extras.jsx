@@ -8,7 +8,7 @@ import '@/app/home-extras.css';
 // Homepage extras (approved 27 Nov 2026). Server components: data comes from app/page.jsx.
 
 /** Short, true promises under the search card. Every line is how the site already works. */
-export function TrustStrip({ L }) {
+export function TrustStrip({ L, title = '', note = '' }) {
   const items = [
     ['check', L('Every host checked', 'हर होस्ट जाँचा हुआ'), L('Listings go live only after our team approves them', 'टीम की मंज़ूरी के बाद ही लिस्टिंग दिखती है')],
     ['route', L('Real road times', 'असली सड़क समय'), L('Routes from OpenStreetMap; estimates are labelled', 'रास्ते OpenStreetMap से; अनुमान साफ़ लिखे')],
@@ -16,7 +16,8 @@ export function TrustStrip({ L }) {
     ['globe', L('Hindi & English', 'हिंदी और अंग्रेज़ी'), L('Use the whole site in your language', 'पूरी साइट अपनी भाषा में')],
   ];
   return (
-    <section className="hx-trust" aria-label={L('Why travel with us', 'हमारे साथ क्यों')}>
+    <section className="hx-trust" aria-label={title || L('Why travel with us', 'हमारे साथ क्यों')}>
+      {title || note ? <div className="wrap hx-trust-head">{title ? <h2>{title}</h2> : null}{note ? <p>{note}</p> : null}</div> : null}
       <div className="wrap hx-trust-in">
         {items.map(([ic, b, s]) => <div className="hx-tr" key={ic}><span aria-hidden="true"><Icon name={ic} size={18} /></span><span><b>{b}</b><small>{s}</small></span></div>)}
       </div>
