@@ -186,3 +186,6 @@
 a.rf-cc:hover { border-color: var(--rf-blue); }
 .rf-panel .filters { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 6px; margin: 0; padding-bottom: 2px; scrollbar-width: thin; }
 .rf-panel .filters .pill { white-space: nowrap; flex: none; }
+
+.rf-stay-dates { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.45rem; }
+.rf-stay-dates .field,.rf-stay-dates input { min-width:0; width:100%; }

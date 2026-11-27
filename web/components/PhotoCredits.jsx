@@ -15,7 +15,7 @@ export function PhotoCredits({ names, L }) {
             <a href={p.credit.page} target="_blank" rel="noopener noreferrer">{p.credit.title}</a>
             {` ${L('by', '—')} ${p.credit.author}, `}
             <a href={p.credit.licenseUrl} target="_blank" rel="noopener noreferrer">{p.credit.license}</a>
-            {L(', via Wikimedia Commons', ', विकिमीडिया कॉमन्स से')}
+            {L(', via Wikimedia Commons · resized WebP', ', विकिमीडिया कॉमन्स से · बदले आकार की WebP')}
           </li>
         ))}
         {owned ? <li>{L('Other photos: The Himalayan Horizon.', 'बाकी फ़ोटो: द हिमालयन होराइज़न।')}</li> : null}
