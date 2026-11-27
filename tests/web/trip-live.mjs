@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { datedPrices, istDate, readSsrDistrict } from '../../web/lib/trip/fuel-provider.js';
 import { overpassQuery, snapRoutePois, validateRoute } from '../../web/lib/trip/route-pois.js';
-import { computeBudget, defaultAssumptions } from '../../web/lib/trip/engine.js';
+import { computeBudget, defaultAssumptions, adminFuelRateKey } from '../../web/lib/trip/engine.js';
 
 const today = '2026-11-27';
 assert.equal(istDate(new Date('2026-11-26T20:00:00Z')), today);
@@ -35,6 +35,8 @@ assert.ok(pois.gaps[key][0].toKm - pois.gaps[key][0].fromKm > 50);
 const trip = { mode: 'car', adults: 2, children: 0, depart: today, ret: today, budget: 2000,
   assumptions: { vehicle: 'suv', fuel_type: 'cng', fuel_price: 80, tolls: 90, reserve_pct: 0, food_per_person_day: 0 } };
 assert.equal(defaultAssumptions(trip).mileage, 16);
+assert.equal(adminFuelRateKey('cng'), 'cng_price');
+assert.equal(adminFuelRateKey('diesel'), 'diesel_price');
 const b = computeBudget(trip, { total_km: 80, missing: 0 }, []);
 assert.match(b.lines.fuel.how, /km\/kg/);
 assert.equal(b.total, 490);

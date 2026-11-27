@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { fetchRoute, routeIsFresh, routeKey, buildItinerary, computeBudget, defaultAssumptions, pickLeg, tripPoints, legPairs, distanceKm } from '@/lib/trip/engine';
+import { fetchRoute, routeIsFresh, routeKey, buildItinerary, computeBudget, defaultAssumptions, adminFuelRateKey, pickLeg, tripPoints, legPairs, distanceKm } from '@/lib/trip/engine';
 import { PREFS, PACES, MODES, STATUSES, MAX_DESTS, WHO, WHO_KEYS, whoOf, VEHICLES, FUELS, blank, loadDraft, saveDraft, dropDraft, slim, placeLabel, tripDays, validate, prefThemes, todayISO } from '@/lib/trip/common';
 import { saveTrip, shareLink, deleteTrip } from '@/lib/trip/save';
 import { fetchFuelPrices, fetchRoutePois } from '@/lib/trip/live';
@@ -316,7 +316,7 @@ export function Planner({ lang, places, locations, listings, defaults, searchLab
                   <>
                     <div className="tp2-seg" role="radiogroup" aria-label={L('Fuel', 'ईंधन')}>{FUELS.map(([k, en, hi, unit]) => {
                       const p = live.fuel?.status === 'ok' ? live.fuel.prices?.[k] : null;
-                      return <button key={k} type="button" role="radio" aria-checked={fuelType === k} onClick={() => setA({ fuel_type: k })}>{lang === 'hi' ? hi : en}{p?.price ? <small>₹{p.price}/{unit}</small> : null}</button>;
+                      return <button key={k} type="button" role="radio" aria-checked={fuelType === k} onClick={() => { if (fuelType !== k) setA({ fuel_type: k, fuel_price: '', mileage: '' }); }}>{lang === 'hi' ? hi : en}{p?.price ? <small>₹{p.price}/{unit}</small> : null}</button>;
                     })}</div>
                     {live.fuel?.status === 'ok' ? <p className="small muted">{L(`Dated rates for ${live.fuel.area} (${live.fuel.source}).`, `${live.fuel.area} के दर्ज दाम (${live.fuel.source})।`)}</p>
                       : <p className="small muted">{L('Live fuel prices are not connected yet — the cost uses the admin default or your price.', 'लाइव ईंधन दाम अभी जुड़े नहीं — ख़र्च में एडमिन का डिफ़ॉल्ट या आपका दाम लगेगा।')}</p>}
@@ -427,7 +427,9 @@ export function Planner({ lang, places, locations, listings, defaults, searchLab
 // Admin-set defaults (Admin → Trip Planner cost assumptions) fill empty rates.
 function defaultsFor(d, defaults = {}) {
   const base = defaultAssumptions(d);
-  ['fuel_price', 'taxi_per_km', 'food_per_person_day', 'stay_per_night'].forEach((k) => { if (defaults?.[k] != null && defaults[k] !== '') base[k] = defaults[k]; });
+  const fuelPrice = defaults?.[adminFuelRateKey(d.assumptions?.fuel_type)];
+  if (fuelPrice != null && fuelPrice !== '') base.fuel_price = fuelPrice;
+  ['taxi_per_km', 'food_per_person_day', 'stay_per_night'].forEach((k) => { if (defaults?.[k] != null && defaults[k] !== '') base[k] = defaults[k]; });
   return base;
 }
 

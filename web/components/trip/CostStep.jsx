@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { adminFuelRateKey } from '@/lib/trip/engine';
 import { inr } from '@/lib/format';
 import { COST_CATS } from '@/lib/trip/engine';
 import { FUELS, MODES } from '@/lib/trip/common';
@@ -19,12 +20,12 @@ export function CostStep({ d, b, auto, defaults, lang, update, onBack, onNext })
   const mine = d.assumptions || {};
   const fuel = FUELS.find((f) => f[0] === (mine.fuel_type || 'petrol')) || FUELS[0];
   const mode = MODES.find((m) => m[0] === d.mode);
-  const src = (key, autoLabel) => (has(mine, key) ? ['you', L('Your value', 'आपका मान')] : has(auto, key) ? ['live', autoLabel] : has(defaults, key) ? ['admin', L('Admin default', 'एडमिन डिफ़ॉल्ट')] : null);
+  const src = (key, autoLabel) => (has(mine, key) ? ['you', L('Your value', 'आपका मान')] : has(auto, key) ? ['live', autoLabel] : has(defaults, key === 'fuel_price' ? adminFuelRateKey(fuel[0]) : key) ? ['admin', L('Admin default', 'एडमिन डिफ़ॉल्ट')] : null);
 
   const rows = [];
   if (own) {
     const p = src('fuel_price', auto.fuelInfo ? L(`${fuel[1]} · ${auto.fuelInfo.area} · ${fmtDate(auto.fuelInfo.date, lang)}`, `${fuel[2]} · ${auto.fuelInfo.area} · ${fmtDate(auto.fuelInfo.date, lang)}`) : '');
-    rows.push({ k: 'fuel', ic: '⛽', bg: '#fde9e2', t: L('Fuel', 'ईंधन'), keys: [['fuel_price', L(`Fuel price (₹/${fuel[3]})`, `ईंधन दाम (₹/${fuel[3]})`)], ['mileage', L('Mileage (km per litre)', 'माइलेज (किमी/लीटर)')]],
+    rows.push({ k: 'fuel', ic: '⛽', bg: '#fde9e2', t: L('Fuel', 'ईंधन'), keys: [['fuel_price', L(`Fuel price (₹/${fuel[3]})`, `ईंधन दाम (₹/${fuel[3]})`)], ['mileage', fuel[0] === 'cng' ? L('Mileage (km per kg)', 'माइलेज (किमी/किग्रा)') : L('Mileage (km per litre)', 'माइलेज (किमी/लीटर)')]],
       chips: [p ? p[1] : L('Price needed', 'दाम चाहिए'), has(mine, 'mileage') ? L('Your mileage', 'आपका माइलेज') : L(`Typical for ${mode?.[1] || d.mode}`, `${mode?.[2] || d.mode} का आम माइलेज`)], warn: !p });
   } else if (d.mode === 'taxi') {
     const r = src('taxi_per_km', '');

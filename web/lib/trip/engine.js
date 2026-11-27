@@ -338,11 +338,12 @@ export const DEFAULT_MILEAGE = { car: 15, bike: 40, taxi: 15, bus: 0, train: 0, 
 const BODY_MILEAGE = { petrol: { hatch: 17, sedan: 15, suv: 12 }, diesel: { hatch: 20, sedan: 18, suv: 15 }, cng: { hatch: 22, sedan: 20, suv: 16 } };
 const typicalMileage = (d) => {
   const fuel = d.assumptions?.fuel_type || 'petrol';
-  const body = d.assumptions?.vehicle;
+  const body = d.assumptions?.vehicle || 'hatch';
   if (d.mode === 'car') return BODY_MILEAGE[fuel]?.[body] ?? (fuel === 'cng' ? 20 : DEFAULT_MILEAGE.car);
   if (d.mode === 'bike' && fuel === 'cng') return 55;
   return DEFAULT_MILEAGE[d.mode] || 15;
 };
+export const adminFuelRateKey = (fuel) => fuel === 'diesel' ? 'diesel_price' : fuel === 'cng' ? 'cng_price' : 'fuel_price';
 export const defaultAssumptions = (d) => ({
   fuel_price: '', mileage: typicalMileage(d), taxi_per_km: '', fare_per_person: '', rooms: Math.max(1, Math.ceil(d.adults / 2)),
   stay_per_night: '', food_per_person_day: '', activities: '', permits: '', local: '', tolls: '', other: '', reserve_pct: 10, local_km_per_day: 20,
