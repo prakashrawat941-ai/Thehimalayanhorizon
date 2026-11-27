@@ -8,6 +8,7 @@ Owner: Prakash Singh. Frontend and UI: Claude. Backend integration, permissions,
 | Public pages | Merged to main in PR #15 (`b11baa9`, 26 Nov 2026) at the owner's request |
 | Homepage extras (area 5) | Branch `claude/thh-home-extras` from main `01d2928`. Code commit `d5366c3`. Review PR: https://github.com/prakashrawat941-ai/Thehimalayanhorizon/pull/22. Not merged; needs the owner's approval. |
 | Trip Planner (area 4) | Merged to main in PR #19 (`01d2928`, 27 Nov 2026) at the owner's request. Was branch `claude/thh-trip-planner`. Code commit `691339c`. Review PR: https://github.com/prakashrawat941-ai/Thehimalayanhorizon/pull/19 (base `main`). Not merged; needs the owner's approval. |
+| Guest account (area 9) | Branch `claude/thh-account` from main `934b126`. Review PR: opened with this commit. Not merged; needs the owner's approval. |
 | Dashboards (area 3) | Merged to main in PR #17 (`a303710`, 27 Nov 2026) at the owner's request, after fixing 4 Codex review findings (booking route order, room counts for tours/workspaces, homestay-only check-in KPI, homestay-only onboarding queue). |
 
 ## Design previews (claude.ai artifacts, private to the owner)
@@ -20,9 +21,46 @@ Every value in these previews is demo data, and each preview is labelled as such
 | 2. Homepage and public pages | https://claude.ai/artifact/5J12rL8aEzxvExJgaZT3n5 (layout) and the HD preview at `/design-preview/public-pages.html` on branch `claude/thh-public-preview` | Approved 26 Nov 2026; implemented (see below) |
 | 3. Founder, CEO, Co-founder and Admin dashboards | https://claude.ai/artifact/7N3W4hcriB1nS2MBwniViw | Approved 27 Nov 2026; implemented (see below) |
 | 5. Homepage extras | https://claude.ai/artifact/VA4FfYixRRFmus7uhsima7 | Approved 27 Nov 2026; implemented (see below) |
+| 9. Guest account pages | https://claude.ai/artifact/XjkZrVuBcSdGydo221utcD | Approved 27 Nov 2026; implemented (see below) |
 | 4. Trip Planner and Trip Report | https://claude.ai/artifact/TjyUeTJMSW1ueGfotfDR6G (v2) | v1 changed at the owner's request; v2 approved 27 Nov 2026 with price option B (paid fuel-price API); implemented (see below) |
 
 An earlier all-in-one preview (https://claude.ai/artifact/K2uJ3wuzDYM4LBo6qvoYr3) was rejected and is superseded.
+
+## Area 9: Guest account pages, as implemented
+
+UI refresh of `/account`. No change to auth, schema, RLS, roles or booking transactions. Cab bookings, My trips, Saved places and Reviews pages keep their current inside; only the menu (Overview is now `exact`) and shared shell around them change.
+
+### Screens and routes
+
+| Route | What changed |
+|---|---|
+| `/account` | Greeting with avatar and sign-out; ride-feedback banner (existing `my_pending_feedback`); "Next up" card = earliest of the next confirmed cab ride and the next confirmed / checked-in stay (voucher button for homestays), or a "Plan your next trip" card; 4 quick counts (requests waiting = exact count of `requested`, cab bookings, saved, unread); recent activity = latest 3 notifications; next trip plan; saved places; roles links. |
+| `/account/bookings` | Cards with photo (listing's first image), status badge, booking ID, status line (homestay: Requested → Confirmed → Checked in → Completed; tours/workspaces skip check-in; declined/cancelled show a red ✕ step), dates/room/guests/amount, host note, "waiting for the host" text. Cancel uses a new dialog (`CancelBooking`) showing the homestay's cancellation rule; it calls `set_booking_status(..., 'cancelled')` and refreshes only on success, errors stay in the dialog. Declined/cancelled homestays get "Find another homestay". `?sent=1` shows a confirmation note. |
+| `/account/bookings/[id]` | Voucher card: booking ID, place, check-in/out with weekday and the host's times (from house rules), room, guests and nights, guest, status, host, booking value, meals, cancellation; Print / save as PDF and Trip Planner link. Same query and access rule as before. |
+| `/account/notifications` | Grouped "Today" / "Earlier", unread highlighted. Auto mark-as-read (existing `MarkRead`) unchanged, so no separate "Mark all read" button (not added; would be redundant). |
+| `/account/profile` | "Your details" (photo + existing form) and "Sign-in" (password + sign out) cards; banner when no emergency contact. The emergency contact stays inside the existing details form (one Save), not a separate card as in the preview, to avoid touching the save action. |
+| `loading.jsx`, `error.jsx` | New skeleton and bilingual retry for every account page. |
+
+### Changed and new files
+
+- `web/app/account/account.css` (new, `ac-`), `web/components/account/CancelBooking.jsx` (new), `web/lib/stay.js` (same file as in PR #25; identical content so the two branches merge cleanly)
+- `web/app/account/layout.jsx`, `page.jsx`, `bookings/page.jsx`, `bookings/[id]/page.jsx`, `notifications/page.jsx`, `profile/page.jsx`, `loading.jsx` (new), `error.jsx` (new)
+
+### Data
+
+Same tables and RPCs as before. Additions: bookings select now includes `homestays(images, house_rules)`, `village_tours(images)`, `workspaces(images)`; overview adds a `requested` count, latest 3 notifications, and the next confirmed stay.
+
+### Pending Codex items: guest account
+
+- AC1. Signed-in staging check of the overview "Next up" card with a real confirmed cab ride and stay.
+- AC2. Optional: a host note notification when the partner adds `partner_note` (not built here).
+
+### Checks run: guest account
+
+- Transpile check of every changed file.
+- Local harness (not committed): real account pages and `CancelBooking` bundled with esbuild, stubbed Supabase/i18n/Next and invented rows; data and empty × EN/HI × overview, 3 booking tabs, voucher, notifications, profile, loading, error at 360px and 1280px: no horizontal scroll, no page errors.
+- Cancel dialog shows the cancellation rule; a failing RPC keeps the dialog with the message and no refresh; success sends `set_booking_status(p_status='cancelled')`, closes and refreshes. Status line marks Confirmed / Requested correctly; tours show 3 steps.
+- Not run: `next build` locally (relies on CI); no signed-in Supabase test.
 
 ## Area 5: Homepage extras, as implemented
 

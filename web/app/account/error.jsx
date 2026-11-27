@@ -1,0 +1,11 @@
+'use client';
+// Shown when an account page fails to load. Nothing was changed, so retrying is safe.
+export default function AccountError({ reset }) {
+  return (
+    <div className="ac-state" role="alert">
+      <h2>Couldn&apos;t load this page · यह पेज लोड नहीं हुआ</h2>
+      <p>Check your connection and try again. Nothing was changed. · इंटरनेट देखकर फिर कोशिश करें। कुछ भी बदला नहीं गया।</p>
+      <button type="button" className="btn" onClick={reset}>Try again · फिर कोशिश करें</button>
+    </div>
+  );
+}

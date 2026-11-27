@@ -1,6 +1,7 @@
 import { getT } from '@/lib/i18n/server';
 import { requireUser } from '@/lib/account';
 import { ProfileForm, PhotoUpload, PasswordForm } from './ProfileForms';
+import { Icon } from '@/components/Icon';
 
 export async function generateMetadata() {
   const { t } = await getT();
@@ -32,22 +33,23 @@ export default async function Profile() {
     photo_ok: L('Photo updated', 'फ़ोटो बदल गई'),
   };
   const pwText = { new_password: t('new_password'), min8: L('At least 8 characters', 'कम से कम 8 अक्षर'), change_password: L('Change password', 'पासवर्ड बदलें'), saved: t('password_updated') };
+  const ecMissing = !p.emergency_contact_phone;
   return (
     <>
-      <div className="ds-head"><div className="grow"><h1>{t('profile')}</h1></div></div>
-      <div className="ds-cols">
-        <section className="ds-panel">
-          <h2>{L('Your profile', 'आपकी प्रोफ़ाइल')}</h2>
+      <div className="ac-head"><div><h1>{t('profile')}</h1></div></div>
+      {ecMissing ? <div className="ac-banner"><Icon name="alert" /><span><b>{L('Add an emergency contact', 'आपातकालीन संपर्क जोड़ें')}</b>
+        <p>{L('Used only if you press SOS during a cab ride. You can add it in the form below.', 'सिर्फ़ कैब राइड में SOS दबाने पर इस्तेमाल होगा। नीचे फ़ॉर्म में जोड़ सकते हैं।')}</p></span></div> : null}
+      <div className="ac-cols">
+        <section className="ac-card">
+          <h2>{L('Your details', 'आपकी जानकारी')}</h2>
           <PhotoUpload userId={user.id} url={p.avatar_url || null} initials={initials} text={photoText} />
           <ProfileForm profile={p} email={user.email || ''} text={text} />
         </section>
-        <div className="ds-body">
-          <section className="ds-panel"><h2>{L('Password', 'पासवर्ड')}</h2><PasswordForm text={pwText} /></section>
-          <section className="ds-panel">
-            <h2>{L('Sign out', 'लॉग आउट')}</h2>
-            <form action="/auth/signout" method="post"><button className="btn btn-ghost">{t('signout')}</button></form>
-          </section>
-        </div>
+        <section className="ac-card">
+          <h2>{L('Sign-in', 'लॉगिन')}</h2>
+          <PasswordForm text={pwText} />
+          <form action="/auth/signout" method="post" style={{ marginTop: 14 }}><button className="btn btn-danger-ghost btn-sm">{t('signout')}</button></form>
+        </section>
       </div>
     </>
   );
