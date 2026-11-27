@@ -1,11 +1,15 @@
 'use server';
 import { createClient as adminClient } from '@supabase/supabase-js';
+import { unstable_rethrow } from 'next/navigation';
 import { requireManagement } from '@/lib/management/guard';
 import { SUPABASE_KEY, SUPABASE_URL } from '@/lib/config';
 import { decisions } from '@/lib/management/catalog';
 import { isEmployeeId } from '@/lib/management/employee-id';
 
-const failure = (e) => ({ ok: false, message: e?.message || 'Request failed. Try again.' });
+const failure = (error) => {
+  unstable_rethrow(error);
+  return { ok: false, message: error?.message || 'Request failed. Try again.' };
+};
 const clean = (f,k) => String(f.get(k) ?? '').trim();
 const uuid = (s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 

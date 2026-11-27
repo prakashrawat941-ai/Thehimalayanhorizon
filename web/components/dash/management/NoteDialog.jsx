@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState, useTransition } from 'react';
+import { unstable_rethrow } from 'next/navigation';
 import { NOTE_MAX, validNote } from './ui';
 
 /**
@@ -27,7 +28,10 @@ export function NoteDialog({ title, subtitle, fields = null, hidden = {}, button
       try {
         const res = await action(form);
         if (res?.ok) onClose(true); else setError(res?.message || failed);
-      } catch { setError(failed); }
+      } catch (error) {
+        unstable_rethrow(error);
+        setError(failed);
+      }
     });
   };
   return (
