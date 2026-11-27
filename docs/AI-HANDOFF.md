@@ -224,6 +224,8 @@ or `{ status: 'not_connected' }`.
 
 **Current-main review:** PR #18 was reconciled with the squash-merged dashboard and Trip Planner changes, preserving the PR #17 fixes. A staged transaction with an `aal2` CEO verified that the Founder route membership condition and Founder directory RPC both deny this identity. The fixture rolled back. The Next.js production build passed locally after the role and MFA changes. Signed-in 360px acceptance and actual invitation delivery remain open. The Admin switcher only advertises a leadership destination when the same account also holds the matching team role and has completed MFA.
 
+**Owner dual-role decision (27 Nov):** The same account can retain its existing Admin profile role and its independent Founder membership. Admin uses `requireAdmin` and its database permission continues to work at `aal1`. Founder remains gated by `requireManagement` and `aal2`. The staging-only migration `20261127043916_retain_independent_admin_access.sql` restored independent DB permissions. All three checks passed with a transaction-scoped Founder + Admin identity and the transaction was rolled back. The CEO alert again says “booking request(s)” in both languages. Production release still requires backup, history reconciliation, migration-first deployment, and signed-in staging acceptance.
+
 ### Original dashboard handoff items (see integration status above)
 
 - D1. Replace the temporary `requireAdmin` guard in `ManagementFrame` (and each role page) with the management guard (`management_members` role + `aal2`). Wire `authorisedDashboards({ managementRole })` from that read and set `ADMIN_OPENS_MANAGEMENT = false`. Feed the "Not connected yet" parts from `management_*`.
