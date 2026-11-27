@@ -119,3 +119,4 @@
 .st-next b, .st-next small { display: block; }
 .st-next small { color: var(--muted); font-size: .8rem; }
 .st-done-acts { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.st-fs { border: 1px solid var(--line); margin: 0; min-inline-size: 0; }

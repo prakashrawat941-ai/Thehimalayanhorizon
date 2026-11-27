@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Cover } from '../Cover';
 import { imgUrl } from '@/lib/img';
 
@@ -17,6 +18,12 @@ export function Gallery({ images, seed, lang, name }) {
       if (e.key === 'Escape') setOpen(-1);
       if (e.key === 'ArrowRight') setOpen((i) => (i + 1) % n);
       if (e.key === 'ArrowLeft') setOpen((i) => (i + n - 1) % n);
+      if (e.key === 'Tab' && box.current) { // keep focus inside the viewer
+        const els = [...box.current.querySelectorAll('button')];
+        const first = els[0], last = els[els.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
     };
     document.addEventListener('keydown', key);
     document.body.style.overflow = 'hidden';
@@ -34,7 +41,7 @@ export function Gallery({ images, seed, lang, name }) {
         ))}
         {n > 1 ? <button type="button" className="st-gal-all" onClick={() => setOpen(0)}>⊞ {L(`All ${n} photos`, `सभी ${n} फ़ोटो`)}</button> : null}
       </div>
-      {open >= 0 ? (
+      {open >= 0 && typeof document !== 'undefined' ? createPortal(
         <div className="st-lb" role="dialog" aria-modal="true" aria-label={L(`Photos of ${name}`, `${name} की फ़ोटो`)} ref={box}>
           <header><span>{open + 1} / {n}</span><button type="button" className="st-x" onClick={() => setOpen(-1)} aria-label={L('Close', 'बंद करें')}>✕</button></header>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -43,7 +50,7 @@ export function Gallery({ images, seed, lang, name }) {
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen((open + n - 1) % n)}>‹ {L('Previous', 'पिछली')}</button>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen((open + 1) % n)}>{L('Next', 'अगली')} ›</button>
           </footer> : null}
-        </div>
+        </div>, document.body,
       ) : null}
     </>
   );

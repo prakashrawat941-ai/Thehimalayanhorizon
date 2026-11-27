@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { usePathname } from 'next/navigation';
 import { browserDb } from '@/lib/supabase/client';
 import { inr } from '@/lib/format';
@@ -8,6 +9,17 @@ import { istDay, nightsBetween } from '@/lib/stay';
 
 const EVT = 'thh:stay-room';
 const pickRoom = (id) => window.dispatchEvent(new CustomEvent(EVT, { detail: id }));
+const nextDay = (d) => (/^\d{4}-\d{2}-\d{2}$/.test(d || '') ? new Date(Date.parse(`${d}T12:00:00Z`) + 864e5).toISOString().slice(0, 10) : '');
+/** Keeps Tab / Shift+Tab inside an open dialog. */
+function trapTab(e, box) {
+  if (e.key !== 'Tab' || !box) return;
+  const els = [...box.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])')];
+  if (!els.length) return;
+  const first = els[0], last = els[els.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  else if (!box.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+}
 
 /** Room cards on the homestay page. Tapping one selects it in the booking card (and the other way round). */
 export function RoomCards({ rooms, lang }) {
@@ -79,7 +91,7 @@ export function StayBooking({ listing, rooms, lang, profile }) {
     if (!sheet && !done) return undefined;
     const prev = document.activeElement;
     box.current?.querySelector('input, button')?.focus();
-    const esc = (e) => { if (e.key === 'Escape' && !busy && !done) setSheet(false); };
+    const esc = (e) => { if (e.key === 'Escape' && !busy && !done) setSheet(false); trapTab(e, box.current); };
     document.addEventListener('keydown', esc);
     document.body.style.overflow = 'hidden';
     return () => { document.removeEventListener('keydown', esc); document.body.style.overflow = ''; prev?.focus?.(); };
@@ -101,15 +113,17 @@ export function StayBooking({ listing, rooms, lang, profile }) {
     if (tooMany) return setErr(L(`Up to ${cap} guests in ${f.n} room(s). Add another room.`, `${f.n} कमरे में ${cap} मेहमान तक। एक और कमरा जोड़ें।`));
     if (notFree) return setErr(L('Not enough rooms are free on these dates.', 'इन तारीख़ों पर इतने कमरे खाली नहीं हैं।'));
     setBusy(true);
-    const { data, error } = await browserDb().from('booking_requests').insert({
+    const row = {
       kind: 'homestay', user_id: user.id, homestay_id: listing.id, room_id: f.room, rooms_booked: f.n,
       guest_name: f.name.trim().slice(0, 120), guest_phone: f.phone.trim(), start_date: f.start, end_date: f.end,
       guests: Math.max(1, Math.min(50, Number(f.g) || 1)), message: f.message.trim().slice(0, 1000),
-    }).select('id, booking_code').single();
+    };
+    const { data, error } = await browserDb().from('booking_requests').insert(row).select('id, booking_code').single();
     setBusy(false);
     if (error) return setErr(/not enough rooms|free/i.test(error.message) ? L('Not enough rooms are free on these dates.', 'इन तारीख़ों पर इतने कमरे खाली नहीं हैं।') : error.message);
     setSheet(false);
-    setDone({ id: data.id, code: data.booking_code });
+    // Show exactly what was sent (the form could change while the request was in flight).
+    setDone({ id: data.id, code: data.booking_code, start: row.start_date, end: row.end_date, n: row.rooms_booked, g: row.guests });
   }
 
   const stepper = (label, sub, k, min, max) => (
@@ -123,7 +137,7 @@ export function StayBooking({ listing, rooms, lang, profile }) {
   const fields = (
     <>
       <div className="st-dates">
-        <label><span>{L('Check-in', 'चेक-इन')}</span><input type="date" min={istDay(0)} value={f.start} onChange={(e) => { const v = e.target.value; setErr(''); setF((x) => ({ ...x, start: v, end: x.end <= v ? new Date(Date.parse(`${v}T12:00:00Z`) + 864e5).toISOString().slice(0, 10) : x.end })); }} required /></label>
+        <label><span>{L('Check-in', 'चेक-इन')}</span><input type="date" min={istDay(0)} value={f.start} onChange={(e) => { const v = e.target.value; setErr(''); setF((x) => ({ ...x, start: v, end: v && (!x.end || x.end <= v) ? nextDay(v) : x.end })); }} required /></label>
         <label><span>{L('Check-out', 'चेक-आउट')}</span><input type="date" min={f.start} value={f.end} onChange={(e) => set('end', e.target.value)} required /></label>
       </div>
       {rooms.length > 1 ? <label className="field"><span className="field-label">{L('Room', 'कमरा')}</span>
@@ -160,13 +174,13 @@ export function StayBooking({ listing, rooms, lang, profile }) {
         <button type="button" className="btn" onClick={() => setSheet(true)}>{L('Check dates', 'तारीख़ देखें')}</button>
       </div>
 
-      {sheet ? (
+      {sheet && typeof document !== 'undefined' ? createPortal(
         <div className="st-ov" onClick={(e) => { if (e.target === e.currentTarget && !busy) setSheet(false); }}>
           <form className="st-sheet" role="dialog" aria-modal="true" aria-labelledby="st-sheet-h" ref={box} onSubmit={submit} noValidate>
             <div className="st-sheet-h"><h2 id="st-sheet-h">{L('Request a booking', 'बुकिंग रिक्वेस्ट')}</h2>
               <button type="button" className="st-x" onClick={() => setSheet(false)} disabled={busy} aria-label={L('Close', 'बंद करें')}>✕</button></div>
             <p className="small muted" style={{ margin: '0 0 8px' }}>{listing.name}</p>
-            <div className="st-card">
+            <fieldset className="st-card st-fs" disabled={busy}>
               {fields}
               {user === null ? <>
                 <p className="small" style={{ margin: 0 }}>{L('Sign in to send a booking request. Your dates stay saved.', 'बुकिंग रिक्वेस्ट भेजने के लिए लॉगिन करें। आपकी तारीख़ें सेव रहेंगी।')}</p>
@@ -179,17 +193,17 @@ export function StayBooking({ listing, rooms, lang, profile }) {
                 <button type="submit" className="btn btn-block" disabled={busy || blocked || user === undefined}>{busy ? L('Sending…', 'भेज रहे हैं…') : L('Send booking request', 'बुकिंग रिक्वेस्ट भेजें')}</button>
               </>}
               <p className="st-note">🔒 {L('No payment now. The host confirms first.', 'अभी कोई पेमेंट नहीं। पहले होस्ट कन्फर्म करेंगे।')}</p>
-            </div>
+            </fieldset>
           </form>
-        </div>
+        </div>, document.body,
       ) : null}
 
-      {done ? (
+      {done && typeof document !== 'undefined' ? createPortal(
         <div className="st-ov st-ov-done">
           <div className="st-sheet st-done" role="dialog" aria-modal="true" aria-labelledby="st-done-h" ref={box}>
             <div className="st-big" aria-hidden="true">✓</div>
             <h2 id="st-done-h">{L('Request sent', 'रिक्वेस्ट भेज दी')}</h2>
-            <p className="muted" style={{ margin: 0 }}>{listing.name} · {f.start} → {f.end} · {f.n} {L('room(s)', 'कमरे')} · {f.g} {L('guests', 'मेहमान')}</p>
+            <p className="muted" style={{ margin: 0 }}>{listing.name} · {done.start} → {done.end} · {done.n} {L('room(s)', 'कमरे')} · {done.g} {L('guests', 'मेहमान')}</p>
             {done.code ? <span className="st-code">{done.code}</span> : null}
             <ol className="st-next">
               <li className="ok"><i>✓</i><span><b>{L('Request received', 'रिक्वेस्ट मिल गई')}</b><small>{L('The host has been told.', 'होस्ट को बता दिया गया है।')}</small></span></li>
@@ -198,7 +212,7 @@ export function StayBooking({ listing, rooms, lang, profile }) {
             </ol>
             <div className="st-done-acts"><Link className="btn" href="/account/bookings">{L('See my bookings', 'मेरी बुकिंग देखें')}</Link><Link className="btn btn-ghost" href="/homestays">{L('More homestays', 'और होमस्टे')}</Link></div>
           </div>
-        </div>
+        </div>, document.body,
       ) : null}
     </>
   );
