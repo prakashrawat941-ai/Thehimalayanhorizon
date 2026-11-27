@@ -94,7 +94,7 @@ export function LocationReview({ lang, districts = [], findMatches = null, saveD
     };
     const chosen = matches.find((x) => x.id === pick);
     return (<>
-      {head(L('Review matches', 'मिलान देखें'), L('Pick the place you mean. The score combines name and distance.', 'जिस जगह की बात है उसे चुनें। स्कोर नाम और दूरी से बनता है।'))}
+      {head(L('Review matches', 'मिलान देखें'), L('Pick the place you mean. The score compares names and districts.', 'जिस जगह की बात है उसे चुनें। स्कोर नाम और ज़िले की तुलना से बनता है।'))}
       {stepBar}
       {result.duplicate ? <p className="soft-note warn" role="alert">{L(`Possible duplicate: “${result.duplicate.name}” is already published${result.duplicate.distanceKm != null ? ` ${result.duplicate.distanceKm} km away` : ''}.`, `संभावित दोहराव: “${result.duplicate.name}” पहले से प्रकाशित है${result.duplicate.distanceKm != null ? ` (${result.duplicate.distanceKm} किमी दूर)` : ''}।`)}</p> : null}
       {result.osmAvailable === false ? <p className="soft-note warn" role="status">{L('OpenStreetMap search is unavailable. Review local matches carefully before publishing.', 'OpenStreetMap खोज उपलब्ध नहीं है। प्रकाशित करने से पहले स्थानीय मिलान ध्यान से जाँचें।')}</p> : null}
