@@ -2,13 +2,12 @@
 name: Web build check
 on:
   pull_request:
- ['web/**', '.github/workflows/**']
   workflow_dispatch:
+  push:
+    branches: [integration/thh-unified-baseline-v1]
 concurrency:
   group: web-build-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-  push:
-    branches: [integration/thh-unified-baseline-v1]
 permissions:
   contents: read
 jobs:

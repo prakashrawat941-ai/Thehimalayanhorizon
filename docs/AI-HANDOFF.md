@@ -672,3 +672,15 @@ Branch `claude/thh-phase-1-frontend` is based on `codex/management-dashboards-in
 - Release readiness runs on integration-targeted PRs and requires successful results from the other five workflows for the same PR and head commit. The manual gate checks runs for the current integration tip. No deployment step is included.
 - Claude backend branch `claude/thh-step02-backend` at `0efba3d6c4ae0a3962daf5e987caab6e0c1e1fd8` has a separate migration ledger map, leadership employee login baseline, organization/approval/permissions/claims migrations and SQL tests. Its content was reviewed at the file inventory level. Preserve the branch and review its staging migrations independently before consolidation.
 - Next gate: verify [PR #38 checks](https://github.com/prakashrawat941-ai/Thehimalayanhorizon/pull/38/checks) and obtain Founder approval. Then compare PRs against the integration tree, retain unique patches on dedicated branches, resolve conflicts around PR #29 and verify on staging before proposing any integration merge. Production actions require separate authorization.
+
+### Read-only consolidation notes
+
+| Branch or PR | Integration review |
+| --- | --- |
+| #4 and #11 | Superseded management foundations. A full merge conflicts in account, CMS, Founder, CEO, Co-Founder and employee routes. Identify any unique unported behavior by file before closing. |
+| #16, #21, #27, #29 | Functional patches already integrated in `1a09450`. #21 and #29 have documentation conflicts on a full merge. #29 remains the frontend baseline. Reconcile PR disposition using file equivalence and the recorded integration notes. |
+| #30 | Overlaps the canonical theme, package, dashboard shell, contracts and frontend test configuration. Extract only validated components missing from #29. |
+| #31 | Unique leadership UI, with overlapping dependency and foundation changes from #30. Port feature files onto canonical integration after backend schema and API review. The dry run reports seven conflicts, including dashboard layout, package manifest and test configuration. |
+| Claude Step 02 backend | Clean Git dry run against `1a09450`. Review migration ordering, existing staging ledger, approval enforcement and rollback before integration. |
+
+The first remediation commit `695b7b61a2201a83edc2eadcc7eca6deaa9f2d7b` passed Security (46137731756) and Project Report (46137731766). Web Build did not start due to invalid workflow trigger YAML. The follow-up fixes that structure and the PR branch has dedicated staging-only Vercel Preview variables. Check the newest PR head before accepting results.
