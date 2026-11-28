@@ -23,7 +23,7 @@ export default async function AccountLayout({ children }) {
     { href: '/account/profile', icon: 'user', label: L('Profile', 'प्रोफ़ाइल') },
   ];
   return (
-    <div className="ds">
+    <div className="ds" data-surface="brand">
       <AccountNav items={items} title={L('My account', 'मेरा अकाउंट')} />
       <div className="ds-main">{children}</div>
     </div>

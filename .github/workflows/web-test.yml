@@ -1,0 +1,35 @@
+# Frontend checks for web/: contract typecheck, brand-dark drift check, unit tests, and the UI kit browser/accessibility tests.
+# Runs on pull requests that touch web/. Does not deploy and does not read production data.
+name: Web tests
+on:
+  pull_request:
+    paths: ['web/**', '.github/workflows/web-test.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run check:dark
+      - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+        env:
+          CI: '1'
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: web/test-results
+          retention-days: 7

@@ -30,6 +30,66 @@ Every value in these previews is demo data, and each preview is labelled as such
 
 An earlier all-in-one preview (https://claude.ai/artifact/K2uJ3wuzDYM4LBo6qvoYr3) was rejected and is superseded.
 
+## Phase 1: Frontend foundation, as implemented (branch `claude/thh-phase-1-ui`)
+
+Status: DRAFT PR, not merged, not deployed. Based on `main` because no verified integration baseline exists yet. PR #18 and PR #28 were not touched and not merged. Waiting for the Founder's approval before Phase 2.
+
+### Founder decisions applied
+Forest Green + Gold stays on the public site and every approved screen. Navy / Blue / Teal is used for new internal management screens. One theme system (light / dark / system) covers management dashboards, employee portals, customer dashboards and partner portals. Lucide React is the icon library for new screens; `components/Icon.jsx` is kept so approved screens look the same. Vitest, Playwright and axe are dev dependencies only.
+
+### Design tokens and theme (UI only)
+| Piece | Where | Notes |
+|---|---|---|
+| Tokens | `web/styles/tokens.css` | `--ui-*` variables for 2 surfaces x 2 themes. `data-surface="enterprise"` (navy/blue/teal) and `data-surface="brand"` (forest green/gold). Text pairs checked at 4.5:1 or more, control borders and focus ring at 3:1 or more (`test/contrast.test.js`). |
+| Theme store | `web/lib/theme/theme.js` | `light`, `dark` or `system`, saved in `localStorage` key `thh.theme`. `THEME_INIT_SCRIPT` is inlined in `app/layout.jsx` `<head>` so there is no flash. Storage failure falls back to light. |
+| Brand dark mode | `web/scripts/gen-brand-dark.mjs` -> `web/styles/brand-dark.generated.css` | Generated dark overrides for the hard-coded colours in `dash.css`, `account.css`, `partner.css` and an allow-list of `globals.css`. Scoped to `html[data-theme="dark"] body:has([data-surface])`, so the public site is untouched. `npm run gen:dark` regenerates; `npm run check:dark` fails when stale. Regenerate after editing those CSS files. |
+| Surfaces applied | `account/layout.jsx`, `partner/layout.jsx`, `DashLayout.jsx` get `data-surface="brand"`. `AccountNav` gets a theme toggle. | No other markup or style changes to approved screens. |
+
+New management screens should wrap in `<Surface surface="enterprise">` (or use `<AppShell>`).
+
+### Component library (`web/components/ui`, import from `@/components/ui`)
+Button, ButtonLink, IconButton, Field, Input, Select, Textarea, Checkbox, Switch, Dialog, ConfirmDialog, ToastProvider/useToast, Tabs, Badge, StatusBadge, Avatar, Skeleton, Spinner, Card, CardHeader, Stat, StatGrid, EmptyState, ErrorState, SuccessState, NotConnectedState, LoadingState, AsyncView, DataTable (sort, card layout on phones, loading/empty/error), Pagination, FilterBar, Chart (SVG bar/line with data table for screen readers), Stepper, ThemeToggle, ApprovalCard, DiffView, ApprovalTimeline, RiskBadge, AppShell, Surface, PageHeader, Breadcrumbs, UiIcon.
+
+Rules the components enforce:
+- A success message or closed dialog appears only after the server answers `{ ok: true }`. A failure keeps the dialog open and shows the message.
+- `Stat` and `Chart` draw only the data they are given. No value shows a dash with a screen-reader note, never a made-up number. `NotConnectedState` is the placeholder for a screen without a live data source.
+- Approval actions are disabled, with the reason shown, when the viewer lacks permission, the request is not in a decidable status, or a newer version exists (stale). Reject and Revise need a note. The UI never approves anything by itself and sends `expectedVersion` with every decision.
+- Status, risk and diff kinds are always text as well as colour. Focus rings are always visible. Motion respects `prefers-reduced-motion`.
+
+Developer gallery: `/ui-kit` returns 404 unless `ENABLE_UI_KIT=1` and `VERCEL_ENV` is not `production`. It shows sample data only, labelled as such.
+
+### Shared TypeScript contracts (PROPOSED v0, UI-facing; Codex owns the physical schema)
+Files: `web/lib/contracts/{errors,envelope,permissions,approvals,common,index}.ts`. Typecheck: `npm run typecheck` (`tsconfig.contracts.json`, named so Next does not auto-convert the project to TypeScript).
+- `ApiEnvelope`: `{ success: true, data, requestId }` or `{ success: false, error: { code, message }, requestId }`. `toUiResult` also accepts the existing `{ ok, message }` server-action shape.
+- 12 error codes with English and Hindi copy: AUTH_REQUIRED, MFA_REQUIRED, PERMISSION_DENIED, VALIDATION_FAILED, NOT_FOUND, CONFLICT, STALE_VERSION, APPROVAL_REQUIRED, INVALID_TRANSITION, DUPLICATE_REQUEST, INTEGRATION_UNAVAILABLE, INTERNAL_ERROR. Unknown codes show INTERNAL_ERROR copy.
+- `WriteMeta`: `expectedVersion`, `idempotencyKey`, `approvalRef`.
+- Permissions view-model: `canShow(perms, resource, action, actor, record)` is a UI hint only and denies by default. The server must enforce every action.
+- Approval view-models: statuses, risk, PROPOSED SLA hours (critical 2, high 12, medium 24, low 72; not approved policy), field diff, exact version binding, stale detection.
+
+### What Codex needs to do (integration requirements)
+1. **Baseline.** Tell me which branch is the verified integration baseline. I used `main`. Rebase or retarget this PR once PR #18 and PR #28 land. My edits to shared files are small: `app/layout.jsx`, `account/layout.jsx`, `partner/layout.jsx`, `DashLayout.jsx`, `AccountNav.jsx`, `package.json`, `.gitignore`.
+2. **Private-route protection.** `middleware.js` `PROTECTED` lists only `/account /trips /partner /admin /drive`. The management dashboards (`/founder /ceo /co-founder /employee /leadership /management`) need server-side auth and role checks there. Hiding navigation items in the UI is not protection.
+3. **Service worker.** `scripts/sw.template.js` already skips caching for `/account|cab|drive|admin|partner|trips|login|t`. Add the management prefixes. The list lives in `web/lib/privacy/clear-private-caches.js` (`PRIVATE_PATH_PREFIXES`); keep the three lists in sync. Private dashboard data must never be cached. Also call `clearPrivateCaches()` on sign-out (client helper, deletes cached private pages; it cannot fix a worker that caches them in the first place).
+4. **Contracts.** Confirm or change the envelope, error codes, `WriteMeta`, permission grant shape and approval states. The UI compiles against these. Return `STALE_VERSION` for a version mismatch and `DUPLICATE_REQUEST` for a repeated idempotency key.
+5. **Dependencies.** Run `npm install` once and commit the lockfile. I could not install packages in my workspace. Versions in `web/package.json` (`lucide-react ^0.468.0`, `vitest ^2.1.8`, `@playwright/test ^1.49.0`, `@axe-core/playwright ^4.10.0`, `typescript ^5.7.0`) are from memory and unverified.
+6. **CI.** `.github/workflows/web-test.yml` runs typecheck, dark-CSS check, unit tests and Playwright with axe. It has not run yet; the first run on GitHub is the real test.
+
+### Not done in Phase 1
+- No screen was redesigned. No management dashboard was built (Phase 2 onward).
+- No change to authentication, MFA, RLS, schemas, APIs or business logic.
+- No merge, no deploy.
+
+### Checks run: Phase 1
+Run in my workspace (no npm registry access, so no `npm install`, no `next build`):
+- `tsc --strict` on the contracts: passes.
+- `node scripts/gen-brand-dark.mjs --check`: passes.
+- 115 unit assertions (contrast, theme init script, contracts, privacy helper, components via server rendering, generated CSS scope) passed. **They ran in a small stand-in runner that I wrote, not in real Vitest.** The test files use only `describe`/`it`/`expect`, but they have not run under Vitest yet.
+- 59 browser checks passed in Chromium (Playwright) against a static page that bundles the real `UiKitDemo` and CSS, at 1280 and 360 px, light and dark: theme apply and persistence, keyboard tabs, filter, sort, dialog focus trap and Escape, approval gating, stale request, mobile drawer, no horizontal overflow, no console errors, plus a basic names/labels/landmarks sweep. The harness used Lucide icons from `react-icons/lu` as a stand-in for `lucide-react`.
+- **Not run:** axe (`@axe-core/playwright` is not available here), the committed `e2e/ui-kit.spec.js` against `next dev`, and `next build`. These are the first things to check in CI.
+- One real bug was found and fixed by the browser run: the chart's hidden data table stretched the page.
+
+Screenshots: `docs/ui-previews/phase-1/` (desktop and mobile, light and dark, five tabs plus the mobile menu). Sample data only.
+
 ## Area 9: Guest account pages, as implemented
 
 UI refresh of `/account`. No change to auth, schema, RLS, roles or booking transactions. Cab bookings, My trips, Saved places and Reviews pages keep their current inside; only the menu (Overview is now `exact`) and shared shell around them change.
@@ -623,3 +683,62 @@ The popup still opens only after `request_cab_ride_idempotent` returns a booking
 - **Pre-existing, fixed for the new cabin only:** `h()` in `web/lib/cab/ui.js` assigns `style` objects with `Object.assign`, which ignores CSS custom properties. The old schematic seat grid's `--cabin-tracks` and `--cabin-columns` were never applied. The new cabin sets its variable with `style.setProperty`. Other callers that pass `--*` in `style` are unchanged.
 - **Hindi:** new labels use the existing `L(en, hi)` helper. Hindi wording should be reviewed by a native speaker.
 - **Popup checkmark:** in the harness screenshots the receipt popup's check mark looked empty. The popup's `cele-mark` styling and animation were not changed in this work. Check it on a real device.
+
+---
+
+## THH Work: Task Management slice (leadership dashboards)
+
+**Branch:** `claude/thh-leadership-tasks` (from `claude/thh-phase-1-ui`, PR #30). Not merged. `main` not touched.
+**Status:** Frontend only, running on sample data. Not connected to any backend.
+
+### Scope
+
+Founder, CEO and Co-Founder each get a `/work` page with the same workspace: Board, List and Activity tabs; filters for scope (mine, created, review), status, priority and search; a create dialog; and a detail dialog with the actions allowed for the current actor.
+
+- Routes: `web/app/founder/work/page.jsx`, `web/app/ceo/work/page.jsx`, `web/app/co-founder/work/page.jsx` (each calls `requireAdmin`).
+- Nav items added in `web/components/dash/ManagementFrame.jsx`.
+- Demo: `web/app/ui-kit/work/` (gated by `ENABLE_UI_KIT=1` and not production).
+- Components: `web/components/work/` (`WorkWorkspace.jsx`, `TaskViews.jsx`, `TaskForm.jsx`, `ActionDialog.jsx`, `i18n.js`).
+- Model: `web/lib/work/task-model.js` (state machine, relations, review gate, version checks; UI mirror only, the server must enforce all of it), `web/lib/work/sample-tasks.js` (fictional people and tasks, labelled as sample data).
+- Shared fixes: `Dialog.jsx` Escape now uses a document-level stacked listener, so only the top dialog closes.
+- Styles: THH Work block appended to `web/styles/ui.css`.
+- Tests: `web/test/work-model.test.js`.
+
+### Contracts
+
+See `docs/DATA-CONTRACTS.md`. It lists the entities, the status model, the action table, the error codes, the adapter interface and the proposed tables for Codex.
+
+### Codex requirements
+
+1. Tables: `work_tasks` and `work_task_events` (append-only), plus the people/relation source (Codex to decide).
+2. One RPC per action, each checking relation, `expectedVersion`, status, input and review gate in one transaction, and writing the event.
+3. Idempotency on (actor, idempotencyKey).
+4. RLS: read only for creator, assignee, reviewer or an allowed dashboard role; no direct writes.
+5. Notifications on each state change.
+6. Middleware protection for `/founder/work`, `/ceo/work`, `/co-founder/work`.
+7. Service worker must not cache task responses or management pages.
+8. Decide what counts as a sensitive task for Founder final approval.
+9. Decide what to do with the existing `management_work` table (not compatible; see DATA-CONTRACTS section 10).
+
+### Blockers
+
+- **No staging deploy.** Codex deploys. Nothing has been deployed.
+- **No package install.** Network access for packages is off in this session. The tests run on a stand-in runner, not real Vitest.
+- **No real Vitest or axe run.** Accessibility checks were manual and in the browser harness only.
+- **No `next build`.** Codex should run build and the Playwright spec against `next dev` or a preview.
+- **No backend.** The UI shows a "not connected" state when `source` is null, and sample data when it is `'demo'`.
+
+### Checks actually run (stand-in harness)
+
+- Unit: 138 of 138 passed (stand-in runner).
+- UI kit browser checks: 59 of 59 passed.
+- Work flow browser checks: 31 of 31 passed. These cover desktop light and mobile dark board views, and the create, act and reset flow.
+- Screenshots: `docs/ui-previews/task-slice/`.
+
+### Phase-order note
+
+The master spec places THH Work (Module 07) after the Phase 3 gate, and says Phase 0 is read-only. The Founder approved this Task slice explicitly on 2026-11-28, so it proceeds. The sample-data state is clearly labelled, and nothing is saved.
+
+### Next slice
+
+Awaiting approval. Proposed next: Task and project management (per the approved sequence), or Activity Center if preferred.
