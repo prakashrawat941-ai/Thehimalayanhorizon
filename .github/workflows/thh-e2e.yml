@@ -1,0 +1,55 @@
+name: THH browser and PWA checks
+on:
+  pull_request:
+    paths:
+      - 'web/**'
+      - '.github/workflows/thh-e2e.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: browser-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: web
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ vars.THH_STAGING_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.THH_STAGING_SUPABASE_ANON_KEY }}
+      THH_E2E_BASE_URL: http://127.0.0.1:3000
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Require staging configuration
+        run: |
+          test "$NEXT_PUBLIC_SUPABASE_URL" = 'https://gboxcnxgdkcewstkxogt.supabase.co'
+          test -n "$NEXT_PUBLIC_SUPABASE_ANON_KEY"
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - name: Start local website
+        run: |
+          npm start -- --hostname 127.0.0.1 > /tmp/thh-web.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:3000/ > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - name: Desktop and mobile browser tests
+        run: npm run test:e2e -- --workers=2 --reporter=line
+      - name: PWA endpoints
+        run: |
+          curl --fail --silent http://127.0.0.1:3000/manifest.webmanifest | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{const m=JSON.parse(s);if(!m.name||!m.icons?.length||!m.start_url)process.exit(1)})'
+          curl --fail --silent http://127.0.0.1:3000/sw.js > /tmp/thh-sw.js
+          test -s /tmp/thh-sw.js
+          curl --fail --silent http://127.0.0.1:3000/offline > /dev/null
