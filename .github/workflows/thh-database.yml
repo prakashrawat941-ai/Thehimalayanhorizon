@@ -1,0 +1,49 @@
+name: THH database checks
+on:
+  pull_request:
+  workflow_dispatch:
+  push:
+    branches: [integration/thh-unified-baseline-v1]
+permissions:
+  contents: read
+concurrency:
+  group: database-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  local-database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.81.3
+      - name: Initialize local configuration if missing
+        run: |
+          supabase --version
+          if [ ! -f supabase/config.toml ]; then supabase init; fi
+      - name: Start disposable local database and replay migrations
+        run: supabase start
+      - name: Verify local database security baseline
+        run: |
+          docker exec -i "$(docker ps --filter name=supabase_db_ --format '{{.Names}}' | head -n 1)" psql -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'management_members') THEN
+              RAISE EXCEPTION 'Expected management schema missing';
+            END IF;
+            IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND NOT rowsecurity) THEN
+              RAISE EXCEPTION 'Public tables without RLS exist';
+            END IF;
+          END $$;
+          SQL
+      - name: Run database test suite (required)
+        run: |
+          test -d supabase/tests
+          test -n "$(find supabase/tests -type f -name '*.sql' -print -quit)"
+          supabase test db
+      - name: Stop disposable services
+        if: always()
+        run: supabase stop --no-backup

@@ -7,6 +7,13 @@ const commit = (process.env.COMMIT_REF || '').slice(0, 7);
 const stagingPreview = process.env.VERCEL_ENV === 'preview'
   || ['deploy-preview', 'branch-deploy'].includes(process.env.CONTEXT);
 
+if (stagingPreview && (
+  process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://gboxcnxgdkcewstkxogt.supabase.co'
+  || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.startsWith('sb_publishable_')
+)) {
+  throw new Error('Preview requires the staging Supabase URL and a publishable key.');
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -15,10 +22,6 @@ const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
   env: {
     NEXT_PUBLIC_APP_VERSION: pkg.version.split('.')[0] + (commit ? `·${commit}` : ''),
-    ...(stagingPreview ? {
-      NEXT_PUBLIC_SUPABASE_URL: 'https://gboxcnxgdkcewstkxogt.supabase.co',
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: 'sb_publishable_7yvsb933SSqzntiJ0npq5Q_hHnsnFCo',
-    } : {}),
   },
   async headers() {
     return [

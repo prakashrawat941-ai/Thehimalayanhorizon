@@ -8,7 +8,6 @@ if [ "$BRANCH" = "cab-upgrade-staging" ] || [ "$HEAD" = "cab-upgrade-staging" ] 
     exit 1
   fi
   export NEXT_PUBLIC_SUPABASE_URL="https://gboxcnxgdkcewstkxogt.supabase.co"
-  export NEXT_PUBLIC_SUPABASE_ANON_KEY="sb_publishable_7yvsb933SSqzntiJ0npq5Q_hHnsnFCo"
 fi
 npm run build
 '''
