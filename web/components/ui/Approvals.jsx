@@ -69,8 +69,10 @@ export function ApprovalTimeline({ history = [], labels = {} }) {
  * exists) or not decidable, the actions are disabled and the reason is shown.
  *
  * `canDecide` is a UI hint from the permissions view-model. The server still enforces it.
+ * `summary` (optional) renders between the metadata and the changes, e.g. amount and reason.
+ * `extraActions` (optional) renders after the three decision buttons, e.g. details or escalate.
  */
-export function ApprovalCard({ request, canDecide = false, onDecide, labels = {}, now, showProposedSla = true }) {
+export function ApprovalCard({ request, canDecide = false, onDecide, labels = {}, now, showProposedSla = true, summary = null, extraActions = null }) {
   const l = {
     approve: 'Approve', revise: 'Request revision', reject: 'Reject', cancel: 'Cancel', note: 'Note', stale: 'This request changed after you opened it. Reload to review the latest version.',
     notDecidable: 'This request can no longer be decided.', noPermission: 'You can view this request but cannot decide it.', overdue: 'overdue', left: 'left', requester: 'Requested by', risk: 'Risk', deadline: 'Decision due',
@@ -94,20 +96,22 @@ export function ApprovalCard({ request, canDecide = false, onDecide, labels = {}
         level={3}
         title={<span id={`apr-${request.id}`}>{request.title}</span>}
         description={`${request.id} · ${request.type}`}
-        actions={<StatusBadge status={request.status} label={request.status.replace(/_/g, ' ')} />}
+        actions={<StatusBadge status={request.status} label={request.statusLabel ?? request.status.replace(/_/g, ' ')} />}
       />
       <dl className="ui-meta">
         <div><dt>{l.requester}</dt><dd>{request.requester.name}{request.requester.designation ? `, ${request.requester.designation}` : ''}</dd></div>
-        <div><dt>{l.risk}</dt><dd><RiskBadge risk={request.risk} /> {showProposedSla ? <span className="ui-muted">{l.sla}: {PROPOSED_SLA_HOURS[request.risk]}h</span> : null}</dd></div>
+        <div><dt>{l.risk}</dt><dd><RiskBadge risk={request.risk} label={request.riskLabel} /> {showProposedSla ? <span className="ui-muted">{l.sla}: {PROPOSED_SLA_HOURS[request.risk]}h</span> : null}</dd></div>
         {tl ? <div><dt>{l.deadline}</dt><dd className={tl.overdue ? 'ui-danger-text' : undefined}>{tl.hours}h {tl.minutes}m {tl.overdue ? l.overdue : l.left}</dd></div> : null}
       </dl>
+      {summary}
       <h4 className="ui-subhead">{l.changes}</h4>
-      <DiffView changes={request.changes} />
+      <DiffView changes={request.changes} labels={l.noChanges ? { none: l.noChanges } : undefined} />
       {blocked ? <p className="ui-inline-note" role="note"><UiIcon name="info" size={14} /> {blocked}</p> : null}
       <div className="ui-actions-row">
         <Button onClick={() => setPending('approve')} disabled={!!blocked} iconLeft="check">{l.approve}</Button>
         <Button variant="secondary" onClick={() => setPending('revise')} disabled={!!blocked}>{l.revise}</Button>
         <Button variant="danger" onClick={() => setPending('reject')} disabled={!!blocked}>{l.reject}</Button>
+        {extraActions}
       </div>
       {pending ? (
         <ConfirmDialog

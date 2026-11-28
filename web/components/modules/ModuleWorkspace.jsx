@@ -40,7 +40,7 @@ function Inner({ role, moduleKey, lang = 'en', adapter = notConnectedAdapter, sa
     const common = { section: s, adapter, lang, me, role };
     switch (s.type) {
       case 'table': return !sample && s.entity === 'approval'
-        ? <ApprovalSection key={s.scope} role={role} scope={s.scope} lang={lang} />
+        ? <ApprovalSection key={s.id} role={role} scope={s.scope} lang={lang} create={!!s.create} statuses={s.statuses || null} showCounts />
         : <TableSection {...common} actorName={me?.name} />;
       case 'welcome': return <WelcomeSection {...common} />;
       case 'idcard': return <IdCardSection {...common} />;

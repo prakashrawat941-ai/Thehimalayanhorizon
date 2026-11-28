@@ -701,3 +701,32 @@ The existing Claude branch is preserved for comparison. The candidate leaves its
 ## Step 01 and Step 02 consolidated candidate
 
 See [the consolidated progress tracker](step-02-consolidation.md) for what is wired, which staging tests ran and the final acceptance blockers. The candidate combines the PR #39 dashboard reconciliation, PR #40 invite and offline fixes, and Claude's Step 02 backend branch. Public and management routes now own separate App Router layouts. Continue the existing approval and notification contracts and route production changes through Founder authorization.
+
+## Central approval workflow, frontend completion (Claude, 28 Nov 2026)
+
+- Branch `claude/thh-management-portals`, based on `codex/thh-company-management` @ `5719a35` (PR #41). Draft PR stacked on #41 so CI runs on only this diff. Does not touch `main`, PR #30, migrations, RLS, auth or the theme.
+- Backend used: only RPCs already in `20261128035831_step02_approval_engine.sql`. No new contract, no duplicate approval system. `reviewApproval` and `listApprovals` keep their signatures. `listApprovals` gained an optional `status` filter.
+- New server actions in `app/(management)/management/approval-actions.js`: `approvalOverview`, `getApproval`, `submitApproval`, `actOnApproval` (withdraw / escalate), `resubmitApproval`, `applyApproval`. Each goes through `requireManagement` (role + aal2), and the database re-checks everything. `applyApproval` returns `ok: false, code: 'APPLY_FAILED'` when the engine records a failed execution, so the UI never shows it as success.
+- Shared rules: `lib/management/approval-requests.mjs` (input pre-checks mirroring the SQL limits, rupees → integer paise, error-code → bilingual message, history → timeline). Tests: `test/approval-requests.test.js`.
+- UI: `components/modules/ApprovalWorkflow.jsx` (counts strip, new-request dialog, resubmit dialog, detail dialog, request actions) and `ApprovalSection.jsx`. The review card now shows amount, Founder-stage flag and reason before a decision. `components/ui/Approvals.jsx` gained optional `summary`, `extraActions`, `request.statusLabel` and `request.riskLabel` props (backward-compatible).
+- Module registry: approvals tabs are now Waiting for me → My requests → Ready to apply → History → Legacy work queue (Co-Founder has no inbox, unchanged).
+
+### Checks in the authoring session (npm registry blocked, so no `npm ci`)
+
+| Check | Result |
+| --- | --- |
+| `tsc --project tsconfig.contracts.json` (TypeScript 7.0.2) | Pass |
+| esbuild compile of all changed files and the three approval-center pages | 9/9 |
+| New unit tests via a stand-in Vitest shim (not real Vitest) | 16/16 |
+| Existing pure suites via the same shim | Same pass counts before and after this change (shim lacks some matchers) |
+| Chromium flow against an in-memory mock of the engine (not staging) | 38/38: Co-Founder submit/validation/duplicate/withdraw, CEO approve/escalate/revise/apply, Co-Founder resubmit, Founder approve/apply, no self-decision, 360 px no overflow, Hindi + dark, dialog names/labels, Esc + focus return, no console errors |
+
+Not run here: real Vitest, ESLint, `next build`, Playwright specs with axe, and anything signed in on staging. These run in the PR's CI; staging acceptance needs the dedicated MFA test accounts.
+
+Screenshots (mock data, harness only): `docs/ui-previews/step-02/approvals/`.
+
+### For Codex
+
+1. The Founder can decide requests still at `pending_ceo` (per `approval_allowed_actions`). The UI shows them in her inbox. Confirm this is the intended policy.
+2. The `record` executor only records execution. Real executors for CMS publish, listing activation and hiring records are needed before those categories change live data.
+3. Legacy `management_work` remains as the "Legacy work queue" tab until it is bridged.
