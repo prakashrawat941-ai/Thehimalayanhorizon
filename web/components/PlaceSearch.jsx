@@ -135,7 +135,7 @@ export function PlaceSearch({ lang, labels, autoFocus = false, onPick = null, on
         <Icon name="search" size={20}/>
         <input type="search" value={q} placeholder={placeholder || labels.search_places} aria-label={placeholder || labels.search_places} autoFocus={autoFocus} enterKeyHint="search" autoComplete="off" role="combobox" aria-expanded={!!showList} aria-controls={listId} onChange={(e) => { setQ(e.target.value); setOpen(true); setNote(''); setNear(null); onType?.(e.target.value); }} onFocus={() => setOpen(true)} onKeyDown={(e) => { if (e.key === 'Escape')
         setOpen(false); }}/>
-        <button type="button" className="psearch-loc" onClick={locateMe}><Icon name="locate" size={18}/><span>{labels.use_location}</span></button>
+        <button type="button" className="psearch-loc" aria-label={labels.use_location || (lang === "hi" ? "मेरी वर्तमान लोकेशन इस्तेमाल करें" : "Use my current location")} onClick={locateMe}><Icon name="locate" size={18}/><span>{labels.use_location}</span></button>
       </div>
       {showList ? (<div className="psearch-list" id={listId} role="listbox">
           {note ? <p className="psearch-note">{note}</p> : null}
