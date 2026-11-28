@@ -5,3 +5,6 @@ public/sw.js
 *.tsbuildinfo
 .env*.local
 .netlify
+
+test-results/
+playwright-report/

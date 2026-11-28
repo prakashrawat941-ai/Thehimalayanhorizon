@@ -5,6 +5,7 @@ export const DASHBOARDS = Object.freeze({
   ceo: { href: '/ceo', label: ['CEO', 'मुख्य कार्यकारी'], initials: 'C', color: '#1d5f99' },
   co_founder: { href: '/co-founder', label: ['Co-founder', 'सह-संस्थापक'], initials: 'CF', color: '#534AB7' },
   admin: { href: '/admin', label: ['Admin', 'एडमिन'], initials: 'A', color: '#9a5b00' },
+  employee: { href: '/employee', label: ['Employee workspace', 'कर्मचारी कार्यक्षेत्र'], initials: 'E', color: '#166976' },
   account: { href: '/account', label: ['My account', 'मेरा खाता'], initials: 'ME', color: '#6b7680', sub: ['Bookings and trips', 'बुकिंग और यात्राएँ'] },
 });
 

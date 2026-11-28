@@ -10,7 +10,7 @@ import { Icon } from './Icon';
  * (notifications table in the realtime list) and also re-checks when the app comes
  * back to the screen and every 2 minutes, so it stays right either way.
  */
-export function NotificationBell({ label }) {
+export function NotificationBell({ label, href = '/account/notifications' }) {
   const [count, setCount] = useState(0);
   const path = usePathname();
   useEffect(() => {
@@ -36,7 +36,7 @@ export function NotificationBell({ label }) {
     return () => { alive = false; clearInterval(id); document.removeEventListener('visibilitychange', onVisible); if (channel) db.removeChannel(channel); };
   }, [path]);
   return (
-    <Link className="icon-link bell" href="/account/notifications" aria-label={count ? `${label}: ${count}` : label}>
+    <Link className="icon-link bell" href={href} aria-label={count ? `${label}: ${count}` : label}>
       <Icon name="bell" size={20} />
       {count ? <span className="bell-dot">{count > 9 ? '9+' : count}</span> : null}
     </Link>
