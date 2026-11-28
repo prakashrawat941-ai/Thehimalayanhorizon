@@ -4,6 +4,7 @@ import Mfa from '@/app/management/Mfa';
 import { DashMfaNeeded } from './DashStates';
 import { DASHBOARDS } from '@/lib/dashboards';
 import { DashLayout } from './DashLayout';
+import { moduleNav } from '@/lib/modules/modules';
 
 export async function ManagementFrame({ role, path, items, children }) {
   const ctx = await requireManagement(role, path);
@@ -18,19 +19,25 @@ export async function ManagementFrame({ role, path, items, children }) {
 export const FOUNDER_NAV = (L) => [
   { href: '/founder', icon: 'home', label: L('Overview', 'ओवरव्यू'), exact: true },
   { href: '/founder/access', icon: 'shield', label: L('Access management', 'एक्सेस प्रबंधन') },
+  { href: '/founder/work', icon: 'check', label: L('THH Work', 'THH वर्क') },
   { href: '/founder/approvals', icon: 'check', label: L('My approvals', 'मेरी मंज़ूरियाँ') },
   { href: '/founder/audit', icon: 'layers', label: L('Audit log', 'ऑडिट लॉग') },
+  ...moduleNav('founder', L),
 ];
 export const CEO_NAV = (L) => [
   { href: '/ceo', icon: 'route', label: L('Operations today', 'आज का संचालन'), exact: true },
+  { href: '/ceo/work', icon: 'check', label: L('THH Work', 'THH वर्क') },
   { href: '/ceo/tasks', icon: 'check', label: L('Team tasks', 'टीम के काम') },
   { href: '/ceo/reviews', icon: 'shield', label: L('Approve requests', 'अनुरोध मंज़ूर करें') },
   { href: '/ceo/requests', icon: 'layers', label: L('Sent to Founder', 'संस्थापक को भेजे') },
+  ...moduleNav('ceo', L),
 ];
 export const COFOUNDER_NAV = (L) => [
   { href: '/co-founder', icon: 'globe', label: L('Website', 'वेबसाइट'), exact: true },
   { href: '/co-founder/cms', icon: 'doc', label: L('Content editor', 'कंटेंट एडिटर') },
+  { href: '/co-founder/work', icon: 'check', label: L('THH Work', 'THH वर्क') },
   { href: '/co-founder/locations', icon: 'pin', label: L('Add a location', 'लोकेशन जोड़ें') },
   { href: '/co-founder/onboarding', icon: 'house', label: L('Homestay onboarding', 'होमस्टे ऑनबोर्डिंग') },
   { href: '/co-founder/releases', icon: 'arrow', label: L('App releases', 'ऐप रिलीज़') },
+  ...moduleNav('co_founder', L),
 ];
