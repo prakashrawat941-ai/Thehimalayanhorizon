@@ -18,10 +18,13 @@ export async function middleware(request) {
     // Refreshes the session cookie when needed. Do not remove.
     const { data: { user } } = await supabase.auth.getUser();
     const path = request.nextUrl.pathname;
-    if (PROTECTED.some((p) => path === p || path.startsWith(p + '/')) || path.startsWith('/leadership')) {
+    const privatePage = PROTECTED.some((prefix) => path === prefix || path.startsWith(prefix + '/'));
+    // Invitation tokens arrive in the URL fragment. Only the browser can establish that session.
+    const inviteLanding = path === '/management/invite' || path === '/management/invite/';
+    if (privatePage || path.startsWith('/leadership')) {
         response.headers.set('Cache-Control', 'private, no-store, max-age=0');
     }
-    if (!user && PROTECTED.some((p) => path === p || path.startsWith(p + '/'))) {
+    if (!user && privatePage && !inviteLanding) {
         const url = request.nextUrl.clone();
         url.pathname = '/login';
         url.search = `?next=${encodeURIComponent(path + request.nextUrl.search)}`;
