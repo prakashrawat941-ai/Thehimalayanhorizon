@@ -1,0 +1,38 @@
+name: THH release readiness
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Full integration candidate commit SHA
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: thh-release-readiness
+  cancel-in-progress: false
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      CANDIDATE: ${{ inputs.candidate_sha }}
+    steps:
+      - name: Verify candidate and exact-commit workflow results
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$CANDIDATE" =~ ^[0-9a-f]{40}$ ]]
+          tip=$(gh api "repos/$GH_REPO/branches/integration%2Fthh-unified-baseline-v1" --jq .commit.sha)
+          test "$tip" = "$CANDIDATE"
+          failed=0
+          for workflow in web-build.yml thh-security.yml thh-database.yml thh-e2e.yml; do
+            result=$(gh api --method GET "repos/$GH_REPO/actions/workflows/$workflow/runs" -f head_sha="$CANDIDATE" -f branch=integration/thh-unified-baseline-v1 -F per_page=100 | jq -r '[.workflow_runs[] | select(.head_sha == env.CANDIDATE)] | sort_by(.created_at,.id) | last | .conclusion // "missing-or-incomplete"')
+            echo "$workflow: $result" >> "$GITHUB_STEP_SUMMARY"
+            if [ "$result" != success ]; then failed=1; fi
+          done
+          test "$failed" -eq 0
+          echo 'Automated readiness checks passed. Founder review and release approval still required.' >> "$GITHUB_STEP_SUMMARY"
