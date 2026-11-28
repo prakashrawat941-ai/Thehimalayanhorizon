@@ -9,5 +9,5 @@
     "allowJs": false,
     "paths": { "@/*": ["./*"] }
   },
-  "include": ["contracts/**/*.ts"]
+  "include": ["contracts/**/*.ts", "lib/contracts/**/*.ts"]
 }

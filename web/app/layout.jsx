@@ -2,6 +2,8 @@ import './launch.css';
 import LaunchScreen from '@/components/LaunchScreen';
 import './globals.css';
 import '@/styles/theme.css';
+import '@/styles/tokens.css';
+import '@/styles/ui.css';
 import { cookies } from 'next/headers';
 import { ThemeProvider } from '@/components/theme/ThemeProvider';
 import { normalizeTheme } from '@/components/theme/theme';
