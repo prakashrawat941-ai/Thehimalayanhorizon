@@ -53,4 +53,4 @@ jobs:
           curl --fail --silent http://127.0.0.1:3000/manifest.webmanifest | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{const m=JSON.parse(s);if(!m.name||!m.icons?.length||!m.start_url)process.exit(1)})'
           curl --fail --silent http://127.0.0.1:3000/sw.js > /tmp/thh-sw.js
           test -s /tmp/thh-sw.js
-          curl --fail --silent http://127.0.0.1:3000/offline > /dev/null
+          curl --fail --silent http://127.0.0.1:3000/offline.html > /dev/null

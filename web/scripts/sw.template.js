@@ -4,7 +4,7 @@
 // Supabase and other APIs are never cached.
 const VERSION = '__VERSION__';
 const CACHE_PREFIX = 'thh-';
-const OFFLINE_URL = '/offline';
+const OFFLINE_URL = '/offline.html';
 const PRECACHE = [OFFLINE_URL, '/manifest.webmanifest', '/icons/signature-icon-192.png', '/img/brand/mark.png'];
 
 self.addEventListener('install', (e) => {
@@ -25,7 +25,7 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) {
     // Google Fonts: cache first. Everything else from other sites: straight to network.
-    if (/fonts\.(googleapis|gstatic)\.com$/.test(url.hostname)) {
+    if (['fonts.googleapis.com', 'fonts.gstatic.com'].includes(url.hostname)) {
       e.respondWith(caches.match(req).then((hit) => hit || fetch(req).then((res) => {
         const copy = res.clone(); caches.open(VERSION).then((c) => c.put(req, copy)); return res;
       })));
@@ -34,10 +34,12 @@ self.addEventListener('fetch', (e) => {
   }
   if (url.pathname.startsWith('/auth/') || url.pathname.startsWith('/api/') || url.pathname === '/sw.js') return;
 
-  // Built files have unique names: cache first.
-  if (url.pathname.startsWith('/_next/static/') || /^\/(img|icons)\//.test(url.pathname)) {
+  // Cache only public assets. Query variants, authenticated requests and RSC responses stay online.
+  const publicAsset = url.pathname.startsWith('/_next/static/') || /^\/(img|icons)\//.test(url.pathname);
+  const bypassCache = url.search || req.headers.has('authorization') || req.headers.has('rsc');
+  if (publicAsset && !bypassCache) {
     e.respondWith(caches.match(req).then((hit) => hit || fetch(req).then((res) => {
-      if (res.ok) { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(req, copy)); }
+      if (res.ok && !res.redirected && !/private|no-store/i.test(res.headers.get('cache-control') || '') && !/text\/html/i.test(res.headers.get('content-type') || '')) { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(req, copy)); }
       return res;
     })));
     return;
@@ -45,6 +47,6 @@ self.addEventListener('fetch', (e) => {
 
   // No HTML is persisted. Offline fallback is a separately precached public page.
   if (req.mode === 'navigate') {
-    e.respondWith(fetch(req).catch(() => caches.match(OFFLINE_URL)));
+    e.respondWith(fetch(req, { cache: 'no-store' }).catch(() => caches.match(OFFLINE_URL)));
   }
 });

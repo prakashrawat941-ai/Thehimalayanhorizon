@@ -1,0 +1,6 @@
+.workspace {
+  min-block-size: 100dvh;
+}
+.workspace :global(.ds) {
+  min-block-size: 100dvh;
+}

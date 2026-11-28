@@ -684,3 +684,20 @@ Branch `claude/thh-phase-1-frontend` is based on `codex/management-dashboards-in
 | Claude Step 02 backend | Clean Git dry run against `1a09450`. Review migration ordering, existing staging ledger, approval enforcement and rollback before integration. |
 
 The first remediation commit `695b7b61a2201a83edc2eadcc7eca6deaa9f2d7b` passed Security (46137731756) and Project Report (46137731766). Web Build did not start due to invalid workflow trigger YAML. The follow-up fixes that structure and the PR branch has dedicated staging-only Vercel Preview variables. Check the newest PR head before accepting results.
+
+## Step 02 dashboard reconciliation
+
+Review source: Claude frontend `d5637fd`, Claude backend `0efba3d` and integration `02e35dc`. The frontend inherits PR #30 through `d874c1b`. This reconciliation retains the canonical PR #29 theme provider, portal layouts, UI entry point, test runner and dependency lock. Claude's module and task components use an explicit workspace UI entry point. One theme control remains per portal. The older QA workflow is replaced by the existing integration workflow, which now also runs the retained dashboard unit suites.
+
+| Area | Verified from source | Acceptance gap |
+| --- | --- | --- |
+| Founder, CEO and Co-Founder | Existing server route guards and account MFA screens. Existing management queries remain available. | Signed-in staging acceptance across roles and devices. |
+| THH Work | All three live routes pass a disconnected task source. Demo route has labelled samples. | Wire persistence, assignees, transitions, history and role enforcement to real backend contracts. |
+| Approvals, people, activity, offices and finance | Selected views read current management RPCs or protected tables. | Claude's separate Step 02 migrations and approval engine still require schema and workflow acceptance. |
+| Profile and employee ID, Connect, workforce, growth and other module actions | Screens and proposed contracts. Many actions use the disconnected adapter. | Connect writes and test permissions and persisted state for each role. |
+
+The existing Claude branch is preserved for comparison. The candidate leaves its separate backend migrations out of the frontend diff. Step 02 acceptance requires running the real workflows on staging.
+
+## Step 01 and Step 02 consolidated candidate
+
+See [the consolidated progress tracker](step-02-consolidation.md) for what is wired, which staging tests ran and the final acceptance blockers. The candidate combines the PR #39 dashboard reconciliation, PR #40 invite and offline fixes, and Claude's Step 02 backend branch. Public and management routes now own separate App Router layouts. Continue the existing approval and notification contracts and route production changes through Founder authorization.

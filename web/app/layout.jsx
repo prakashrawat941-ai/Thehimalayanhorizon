@@ -1,16 +1,12 @@
-import './launch.css';
-import LaunchScreen from '@/components/LaunchScreen';
 import './globals.css';
 import '@/styles/theme.css';
+import '@/styles/tokens.css';
+import '@/styles/ui.css';
 import { cookies } from 'next/headers';
 import { ThemeProvider } from '@/components/theme/ThemeProvider';
 import { normalizeTheme } from '@/components/theme/theme';
 import { getT } from '@/lib/i18n/server';
-import { getSession } from '@/lib/auth';
-import { getSettings } from '@/lib/data';
 import { SITE_URL } from '@/lib/config';
-import { Header, TabBar } from '@/components/Header';
-import { Footer } from '@/components/Footer';
 import { PwaRegister } from '@/components/PwaRegister';
 export async function generateMetadata() {
     const { L, t } = await getT();
@@ -33,12 +29,8 @@ export async function generateMetadata() {
 }
 export const viewport = { themeColor: '#1f4d3a', width: 'device-width', initialScale: 1, viewportFit: 'cover' };
 export default async function RootLayout({ children }) {
-    const [tr, session, settings, cookieStore] = await Promise.all([getT(), getSession(), getSettings(), cookies()]);
+    const [{ t, lang }, cookieStore] = await Promise.all([getT(), cookies()]);
     const theme = normalizeTheme(cookieStore.get('thh_theme')?.value);
-    const { t, L, lang } = tr;
-    const brand = settings.brand || {};
-    const labels = Object.fromEntries(['home', 'nav_cab', 'nav_planner', 'nav_villages', 'search', 'admin', 'partner', 'account', 'signin', 'plan_your_trip', 'villages', 'plan', 'cabs', 'notifications']
-        .map((k) => [k, t(k)]));
     return (<html lang={lang} data-theme={theme}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com"/>
@@ -47,12 +39,7 @@ export default async function RootLayout({ children }) {
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Mukta:wght@400;500;600;700&family=Caveat:wght@600&family=Tiro+Devanagari+Hindi&display=swap"/>
       </head>
       <body><ThemeProvider initialTheme={theme}>
-        <LaunchScreen />
-        <a className="skip" href="#main">{t('skip')}</a>
-        <Header lang={lang} labels={labels} roles={session.roles} brandName={(lang === 'hi' ? brand.name_hi : brand.name) || L('The Himalayan Horizon', 'द हिमालयन होराइज़न')} brandSub={L('Uttarakhand · Village Travel', 'उत्तराखंड · गाँव की यात्रा')}/>
-        <main id="main" tabIndex={-1}>{children}</main>
-        <Footer tr={tr} signedIn={!!session.user}/>
-        <TabBar labels={labels}/>
+        {children}
         <PwaRegister labels={{ update_ready: t('update_ready'), reload: t('reload') }}/>
       </ThemeProvider></body>
     </html>);

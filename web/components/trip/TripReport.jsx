@@ -7,7 +7,7 @@ import { listingSlug, inr, slugify } from '@/lib/format';
 import { RouteMap } from './RouteMap';
 import { useWeather } from './useWeather';
 import { WeatherChip, DayItems, km, dur } from './bits';
-import '@/app/plan/planner.css';
+import '@/app/(public)/plan/planner.css';
 
 const SAFETY = [
   ['https://mausam.imd.gov.in/', 'IMD weather warnings', 'IMD मौसम चेतावनी'],
