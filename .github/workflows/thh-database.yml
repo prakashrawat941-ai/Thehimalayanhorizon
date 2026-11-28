@@ -1,10 +1,9 @@
 name: THH database checks
 on:
   pull_request:
-    paths:
-      - 'supabase/**'
-      - '.github/workflows/**'
   workflow_dispatch:
+  push:
+    branches: [integration/thh-unified-baseline-v1]
 permissions:
   contents: read
 concurrency:

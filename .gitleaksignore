@@ -1,0 +1,6 @@
+# Exact historical false positives. Each matched value is a Supabase sb_publishable_ client key.
+# Keep all active rules and full history scanning. Any new occurrence is a new finding.
+08338f83b897dafab1afb4c8beb58e219ba04c58:web/next.config.mjs:generic-api-key:20
+ff7c683aff2b2d1dfb954b930b24bdfed8390401:netlify.toml:generic-api-key:10
+254433111cdd6bb40ed7dcc8b9f4142471bba782:netlify.toml:generic-api-key:10
+e1f65c3da42c289b68dc8bf5e258577ad7226162:js/config.js:generic-api-key:5

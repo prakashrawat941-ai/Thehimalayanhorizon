@@ -1,14 +1,11 @@
 name: THH security checks
 on:
   pull_request:
-    paths:
-      - 'web/**'
-      - 'supabase/**'
-      - '.github/**'
-      - '**'
   workflow_dispatch:
   schedule:
     - cron: '30 20 * * *'
+  push:
+    branches: [integration/thh-unified-baseline-v1]
 permissions:
   contents: read
 concurrency:
@@ -25,7 +22,7 @@ jobs:
           persist-credentials: false
       - name: Scan Git history for secrets (redacted)
         run: |
-          docker run --rm -v "$PWD:/repo:ro" ghcr.io/gitleaks/gitleaks:v8.24.3 git /repo --redact=100 --no-banner --verbose
+          docker run --rm -v "$PWD:/repo:ro" ghcr.io/gitleaks/gitleaks:v8.24.3 git /repo --gitleaks-ignore-path /repo --redact=100 --no-banner --verbose
   dependencies:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -40,7 +37,7 @@ jobs:
         with:
           node-version: 22
       - name: Audit locked dependencies
-        run: npm audit --package-lock-only --audit-level=high
+        run: npm audit --package-lock-only --audit-level=low
   static-analysis:
     runs-on: ubuntu-latest
     timeout-minutes: 20

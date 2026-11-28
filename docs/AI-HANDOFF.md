@@ -662,3 +662,13 @@ Branch `claude/thh-phase-1-frontend` is based on `codex/management-dashboards-in
 5. Keep the UI library's `ApprovalPanel` read-only until a versioned approval service exists. Do not turn stubbed statuses or financial figures into live values.
 
 **Acceptance status:** frontend branch implementation and automated checks are separate from signed-in browser UAT. A green local build/CI and screenshots are required before the Founder Phase 2 gate. No merge or production deployment is authorized by this handoff.
+
+## PR #38 · Technical consolidation gate · 28 November 2026
+
+- Base is `integration/thh-unified-baseline-v1` at `1a0945069d6e6e4e2a7cd1d3aea9da37f777b87f`. PR #38 starts at `8f46472d53204946ac31f4bedd8f8ee25ca03a45` on `automation/thh-unified-ci`.
+- At that head, GitHub Actions passed web build (46114597466), PostgreSQL and pgTAP (46114597556), browser/PWA (46114597444), and project report (46114597437). Security (46114597486) failed the dependency and historical key jobs. Static analysis passed. The release workflow had no PR trigger.
+- PostCSS is locked to 8.5.34 under Next.js, retaining the existing Next.js 15 and PR #29 frontend. The local registry audit reported zero findings at every severity. The audit job now fails for any reported severity.
+- The full history scan remains active. Four exact historical matches were reviewed as Supabase publishable browser keys and recorded as false positives by fingerprint. Existing checked-in copies were removed from Next.js and Netlify configuration. Hosted previews need the staging URL and publishable key supplied in their preview environment.
+- Release readiness runs on integration-targeted PRs and requires successful results from the other five workflows for the same PR and head commit. The manual gate checks runs for the current integration tip. No deployment step is included.
+- Claude backend branch `claude/thh-step02-backend` at `0efba3d6c4ae0a3962daf5e987caab6e0c1e1fd8` has a separate migration ledger map, leadership employee login baseline, organization/approval/permissions/claims migrations and SQL tests. Its content was reviewed at the file inventory level. Preserve the branch and review its staging migrations independently before consolidation.
+- Next gate: verify [PR #38 checks](https://github.com/prakashrawat941-ai/Thehimalayanhorizon/pull/38/checks) and obtain Founder approval. Then compare PRs against the integration tree, retain unique patches on dedicated branches, resolve conflicts around PR #29 and verify on staging before proposing any integration merge. Production actions require separate authorization.

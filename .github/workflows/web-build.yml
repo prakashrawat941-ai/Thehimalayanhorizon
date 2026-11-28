@@ -2,11 +2,13 @@
 name: Web build check
 on:
   pull_request:
-    paths: ['web/**', '.github/workflows/**']
+ ['web/**', '.github/workflows/**']
   workflow_dispatch:
 concurrency:
   group: web-build-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+  push:
+    branches: [integration/thh-unified-baseline-v1]
 permissions:
   contents: read
 jobs:
@@ -14,6 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
+      THH_ENV: staging
       NEXT_PUBLIC_SUPABASE_URL: ${{ vars.THH_STAGING_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.THH_STAGING_SUPABASE_ANON_KEY }}
       THH_STAGING_PROJECT_REF: gboxcnxgdkcewstkxogt

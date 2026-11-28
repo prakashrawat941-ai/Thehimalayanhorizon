@@ -1,5 +1,7 @@
 name: THH release readiness
 on:
+  pull_request:
+    branches: [integration/thh-unified-baseline-v1]
   workflow_dispatch:
     inputs:
       candidate_sha:
@@ -10,29 +12,58 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: thh-release-readiness
-  cancel-in-progress: false
+  group: thh-release-readiness-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 36
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      CANDIDATE: ${{ inputs.candidate_sha }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      PR_HEAD: ${{ github.event.pull_request.head.sha }}
+      REQUESTED_SHA: ${{ inputs.candidate_sha }}
+      BASE_REF: integration/thh-unified-baseline-v1
     steps:
-      - name: Verify candidate and exact-commit workflow results
+      - name: Verify exact-commit workflow results
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$CANDIDATE" =~ ^[0-9a-f]{40}$ ]]
-          tip=$(gh api "repos/$GH_REPO/branches/integration%2Fthh-unified-baseline-v1" --jq .commit.sha)
-          test "$tip" = "$CANDIDATE"
+          if [[ "$GITHUB_EVENT_NAME" == pull_request ]]; then
+            candidate=$PR_HEAD
+            event=pull_request
+          else
+            candidate=$REQUESTED_SHA
+            event=push
+            tip=$(gh api "repos/$GH_REPO/branches/integration%2Fthh-unified-baseline-v1" --jq .commit.sha)
+            test "$tip" = "$candidate"
+          fi
+          [[ "$candidate" =~ ^[0-9a-f]{40}$ ]]
+          export candidate PR_NUMBER BASE_REF
+          pending=(web-build.yml thh-security.yml thh-database.yml thh-e2e.yml thh-project-report.yml)
           failed=0
-          for workflow in web-build.yml thh-security.yml thh-database.yml thh-e2e.yml; do
-            result=$(gh api --method GET "repos/$GH_REPO/actions/workflows/$workflow/runs" -f head_sha="$CANDIDATE" -f branch=integration/thh-unified-baseline-v1 -F per_page=100 | jq -r '[.workflow_runs[] | select(.head_sha == env.CANDIDATE)] | sort_by(.created_at,.id) | last | .conclusion // "missing-or-incomplete"')
-            echo "$workflow: $result" >> "$GITHUB_STEP_SUMMARY"
-            if [ "$result" != success ]; then failed=1; fi
+          for attempt in $(seq 1 70); do
+            next=()
+            for workflow in "${pending[@]}"; do
+              result=$(gh api --method GET "repos/$GH_REPO/actions/workflows/$workflow/runs" -f head_sha="$candidate" -f event="$event" -F per_page=100 |
+                jq -r '[.workflow_runs[] | select(.head_sha == env.candidate)
+                  | select(if env.PR_NUMBER != "" then any(.pull_requests[]?; (.number | tostring) == env.PR_NUMBER)
+                           else .head_branch == env.BASE_REF end)]
+                  | sort_by(.created_at,.id) | last | .conclusion // "pending"')
+              case "$result" in
+                pending) next+=("$workflow") ;;
+                success) echo "$workflow: success" >> "$GITHUB_STEP_SUMMARY" ;;
+                *) echo "$workflow: $result" >> "$GITHUB_STEP_SUMMARY"; failed=1 ;;
+              esac
+            done
+            test "$failed" -eq 0
+            pending=("${next[@]}")
+            if (("${#pending[@]}" == 0)); then
+              echo 'Automated readiness passed. Founder approval is required for release.' >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 30
           done
-          test "$failed" -eq 0
-          echo 'Automated readiness checks passed. Founder review and release approval still required.' >> "$GITHUB_STEP_SUMMARY"
+          printf 'Missing or incomplete check: %s\n' "${pending[@]}" >> "$GITHUB_STEP_SUMMARY"
+          exit 1
