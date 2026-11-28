@@ -139,6 +139,14 @@ Unchanged queries: `partners`, `homestays`, `homestay_rooms`, `booking_requests`
 - PP2. Optional: `room_rates` upsert has no server check that closed rooms do not go below rooms already booked; the UI warns that closing does not cancel bookings.
 - PP3. Signed-in staging test of confirm/decline/check-in/complete and calendar save with a real partner account.
 
+### Approved partner privacy and inventory update (PP1 / PP2)
+
+- Migration `20261127130000_partner_booking_privacy_room_caps.sql` moves booking phone numbers to a private table with RLS and no browser grants. Partner-readable rows and status RPC results show a number only in confirmed, checked-in or completed states. Requested, declined and cancelled rows are cleared, including existing rows. The guest and Admin can retrieve the original number through `booking_guest_phones`; a host cannot use that RPC to read a guest's private contact. Apply the migration before enabling the updated app. Existing JWT and partner ownership policies are unchanged.
+- Room-rate saves and upserts cap closed units at inventory minus confirmed and checked-in units per night. The guard locks the same room row as confirmation before counting bookings. Existing future rate rows are capped on migration. Reset still removes the rate row. The calendar reports when the saved closure was capped.
+- The existing status notification already uses the saved partner note when the partner makes a status decision. No separate alert was added. SB2 per-night pricing remains a later UI/backend item.
+- Verified on staging in a rolled-back transaction: 41/41 homestay regression assertions passed. The tests exercised authenticated guest and partner reads, the private contact RPC, the confirmation response, cancellation masking and the closed-room cap. The migration was rolled back after the test.
+- Before production, rehearse backup and rollback on a clone. To revert the app, keep the privacy migration in place so previously masked contacts stay private. Any schema rollback must preserve the private contact rows and requires owner review.
+
 ### Checks run: partner portal
 
 - Transpile check of every changed file.
@@ -623,3 +631,34 @@ The popup still opens only after `request_cab_ride_idempotent` returns a booking
 - **Pre-existing, fixed for the new cabin only:** `h()` in `web/lib/cab/ui.js` assigns `style` objects with `Object.assign`, which ignores CSS custom properties. The old schematic seat grid's `--cabin-tracks` and `--cabin-columns` were never applied. The new cabin sets its variable with `style.setProperty`. Other callers that pass `--*` in `style` are unchanged.
 - **Hindi:** new labels use the existing `L(en, hi)` helper. Hindi wording should be reviewed by a native speaker.
 - **Popup checkmark:** in the harness screenshots the receipt popup's check mark looked empty. The popup's `cele-mark` styling and animation were not changed in this work. Check it on a real device.
+
+### Cab and public-page follow-ups
+
+- C0: Vercel Preview and Netlify deploy/branch previews now select `thh-staging` at build time. Existing previews keep their old configuration until rebuilt. No production test records were changed.
+- C1/C3: A single bounded RPC returns held and confirmed seat states for up to 100 visible rides, without passenger information. Seat picker and driver view retain the original integer RPC as a fallback. Ride cards use numbered-seat state markers when the snapshot and availability counter agree.
+- C2: Drivers can set luggage, smoking and pet rules. Unspecified rules are hidden on cards and ride details.
+- C4: Read-only production count for the past 14 days: 2/2 booking references and 12/12 ride references matched the prescribed formats. No bookings or rides were written.
+- P2: All 11 Wikimedia photos now use local, resized WebP assets. The source page, author and license remain visible in photo credits.
+- P3: Optional stay dates are forwarded from Home to Homestays. Availability checks approved properties against active room types, guest capacity, blocked units and confirmed occupancy for each night. Host confirmation is still required.
+- P4: Contact settings accept an office latitude and longitude. Our Office shows an OpenStreetMap pin after the owner enters the coordinates.
+- P5: The theme image column backs the existing CMS photo field and overrides the theme tile defaults on Home.
+
+**Verification:** Migration `20261127041210_cab_public_followups.sql` applied to `thh-staging` only. The staging Cab fixture passed 86/86 including held seats and batch bounds. The staging Homestay fixture passed 37/38, including both new date/capacity and blocked-room checks. Re-running the unmodified base suite reproduced the single pre-existing admin GMV assertion failure (35/36). Fixtures were rolled back. The local Next.js production build passed. Signed-in browser runs and the owner-provided office coordinates are pending.
+## Phase 1 frontend foundation — 28 Nov 2026 (Founder-approved work branch)
+
+Branch `claude/thh-phase-1-frontend` is based on `codex/management-dashboards-integration` at `d6fc026`. It does **not** merge PR #18 or #28 into `main`. Existing approved route layouts remain in place. The Founder approved forest green/gold for public pages, navy/blue/teal for internal management, dark mode on management/account/partner, Lucide React, and Vitest/Playwright/axe dev dependencies.
+
+- Design tokens live in `web/styles/theme.css`. `.ds.ds-management` selects internal navy/blue/teal, while customer and partner `.ds` retain the established green/gold in light mode. The root `ThemeProvider` initializes a preference and `ThemeToggle` appears in shared dashboard/account/partner headers. No server role or Auth state is derived from the theme.
+- The centralized icon mapping in `web/components/Icon.jsx` uses `lucide-react` while preserving existing icon names and separate brand marks. Shared accessible primitives are in `web/components/ui/` (`Button`, `Card`, feedback states, forms, filters, tables, charts, approval panel). Existing screen data paths and approved layouts are unchanged.
+- Typed, **proposed frontend contracts** are in `web/contracts/management.ts`. The `ApiResult<T>` envelope is `{success:true,data,requestId}` or `{success:false,error:{code,message},requestId}`. This is the target shared contract from the master spec; current PR #18 server actions return `{ok:true}`/`{ok:false,message}` and require an explicit adapter/change agreed with Codex. Types do not imply the corresponding backend resources are implemented. Shared writes require an expected version, idempotency key and approval reference where applicable.
+- `web/scripts/sw.template.js` now caches only public static assets and the dedicated offline fallback. HTML navigation is fetched from the network and cannot enter Cache Storage, including signed-in responses served from public URLs. Service worker changes are frontend cache controls only; Codex must verify server middleware, RLS and direct API permission checks independently.
+
+### Backend integration requirements for Codex
+
+1. Reconcile staging's migration ledger and verify the real Founder/CEO/Co-Founder Auth IDs before assigning `THH-EMP-0001` through `0003`. The staging summary currently reports duplicate leadership memberships. Do not create/reset accounts or change role records from this frontend branch.
+2. Map the typed contracts to versioned validated API/RPC payloads. Enforce actor-derived scopes, MFA AAL2, deny-by-default grants, no self-approval, CEO review before Co-Founder changes, Founder escalation for sensitive changes, exact-version apply and outbox idempotency in server/RLS. Do not rely on component visibility as an access control.
+3. Supply authorized, isolated staging environment settings for CI and browser acceptance. PR #28 CI failed when its new fail-closed Supabase config had no build variables; its READY preview does not satisfy this release gate.
+4. Verify no private route, API, token, generated signed URL or personalized HTML can be cached by the service worker. Preserve the offline fallback for public use. Test three real role logins and all unauthorized direct URLs/actions.
+5. Keep the UI library's `ApprovalPanel` read-only until a versioned approval service exists. Do not turn stubbed statuses or financial figures into live values.
+
+**Acceptance status:** frontend branch implementation and automated checks are separate from signed-in browser UAT. A green local build/CI and screenshots are required before the Founder Phase 2 gate. No merge or production deployment is authorized by this handoff.

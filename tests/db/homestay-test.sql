@@ -83,12 +83,24 @@ select pg_temp.err($q$ insert into public.booking_requests (kind, homestay_id, r
   values ('homestay', pg_temp.id('h1'), pg_temp.id('room'), 1, 'Guest One', '9876500001', pg_temp.mon(), pg_temp.mon() + 1, 5) $q$, 'Up to 3 guests', '09 too many guests for the room is refused');
 select pg_temp.err($q$ insert into public.booking_requests (kind, homestay_id, room_id, rooms_booked, guest_name, guest_phone, start_date, end_date, guests)
   values ('homestay', pg_temp.id('h1'), pg_temp.id('room'), 1, 'Guest One', '9876500001', pg_temp.mon() + 2, pg_temp.mon() + 3, 2) $q$, 'Not enough rooms', '10 fully blocked date cannot be requested');
+select pg_temp.ok((select guest_phone is null from public.booking_requests where id=pg_temp.id('b1'))
+  and exists (select 1 from public.booking_guest_phones(array[pg_temp.id('b1')]) where guest_phone='9876500001'),
+  'PP1 guest can retrieve their private contact while request row is masked');
 reset role;
 select pg_temp.ok((select booking_code ~ '^THH-H-[0-9]{8}-[0-9]{4,}$' and status = 'requested' and total_amount = 5000 and platform_commission is null from public.booking_requests where id = pg_temp.id('b1')),
                   '11 request gets a THH-H code and a price estimate', (select booking_code from public.booking_requests where id = pg_temp.id('b1')));
 
 select pg_temp.login('00000000-0000-4000-8000-0000000000b1');
-select (public.set_booking_status(pg_temp.id('b1'), 'confirmed', 'See you')).status;
+select pg_temp.ok((select guest_phone is null from public.booking_requests where id=pg_temp.id('b1'))
+  and not exists (select 1 from public.booking_guest_phones(array[pg_temp.id('b1')])),
+  'PP1 partner cannot read a requested guest phone via the table or the contact RPC');
+select pg_temp.ok((public.set_booking_status(pg_temp.id('b1'), 'confirmed', 'See you')).guest_phone='9876500001',
+  'PP1 phone appears in the confirmed RPC result');
+insert into public.room_rates(room_id, date, blocked_units) values (pg_temp.id('room'), pg_temp.mon(), 2)
+on conflict(room_id, date) do update set blocked_units=excluded.blocked_units;
+select pg_temp.ok((select blocked_units=1 from public.room_rates where room_id=pg_temp.id('room') and date=pg_temp.mon()),
+  'PP2 a confirmed booking leaves only the unbooked room closable');
+delete from public.room_rates where room_id=pg_temp.id('room') and date=pg_temp.mon();
 reset role;
 select pg_temp.ok((select status = 'confirmed' and total_amount = 5000 and commission_rate = 15 and platform_commission = 750 and partner_payout_amount = 4250 from public.booking_requests where id = pg_temp.id('b1')),
                   '12 confirm fixes amount 5000, commission 15% = 750, host payout 4250');
@@ -182,10 +194,14 @@ select pg_temp.putj('stats', public.admin_homestay_stats());
 reset role;
 select pg_temp.ok((select status = 'answered' from public.support_tickets where id = pg_temp.id('t1'))
               and exists (select 1 from public.notifications where user_id = '00000000-0000-4000-8000-0000000000b1' and title = 'Reply from THH support'), '33 admin reply marks ticket answered; host notified');
-select pg_temp.ok((pg_temp.j('stats') ->> 'gmv')::int = 5000 + 2000 + (select total_amount from public.booking_requests where id = pg_temp.id('b2'))
+select pg_temp.ok((pg_temp.j('stats') ->> 'gmv')::int = 5000 + (select total_amount from public.booking_requests where id = pg_temp.id('bt')) + (select total_amount from public.booking_requests where id = pg_temp.id('b2'))
               and (pg_temp.j('stats') ->> 'pending_payouts')::int = 0, '34 admin GMV counts confirmed / completed stays', pg_temp.j('stats')::text);
 select pg_temp.ok(exists (select 1 from public.audit_log where table_name = 'payout_requests' and actor = '00000000-0000-4000-8000-0000000000a1')
               and exists (select 1 from public.audit_log where table_name = 'homestays' and actor = '00000000-0000-4000-8000-0000000000a1'), '35 admin approvals and payouts are in the audit log');
+select pg_temp.login('00000000-0000-4000-8000-0000000000ee'::uuid);
+select pg_temp.ok((public.set_booking_status(pg_temp.id('b3'), 'cancelled')).guest_phone is null,
+  'PP1 guest cancellation does not return a phone in the booking row');
+reset role;
 select pg_temp.ok((select count(*) = 8 from pg_publication_tables where pubname = 'supabase_realtime' and tablename in ('homestays', 'booking_requests', 'payout_requests', 'partner_kyc', 'support_tickets', 'ticket_messages', 'partners', 'homestay_rooms')),
                   '36 live updates switched on for all queues');
 

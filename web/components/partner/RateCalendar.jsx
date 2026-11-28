@@ -45,12 +45,13 @@ export function RateCalendar({ lang, room, month, rates, booked = {} }) {
     if (!clear && price !== '' && !(Number(price) > 0)) { setMsg({ err: true, text: L('Price must be a positive amount.', 'किराया सही रकम हो।') }); return; }
     setBusy(true);
     const db = browserDb();
-    const { error } = clear
+    const { data, error } = clear
       ? await db.from('room_rates').delete().eq('room_id', room.id).in('date', sel)
-      : await db.from('room_rates').upsert(sel.map((date) => ({ room_id: room.id, date, custom_price: price === '' ? (closeAll ? byDate[date]?.custom_price ?? null : null) : Math.round(Number(price)), blocked_units: b })), { onConflict: 'room_id,date' });
+      : await db.from('room_rates').upsert(sel.map((date) => ({ room_id: room.id, date, custom_price: price === '' ? (closeAll ? byDate[date]?.custom_price ?? null : null) : Math.round(Number(price)), blocked_units: b })), { onConflict: 'room_id,date' }).select('blocked_units');
     setBusy(false);
     if (error) { setMsg({ err: true, text: error.message }); return; }
-    setMsg({ err: false, text: L('Saved', 'सेव हो गया') }); setSel([]); setAnchor(null); setPrice(''); setBlocked(''); router.refresh();
+    const capped = data?.some((rate) => rate.blocked_units < b);
+    setMsg({ err: false, text: capped ? L('Saved. Only unbooked rooms were closed.', 'सेव हो गया। सिर्फ़ खाली कमरे बंद किए गए।') : L('Saved', 'सेव हो गया') }); setSel([]); setAnchor(null); setPrice(''); setBlocked(''); router.refresh();
   }
   const fmtMonth = new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString(lang === 'hi' ? 'hi-IN' : 'en-IN', { month: 'long', year: 'numeric', timeZone: 'UTC' });
   return (
@@ -99,7 +100,7 @@ export function RateCalendar({ lang, room, month, rates, booked = {} }) {
           {msg ? <p className={msg.err ? 'form-err' : 'form-ok'} role="status">{msg.text}</p> : null}
           <div className="pp-acts">
             <button type="button" className="btn" disabled={busy} onClick={() => apply(false)}>{busy ? L('Saving…', 'सेव हो रहा है…') : L('Save', 'सेव करें')}</button>
-            <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => apply(false, true)}>{L('Close all rooms', 'सभी कमरे बंद करें')}</button>
+            <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => apply(false, true)}>{L('Close all unbooked rooms', 'सभी खाली कमरे बंद करें')}</button>
             <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => apply(true)}>{L('Reset to normal', 'सामान्य करें')}</button>
           </div>
           <small className="muted">{L('Closing rooms does not cancel bookings you already have. Guests see exactly the prices you set.', 'कमरे बंद करने से पहले की बुकिंग रद्द नहीं होती। मेहमानों को वही किराया दिखेगा जो आप रखेंगे।')}</small>

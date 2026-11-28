@@ -11,5 +11,7 @@ if (process.env.THH_ENV === 'staging' &&
     SUPABASE_URL !== `https://${process.env.THH_STAGING_PROJECT_REF}.supabase.co`) {
     throw new Error('Staging Supabase URL does not match THH_STAGING_PROJECT_REF.');
 }
-export const SITE_URL = (process.env.URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://thehimalayanhorizon.netlify.app').replace(/\/$/, '');
+export const SITE_URL = (process.env.VERCEL_ENV === 'preview' && process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : process.env.URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://thehimalayanhorizon.netlify.app').replace(/\/$/, '');
 export const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || '18';

@@ -4,6 +4,7 @@ import { requireAdmin } from '@/lib/admin';
 import { rows } from '@/lib/account';
 import { inr } from '@/lib/format';
 import { Decide, PrivateFile } from '@/components/admin/Decide';
+import { homestayPublicationIssues } from '@/lib/publication';
 
 const TABS = ['partners', 'homestays', 'tours', 'workspaces', 'kyc'];
 const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z]/g, '');
@@ -36,14 +37,18 @@ export default async function Approvals({ searchParams }) {
             <Decide lang={lang} table="partners" id={p.id} />
           </article>)) : empty) : null}
 
-        {tab === 'homestays' ? (homestays.length ? homestays.map((h) => (
+        {tab === 'homestays' ? (homestays.length ? homestays.map((h) => {
+          const issues = homestayPublicationIssues(h);
+          return (
           <article key={h.id} className="ds-panel"><h2>{h.name}</h2>
             <p className="small">{h.partners?.business_name} · {[h.village, h.district, h.state].filter(Boolean).join(', ')} · {(h.images || []).length} {L('photos', 'फ़ोटो')}</p>
             <p className="small muted">{h.summary}</p>
             <p className="small">{rooms.filter((r) => r.homestay_id === h.id).map((r) => `${r.room_type} × ${r.total_inventory} (${inr(r.base_price)}${r.weekend_price ? ` / ${inr(r.weekend_price)}` : ''})`).join(' · ')}</p>
             {(h.images || []).length ? <div className="gallery-grid">{h.images.slice(0, 4).map((u) => <img key={u} src={u} alt="" loading="lazy" />)}</div> : null}
-            <Decide lang={lang} table="homestays" id={h.id} commission={h.commission_rate ?? 12} />
-          </article>)) : empty) : null}
+            {issues.length ? <p className="soft-note warn" role="status">{L('Complete before approval:', 'मंज़ूरी से पहले पूरा करें:')} {issues.map((issue) => issue[lang === 'hi' ? 1 : 0]).join(', ')}</p> : null}
+            <Decide lang={lang} table="homestays" id={h.id} commission={h.commission_rate ?? 12} canApprove={!issues.length} />
+          </article>);
+        }) : empty) : null}
 
         {tab === 'tours' ? (tours.length ? tours.map((x) => (
           <article key={x.id} className="ds-panel"><h2>{x.title}</h2><p className="small">{x.partners?.business_name} · {x.village} · {inr(x.price_per_person)}</p><p className="small muted">{x.summary}</p>

@@ -47,7 +47,11 @@ export async function setMember(form) {
     const { data: pending,error: lookupError }=await db.rpc('management_invitation_pending',{ p_email:email });
     if (lookupError) return failure(lookupError);
     if (pending) {
-      const redirectTo = new URL('/management/invite', process.env.NEXT_PUBLIC_SITE_URL || 'https://thehimalayanhorizon.netlify.app').toString();
+      const siteOrigin = process.env.VERCEL_ENV === 'preview'
+        ? (process.env.VERCEL_URL && `https://${process.env.VERCEL_URL}`)
+        : (process.env.NEXT_PUBLIC_SITE_URL || 'https://thehimalayanhorizon.netlify.app');
+      if (!siteOrigin) return failure(new Error('Preview invitation URL is unavailable.'));
+      const redirectTo = new URL('/management/invite', siteOrigin).toString();
       let { error: deliveryError } = await inviteAdmin.auth.admin.inviteUserByEmail(email, { redirectTo });
       if (['email_exists', 'user_already_exists'].includes(deliveryError?.code)) {
         const auth = adminClient(SUPABASE_URL, SUPABASE_KEY, { auth: { flowType: 'implicit', persistSession: false, autoRefreshToken: false } }).auth;

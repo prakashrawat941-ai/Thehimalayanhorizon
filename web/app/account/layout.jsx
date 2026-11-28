@@ -1,6 +1,7 @@
 import { getT } from '@/lib/i18n/server';
 import { requireUser } from '@/lib/account';
 import { AccountNav } from '@/components/account/AccountNav';
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import './account.css';
 
 export const metadata = { robots: { index: false } };
@@ -25,7 +26,7 @@ export default async function AccountLayout({ children }) {
   return (
     <div className="ds">
       <AccountNav items={items} title={L('My account', 'मेरा अकाउंट')} />
-      <div className="ds-main">{children}</div>
+      <div className="ds-main"><div className="dsx-topbar"><ThemeToggle /></div>{children}</div>
     </div>
   );
 }
