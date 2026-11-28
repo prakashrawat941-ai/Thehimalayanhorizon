@@ -1,0 +1,42 @@
+name: THH daily project report
+on:
+  schedule:
+    - cron: '30 14 * * *'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/thh-project-report.yml'
+permissions:
+  contents: read
+  pull-requests: read
+  actions: read
+concurrency:
+  group: report-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Generate deterministic report
+        shell: bash
+        run: |
+          set -euo pipefail
+          since=$(date -u -d '24 hours ago' +%FT%TZ)
+          {
+            echo '# THH daily project report'
+            echo "Generated: $(TZ=Asia/Kolkata date '+%Y-%m-%d %H:%M IST')"
+            echo '## Open pull requests (up to 100)'
+            gh pr list --repo "$GH_REPO" --state open --limit 100 --json number,title,isDraft,url,baseRefName | jq -r '.[] | "- PR #\(.number) \(.title | @html) — draft: \(.isDraft), target: \(.baseRefName | @html) — \(.url)"'
+            echo '## Integration branch commits (last 24 hours, up to 100)'
+            gh api --method GET "repos/$GH_REPO/commits" -f sha=integration/thh-unified-baseline-v1 -f since="$since" -F per_page=100 | jq -r '.[] | "- \(.sha[0:7]) \(.commit.message | split("\n")[0] | @html)"'
+            echo '## Recent workflow runs (up to 100)'
+            gh run list --repo "$GH_REPO" --limit 100 --json databaseId,name,status,conclusion,url,createdAt | jq -r --arg since "$since" '.[] | select(.createdAt >= $since) | "- \(.name | @html): \(.status) / \(.conclusion) — \(.url)"'
+            echo '## Blockers: failed workflow runs in last 24 hours'
+            gh run list --repo "$GH_REPO" --limit 100 --json name,conclusion,url,createdAt | jq -r --arg since "$since" '.[] | select(.createdAt >= $since and .conclusion == "failure") | "- \(.name | @html) — \(.url)"'
+            echo 'Report reflects GitHub metadata, not verified feature completion.'
+          } > report.md
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
