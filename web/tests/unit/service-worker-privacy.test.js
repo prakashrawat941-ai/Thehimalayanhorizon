@@ -21,7 +21,7 @@ async function navigate(path) {
     addEventListener(type, fn) { handlers[type] = fn; },
   };
   runInNewContext(script, { self, caches, fetch: async () => response, URL });
-  const request = { method: 'GET', mode: 'navigate', url: `${self.location.origin}${path}` };
+  const request = { method: 'GET', mode: 'navigate', headers: new Headers(), url: `${self.location.origin}${path}` };
   let returned;
   handlers.fetch({ request, respondWith(promise) { returned = promise; } });
   if (returned) await returned;
