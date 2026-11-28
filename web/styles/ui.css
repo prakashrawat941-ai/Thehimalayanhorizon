@@ -380,3 +380,32 @@
 .ui-demo-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-bottom: 16px; }
 .ui-module, .ui-mod-panel, .ui-mod-section, .ui-work, .ui-work-body { grid-template-columns: minmax(0, 1fr); }
 .ui-module > * { min-width: 0; }
+
+/* Central approval engine (approval center tabs) */
+.ui-apr-head { display: grid; gap: 12px; margin-bottom: 14px; justify-items: start; }
+.ui-apr-counts { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ui-apr-counts li { display: grid; grid-template-columns: auto auto; grid-template-rows: auto auto; column-gap: 8px; align-items: center; padding: 10px 12px; border: 1px solid var(--ui-border); border-radius: var(--ui-radius-sm); background: var(--ui-surface); color: var(--ui-muted); min-width: 0; }
+.ui-apr-counts li strong { font-size: 20px; color: var(--ui-text); line-height: 1.1; }
+.ui-apr-counts li span { grid-column: 1 / -1; font-size: 13px; overflow-wrap: anywhere; }
+.ui-apr-counts li.has-items { border-color: var(--ui-primary); }
+.ui-apr-counts li.has-items strong { color: var(--ui-primary); }
+.ui-apr-filters { display: flex; flex-wrap: wrap; gap: 8px; }
+.ui-apr-list { display: grid; gap: 12px; min-width: 0; }
+.ui-apr-item { display: grid; gap: 0; min-width: 0; }
+.ui-apr-row { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--ui-border); border-radius: var(--ui-radius); background: var(--ui-surface); min-width: 0; }
+.ui-apr-row h3 { margin: 0 0 4px; font-size: 16px; overflow-wrap: anywhere; }
+.ui-apr-row p { margin: 0 0 8px; font-size: 13px; overflow-wrap: anywhere; }
+.ui-apr-row-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.ui-apr-row-side { display: grid; gap: 0; justify-items: start; align-content: start; }
+.ui-apr-row-side > .ui-actions-row { margin-top: 8px; }
+.ui-apr-fieldset { border: 1px solid var(--ui-border); border-radius: var(--ui-radius-sm); padding: 10px 12px 0; margin: 12px 0 0; min-width: 0; }
+.ui-apr-fieldset legend { padding: 0 6px; font-weight: 600; font-size: 14px; }
+.ui-apr-reason { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+.ui-apr-detail { display: grid; gap: 4px; min-width: 0; }
+@media (min-width: 720px) {
+  .ui-apr-counts { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .ui-apr-row { grid-template-columns: minmax(0, 1fr) auto; align-items: start; }
+  .ui-apr-row-side { justify-items: end; }
+}
+.ui-apr-summary { margin: 0 0 6px; } .ui-apr-summary .ui-apr-reason { font-size: 14px; }
+.ui-apr-inline-actions { display: contents; }

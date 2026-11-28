@@ -33,19 +33,20 @@ export const MODULES = {
     icon: 'approvals', title: ['Approval center', 'मंज़ूरी केंद्र'],
     summary: ['Every controlled change in one place: Co-Founder request → CEO review → Founder approval where required → authorised execution → audit log.', 'हर नियंत्रित बदलाव एक जगह: सह-संस्थापक अनुरोध → CEO समीक्षा → ज़रूरत हो तो संस्थापक मंज़ूरी → अधिकृत क्रियान्वयन → ऑडिट लॉग।'],
     sections: [
-      s('queue', 'live-table', 'Live queue', 'लाइव कतार', { live: 'work' }),
+      s('queue', 'live-table', 'Legacy work queue', 'पुरानी कार्य कतार', { live: 'work' }),
       s('inbox', 'table', 'Waiting for me', 'मेरे लिए लंबित', { entity: 'approval', scope: 'inbox' }),
       s('mine', 'table', 'My requests', 'मेरे अनुरोध', { entity: 'approval', scope: 'mine', create: true }),
+      s('execute', 'table', 'Ready to apply', 'लागू करने को तैयार', { entity: 'approval', scope: 'all', statuses: ['approved', 'failed'] }),
       s('history', 'table', 'History', 'इतिहास', { entity: 'approval', scope: 'history' }),
     ],
-    roles: { founder: ['queue', 'inbox', 'mine', 'history'], ceo: ['queue', 'inbox', 'mine', 'history'], co_founder: ['queue', 'mine', 'history'] },
+    roles: { founder: ['inbox', 'mine', 'execute', 'history', 'queue'], ceo: ['inbox', 'mine', 'execute', 'history', 'queue'], co_founder: ['mine', 'execute', 'history', 'queue'] },
     scope: {
       founder: ['Founder final approvals: sensitive, financial, security and policy changes.', 'संस्थापक अंतिम मंज़ूरी: संवेदनशील, वित्तीय, सुरक्षा और नीति बदलाव।'],
       ceo: ['CEO review of every Co-Founder operational change; escalate sensitive ones to the Founder.', 'सह-संस्थापक के हर संचालन बदलाव की CEO समीक्षा; संवेदनशील बदलाव संस्थापक को भेजें।'],
       co_founder: ['Submit changes for CEO approval and track them to execution.', 'बदलाव CEO मंज़ूरी के लिए भेजें और लागू होने तक देखें।'],
     },
     links: { founder: [link('/founder/approvals', 'My approvals (approved screen)', 'मेरी मंज़ूरियाँ (स्वीकृत स्क्रीन)')], ceo: [link('/ceo/reviews', 'Approve requests (approved screen)', 'अनुरोध मंज़ूर करें (स्वीकृत स्क्रीन)'), link('/ceo/requests', 'Sent to Founder', 'संस्थापक को भेजे')], co_founder: [link('/co-founder/releases', 'App releases', 'ऐप रिलीज़')] },
-    codex: ['Unified approval_requests table with category, stage, risk, version, before/after snapshot', 'Decide RPC with expectedVersion, no self-approval, stale check, Founder stage for sensitive categories', 'Execution step separated from approval, with execution status and audit event', 'Sensitive-category list (business decision)'],
+    codex: ['Move remaining legacy management_work kinds onto approval_requests (bridge)', 'Category-specific executors beyond office creation (CMS publish, listing activation, hiring record)'],
   },
   people: {
     icon: 'people', title: ['People', 'लोग'],
