@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { AppShell, PageHeader, Badge } from '@/components/ui';
 import { WorkWorkspace } from '@/components/work/WorkWorkspace';
-import { SAMPLE_PEOPLE, sampleTasks } from '@/lib/work/sample-tasks';
+import { SAMPLE_PEOPLE, SAMPLE_PROJECTS, sampleTasks } from '@/lib/work/sample-tasks';
 
 const PEOPLE = Object.values(SAMPLE_PEOPLE).map((p) => ({ id: p.id, name: p.name, role: p.role }));
 const NAV = [{ href: '/ui-kit/work', label: 'Work demo', icon: 'check', current: true }];
@@ -12,6 +12,7 @@ export function WorkDemo() {
   const [actorId, setActorId] = useState('THH-EMP-0001');
   const [lang, setLang] = useState('en');
   const [seed, setSeed] = useState(() => sampleTasks());
+  const [resetKey, setResetKey] = useState(0);
   const actor = PEOPLE.find((p) => p.id === actorId);
   return (
     <AppShell brand="THH Work demo" nav={NAV}>
@@ -35,14 +36,16 @@ export function WorkDemo() {
       </p>
       <div style={{ height: 12 }} />
       <WorkWorkspace
+        key={resetKey}
         lang={lang}
         source="demo"
         people={PEOPLE}
         actor={actor}
         initialTasks={seed}
+        initialProjects={SAMPLE_PROJECTS}
         roleTitle={`THH Work · ${actor?.role}`}
       />
-      <button type="button" className="ui-btn ui-btn-ghost ui-btn-sm" onClick={() => setSeed(sampleTasks())}>Reset sample data</button>
+      <button type="button" className="ui-btn ui-btn-ghost ui-btn-sm" onClick={() => { setSeed(sampleTasks()); setResetKey((k) => k + 1); }}>Reset sample data</button>
     </AppShell>
   );
 }

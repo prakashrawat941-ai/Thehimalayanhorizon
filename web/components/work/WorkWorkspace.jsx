@@ -9,6 +9,7 @@ import {
 import { ActivityList, TaskBoard, TaskChip, TaskList } from './TaskViews';
 import { TaskForm } from './TaskForm';
 import { ActionDialog } from './ActionDialog';
+import { ProjectsPanel, TaskCalendar, TaskExtras, WorkReports } from './WorkExtras';
 import { ACTION_LABEL, ERROR_TEXT, PRIORITY_LABEL, STATUS_LABEL, tt } from './i18n';
 
 const PAGE_SIZE = 10;
@@ -24,16 +25,20 @@ const PAGE_SIZE = 10;
  */
 export function WorkWorkspace(props) {
   return (
-    <ToastProvider>
-      <Inner {...props} />
-    </ToastProvider>
+    <div className="ui-module" data-surface="enterprise">
+      <ToastProvider>
+        <Inner {...props} />
+      </ToastProvider>
+    </div>
   );
 }
 
-function Inner({ lang = "en", source = null, people = [], actor = { id: null }, initialTasks = [], roleTitle }) {
+function Inner({ lang = "en", source = null, people = [], actor = { id: null }, initialTasks = [], initialProjects = [], roleTitle }) {
   const L = tt(lang);
   const toast = useToast();
   const [tasks, setTasks] = useState(initialTasks);
+  const [projects, setProjects] = useState(initialProjects);
+  const [extras, setExtras] = useState({}); // taskId -> { subtasks, comments } (Codex: task_subtasks, task_comments)
   const [view, setView] = useState('board');
   const [filters, setFilters] = useState({});
   const [page, setPage] = useState(1);
@@ -124,11 +129,14 @@ function Inner({ lang = "en", source = null, people = [], actor = { id: null }, 
           tabs={[
             { id: 'board', label: L('Board', 'बोर्ड'), content: null },
             { id: 'list', label: L('List', 'सूची'), content: null },
+            { id: 'calendar', label: L('Calendar', 'कैलेंडर'), content: null },
+            { id: 'projects', label: L('Projects', 'प्रोजेक्ट'), content: null },
+            { id: 'reports', label: L('Reports', 'रिपोर्ट'), content: null },
             { id: 'activity', label: L('Activity', 'गतिविधि'), content: null },
           ]}
         />
         <div className="ui-work-body">
-          {view !== 'activity' ? (
+          {['board', 'list'].includes(view) ? (
             <FilterBar
               value={filters}
               onChange={(next) => { setFilters(next); setPage(1); }}
@@ -160,6 +168,9 @@ function Inner({ lang = "en", source = null, people = [], actor = { id: null }, 
               ) : null}
             </>
           ) : null}
+          {view === 'calendar' ? <TaskCalendar tasks={shown} lang={lang} today={today} onOpen={setOpenId} /> : null}
+          {view === 'projects' ? <ProjectsPanel projects={projects} setProjects={setProjects} tasks={tasks} lang={lang} person={person} actor={actor} today={today} /> : null}
+          {view === 'reports' ? <WorkReports tasks={tasks} lang={lang} person={person} today={today} /> : null}
           {view === 'activity' ? <ActivityList tasks={tasks} lang={lang} person={person} actionLabel={actionLabel} /> : null}
         </div>
       </Card>
@@ -180,6 +191,7 @@ function Inner({ lang = "en", source = null, people = [], actor = { id: null }, 
             onAct={act}
           />
         ) : null}
+        {open ? <TaskExtras task={open} extras={extras[open.id]} onChange={(x) => setExtras((all) => ({ ...all, [open.id]: x }))} lang={lang} person={person} actor={actor} /> : null}
       </Dialog>
 
       {dialog && open ? (

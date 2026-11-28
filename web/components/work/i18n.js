@@ -11,7 +11,7 @@ export const PRIORITY_LABEL = {
   low: ['Low', 'कम'], medium: ['Medium', 'मध्यम'], high: ['High', 'ज़्यादा'], urgent: ['Urgent', 'तुरंत'],
 };
 export const ACTION_LABEL = {
-  assign: ['Assign', 'सौंपें'], accept: ['Accept', 'स्वीकारें'], start: ['Start work', 'काम शुरू करें'],
+  create: ['Created', 'बनाया'], assign: ['Assign', 'सौंपें'], accept: ['Accept', 'स्वीकारें'], start: ['Start work', 'काम शुरू करें'],
   progress: ['Save progress', 'प्रगति सहेजें'], submit: ['Submit for review', 'समीक्षा के लिए भेजें'],
   request_revision: ['Request revision', 'संशोधन माँगें'], approve: ['Approve', 'मंज़ूर करें'],
   complete: ['Mark completed', 'पूरा चिह्नित करें'], block: ['Mark blocked', 'रुका हुआ चिह्नित करें'],

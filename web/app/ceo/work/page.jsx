@@ -1,5 +1,5 @@
 import { getT } from '@/lib/i18n/server';
-import { requireAdmin } from '@/lib/admin';
+import { requireManagement } from '@/lib/management/guard';
 import { WorkWorkspace } from '@/components/work/WorkWorkspace';
 
 export const metadata = { robots: { index: false } };
@@ -7,7 +7,8 @@ export const metadata = { robots: { index: false } };
 // Task service not connected yet: source is null, so the workspace shows "Not connected yet" and no tasks.
 // Codex's adapter will pass source="backend" with server-derived people and actor (docs/DATA-CONTRACTS.md).
 export default async function Page() {
-  await requireAdmin('/ceo/work');
+  const { user, mfaNeeded } = await requireManagement('ceo', '/ceo/work');
+  if (mfaNeeded) return null;
   const { lang } = await getT();
-  return <WorkWorkspace lang={lang} source={null} roleTitle="THH Work · CEO" />;
+  return <WorkWorkspace lang={lang} source={null} actor={{ id: user.id }} roleTitle="THH Work" />;
 }

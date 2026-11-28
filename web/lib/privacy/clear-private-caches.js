@@ -36,3 +36,23 @@ export async function clearPrivateCaches(cacheStorage = globalThis.caches) {
   }
   return removed;
 }
+
+/** Prefix for offline drafts saved by village office forms (Step 02). Drafts are cleared on sign-out. */
+export const DRAFT_PREFIX = 'thh.draft.';
+
+/** Removes offline drafts from localStorage. Returns the number removed; never throws. */
+export function clearOfflineDrafts(storage = globalThis.localStorage) {
+  let removed = 0;
+  try {
+    if (!storage) return 0;
+    const keys = [];
+    for (let i = 0; i < storage.length; i += 1) {
+      const k = storage.key(i);
+      if (k && k.startsWith(DRAFT_PREFIX)) keys.push(k);
+    }
+    for (const k of keys) { storage.removeItem(k); removed += 1; }
+  } catch {
+    /* storage unavailable */
+  }
+  return removed;
+}

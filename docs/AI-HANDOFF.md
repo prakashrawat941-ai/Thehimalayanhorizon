@@ -742,3 +742,52 @@ The master spec places THH Work (Module 07) after the Phase 3 gate, and says Pha
 ### Next slice
 
 Awaiting approval. Proposed next: Task and project management (per the approved sequence), or Activity Center if preferred.
+
+---
+
+## Step 02: Leadership & company management (frontend)
+
+**Branch:** `claude/thh-step02-leadership`, created from `integration/thh-unified-baseline-v1` (f5505c7) with `claude/thh-leadership-tasks` (bc8b374, which contains Phase 1 `093628f`) merged in. Draft PR targets `integration/thh-unified-baseline-v1`. `main`, PR #30 and the task branch are untouched.
+**Status:** frontend complete for every Step 02 module, running on **not-connected** adapters on real routes. Only five read-only views use live data (existing RPCs). **Not functionally complete** until Codex ships the contracts in `docs/DATA-CONTRACTS.md` §13–26 and they pass integration tests.
+
+### What was built
+
+- **Module engine** (`web/lib/modules/`, `web/components/modules/`): one declarative registry of 15 modules → role-scoped sections (table, form, timeline, calendar, ID card, chat, integrations, preferences, permission matrix, reports, research, attendance, emergency, hierarchy, live views). Shared table section: filters, search, sorting, phone card layout, pagination, record dialog with version comparison and history, server-provided actions with required notes, create dialogs with validation, CSV export (formula-injection safe), offline drafts for village forms.
+- **Adapters:** `notConnectedAdapter` (real routes; returns `INTEGRATION_UNAVAILABLE`, never shows or saves anything), demo adapter (only `/ui-kit/modules`, labelled sample), and the `backend` adapter slot for Codex (same 4 methods).
+- **Routes:** 35 module pages under `/founder`, `/ceo`, `/co-founder` (list in DATA-CONTRACTS §26), each via `ModuleRoute` → `requireManagement(role, path)` + aal2. Sidebar gets a "Company tools" group after the approved items (built from the registry). Approved pages are unchanged.
+- **THH Work:** Calendar, Projects (THH-PRJ IDs, milestones), Reports tabs; task detail adds subtasks, comments, collaborators, attachment/reminder placeholders. Work pages now use `requireManagement` (was the temporary `requireAdmin`) and pass the session user as actor.
+- **Live (real) data, read-only:** approval Live queue (`management_work` via approved `WorkQueue` + existing `decide` action), Founder leadership list (`management_people`), Founder/CEO management events, office staff today (`loadOffices`), Founder booking-value totals (`management_finance`, labelled not a ledger).
+- **Surface:** module content wraps in `data-surface="enterprise"` (Navy/Blue/Teal) inside the approved dashboard shell, per the Phase 1 decision.
+- **Fixes:** Work demo reset now resets; module timeline class renamed `.ui-feed` (it had collided with Work's `.ui-timeline`); grid columns `minmax(0,1fr)` stop wide tables pushing pages sideways on phones.
+
+### Shared-file changes to note (Codex coordination)
+
+`web/components/account/AccountNav.jsx` (optional `{ heading }` items; chips skip them), `web/components/dash/ManagementFrame.jsx` (nav append), `web/lib/privacy/clear-private-caches.js` (`DRAFT_PREFIX`, `clearOfflineDrafts`), `web/styles/ui.css` (appended Step 02 block), `web/app/{founder,ceo,co-founder}/work/page.jsx` (guard). No migrations, RLS, auth or API files were changed.
+
+### Codex requirements (in priority order)
+
+1. Approval engine (`approval_requests`, decide with version + no self-approval + Founder stage, separate execution + audit). Decide the sensitive-category list with the Founder.
+2. Task tables + action RPCs; return `allowedActions` per row (§11a reconciliation with `transitionTask`).
+3. People (`employees` with THH-EMP IDs, departments, personnel actions via approval, session revoke on suspension).
+4. Workforce (attendance server time, leave + balances — policy decision needed), Connect (participant-only RLS, realtime), Activity feed + notifications.
+5. Village tables (first office Surmoli, Deghat, Almora, Uttarakhand via approved request), Capital accounting APIs, Growth, Control (sessions, emergency suspension), integrations status endpoint, storage bucket with signed URLs, report/PDF export.
+6. Wire `clearPrivateCaches()` and `clearOfflineDrafts()` into sign-out; confirm the service worker never caches the 35 new routes.
+7. Build the `backend` adapter (or tell me the endpoint shapes and I will build it) and run the checks below on staging.
+
+### Checks actually run (this session — no network, no package installs)
+
+- Unit (stand-in runner on esbuild, not real Vitest): **171/171** — includes 43 new tests for validation, IDs, CSV safety, adapters (version, transition, note, approval routing, idempotency, scope) and registry integrity (every role/module route exists and is guarded, no sample imports on real routes, labels bilingual, nav icons exist).
+- Bundle check of all 90 new/changed source files with esbuild (stand-in for `next build`): **90/90**.
+- Contracts typecheck (`tsc -p tsconfig.contracts.json`): pass. `check:dark`: up to date.
+- Browser (Chromium via Playwright library, sample-data route): **53/53** modules checks (all 3 roles × every module × every tab = 140 panels at 1280 light and 360 dark: sample banner, no horizontal overflow, basic a11y checks, no console errors; plus approval, people, leave, attendance, CSV, offline draft, chat, integrations, research, suspension, ID, Hindi flows), **31/31** Work, **59/59** UI kit.
+- **Not run:** `npm install`, ESLint, real Vitest, `next build`, `@playwright/test` specs (`web/e2e/leadership-modules.spec.js` added, unrun), axe, auth/MFA, RLS/role access, database persistence, staging preview, PWA security, website regression. These need Codex's environment.
+
+### Blockers
+
+- No backend contracts for any Step 02 module yet → management tools are not functional on real routes (they show "Not connected yet").
+- No package install / network in this session → no real lint, test, build or axe runs.
+- No staging deploy access from this session.
+- Business decisions pending: sensitive approval categories, leave policy and balances, who may publish company-wide announcements, office creation authority.
+- Providers not configured (email, WhatsApp, push, Maps, AI, calendar, storage) — shown as "status unknown/not configured", never simulated.
+
+Screenshots: `docs/ui-previews/step-02/`.

@@ -23,7 +23,7 @@ export function sampleTasks() {
       ],
     },
     {
-      id: 'THH-TSK-000002', title: 'Sample: Update Hindi copy on Our Story page', description: '',
+      id: 'THH-TSK-000002', title: 'Sample: Update Hindi copy on Our Story page', description: '', projectId: 'THH-PRJ-00001', collaboratorIds: ['THH-EMP-0001'],
       creatorId: 'THH-EMP-0001', assigneeId: 'THH-EMP-0003', reviewerId: 'THH-EMP-0002', reviewRequired: true,
       departmentId: null, priority: 'medium', startDate: '2026-11-22', dueDate: '2026-12-02', estimateHours: 4,
       progress: 40, status: 'in_progress', version: 3, createdAt: t1, updatedAt: '2026-11-25T03:00:00.000Z',
@@ -52,3 +52,10 @@ export function sampleTasks() {
     },
   ];
 }
+
+export const SAMPLE_PROJECTS = Object.freeze([
+  { id: 'THH-PRJ-00001', name: 'Sample: Winter season website refresh', ownerId: 'THH-EMP-0003', due: '2026-12-15', milestones: [
+    { id: 'THH-MST-00101', title: 'Hindi copy reviewed', done: false },
+    { id: 'THH-MST-00102', title: 'Winter hero approved by CEO', done: false },
+  ] },
+]);
